@@ -1,4 +1,5 @@
 import numpy as np
+
 from game_data import (RACE_NAMES, ArmourDict, FactionProfiles, FirstRoundOnly,
                        FirstRoundStr, IthilmarWeapons, MeleeWeaponDict,
                        StrikeFirst, StrikeLast, WeaponSkillChart,
@@ -90,28 +91,38 @@ def RollToHit(attacker, defender, verbose=False):
     """
     Roll dice to hit based on the attacker's Weapon Skill and defender's Weapon Skill.
     Returns the number of successful hits.
-    Handles Ithilmar Weapons special rule that allows rerolls of 1s.
+    Handles Ithilmar Weapons special rule (reroll 1s with Hand Weapons) and 
+    RerollHits1 special rule (reroll 1s with any weapon).
     """
     to_hit_target = WeaponSkillChart[attacker.WeaponSkill - 1][defender.WeaponSkill - 1]
     successful_hits = 0
 
-    # Check if attacker has Ithilmar Weapons
+    # Check for reroll abilities
+    has_reroll = False
     has_ithilmar = False
     if attacker.SpecialRules:
         if isinstance(attacker.SpecialRules, list):
+            has_reroll = "RerollHits1" in attacker.SpecialRules
             has_ithilmar = IthilmarWeapons in attacker.SpecialRules
         else:
+            has_reroll = attacker.SpecialRules == "RerollHits1"
             has_ithilmar = attacker.SpecialRules == IthilmarWeapons
 
     for attack in range(attacker.Attacks):
         roll = np.random.randint(1, 7)  # Roll a D6
         
-        # If roll is 1 and has Ithilmar Weapons, reroll
-        if roll == 1 and has_ithilmar:
+        # Check if a reroll is allowed
+        can_reroll = has_reroll or (has_ithilmar and attacker.Weapon == "HW")
+        
+        # If roll is 1 and has reroll ability, reroll
+        if roll == 1 and can_reroll:
             old_roll = roll
             roll = np.random.randint(1, 7)  # Reroll
             if verbose:
-                print(f"Ithilmar Weapons: Rerolling hit roll of 1 -> New roll: {roll}")
+                if has_reroll:
+                    print(f"RerollHits1: Rerolling hit roll of 1 -> New roll: {roll}")
+                else:
+                    print(f"Ithilmar Weapons: Rerolling hit roll of 1 -> New roll: {roll}")
         
         if roll >= to_hit_target:
             successful_hits += 1
@@ -407,10 +418,54 @@ def OneRoundMeleeCombat(
     if verbose:
         print(f"Total saves: {saves}")
 
-    # Apply final wounds
+    # Check for Ward save
     final_wounds = wounds - saves
-    if verbose:
-        print(f"Final wounds after saves: {final_wounds}")
+    ward_target = None
+    if defender.SpecialRules:
+        if isinstance(defender.SpecialRules, list):
+            ward_rules = [rule for rule in defender.SpecialRules if isinstance(rule, str) and rule.startswith("Ward")]
+            if ward_rules:
+                ward_target = int(ward_rules[0][4:])  # Extract number from "WardX"
+        elif isinstance(defender.SpecialRules, str) and defender.SpecialRules.startswith("Ward"):
+            ward_target = int(defender.SpecialRules[4:])  # Extract number from "WardX"
+    
+    if ward_target is not None:
+        ward_saves = 0
+        for _ in range(final_wounds):
+            roll = np.random.randint(1, 7)  # Roll a D6
+            if roll >= ward_target:
+                ward_saves += 1
+                if verbose:
+                    print(f"Ward save roll: {roll} vs target {ward_target}+ - Saved!")
+            elif verbose:
+                print(f"Ward save roll: {roll} vs target {ward_target}+ - Failed!")
+        final_wounds -= ward_saves
+        if verbose:
+            print(f"Wounds after ward saves: {final_wounds}")
+
+    # Check for Regeneration save
+    regen_target = None
+    if defender.SpecialRules:
+        if isinstance(defender.SpecialRules, list):
+            regen_rules = [rule for rule in defender.SpecialRules if isinstance(rule, str) and rule.startswith("Regen")]
+            if regen_rules:
+                regen_target = int(regen_rules[0][5:])  # Extract number from "RegenX"
+        elif isinstance(defender.SpecialRules, str) and defender.SpecialRules.startswith("Regen"):
+            regen_target = int(defender.SpecialRules[5:])  # Extract number from "RegenX"
+
+    if regen_target is not None:
+        regen_saves = 0
+        for _ in range(final_wounds):
+            roll = np.random.randint(1, 7)  # Roll a D6
+            if roll >= regen_target:
+                regen_saves += 1
+                if verbose:
+                    print(f"Regeneration save roll: {roll} vs target {regen_target}+ - Saved!")
+            elif verbose:
+                print(f"Regeneration save roll: {roll} vs target {regen_target}+ - Failed!")
+        final_wounds -= regen_saves
+        if verbose:
+            print(f"Final wounds after regeneration: {final_wounds}")
 
     defender.Wounds -= final_wounds
     if verbose:
