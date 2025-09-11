@@ -1,10 +1,16 @@
-# Game Data Constants
+# Game Data 
+
+from armor import *
+
+from elven_honors import *
+from magic_items import *
+from weapons import *
 
 # Race Synonyms and Race Names
 RACE_NAMES = {
     "HIGH_ELVES": ["High Elf", "High Elves", "Asur"],
     "DARK_ELVES": ["Dark Elf", "Dark Elves", "Druchii"],
-    "ORCS": ["Orc", "Orcs", "Greenskins"],
+    "ORCS": ["Orc", "Orcs", "Greenskins", "Orks", "Ork"],
     # Add more races as needed
 }
 
@@ -74,40 +80,6 @@ Wounds_vs_ToughnessChart = [
     [2, 2, 2, 2, 2, 2, 2, 3, 4, 5],  # Strength 9
     [2, 2, 2, 2, 2, 2, 2, 2, 3, 4],  # Strength 10
 ]
-
-
-ArmourDict = {
-    "None": 0,
-    ("Light Armor", "LA", "Light"): 6,
-    ("Heavy Armor", "HA", "Heavy"): 5,
-    ("Plate Armor", "PA", "Plate","Full Plate Armor","Full Plate"): 4,
-}
-
-# Dictionary for melee weapons, strength value and armor piercing value and special rules
-##### IMPLEMENT THAT CHARACTERS HAVE "REQUIRES tWO HANDS" WHICH MEANS THEY CANNOT USE A SHIELD
-
-# Special rules can include: "+1A" for +1 Attack
-MeleeWeaponDict = {
-    ("HW", "Hand Weapon", "HandWeapon"): [None, 0, None],  # Hand Weapon, no strength bonus, no armor piercing, no special rules
-    ("Two Hand Weapons", "2xHW", "2HW"): [None, 0, ["+1A"]],  # Two Hand Weapons, no strength bonus, no armor piercing, +1 Attack
-    ("Flail",): [2, -2, [FirstRoundStr]],  # Flail, +2 Strength, -2 Armor Piercing, First Round Strength only
-    ("Great Weapon", "GW", "GreatWeapon"): [2, -2, [StrikeLast, "AB1"]],  # Great Weapon, +2 Strength, -2 Armor Piercing, Armour Bane 1, Strike Last
-    ("Halberd",): [1, -1, ["AB1"]],  # Halberd, +1 Strength, -1 Armor Piercing, Armour Bane 1
-    ("Morning Star", "MorningStar","Morningstar"): [1, -1, [FirstRoundStr]],  # Morning Star, +1 Strength, -1 Armor Piercing, First Round Strength only
-    ("Whip",): [None, 0, [StrikeFirst]],  # Whip, Strike First
-    ("Lance",): [2, 2, [FirstRoundOnly, "AB1"]],  # Lance, +2 Strength, +2 Armor Piercing, Armour Bane 1, First Round Only
-    ("Cavalry Spear", "CavSpear", "CavalrySpear"): [1, -1, [FirstRoundOnly]],  # Cavalry Spear, +1 Strength, -1 armor piercing, First Round Only
-    ("Throwing Spears", "ThrowingSpear"): [None, 0, [FirstRoundOnly]],  # Throwing Spears, No strength, no armor piercing, First Round Only
-    ("Thrusting Spear", "ThrustingSpear", "Spear"): [None, 0, None],  # Thrusting Spear, no strength bonus, no armor piercing, no special rules
-    ("Chayal",):[2,-3,["KillingBlow6",RerollHits1]],
-    ("Mathlann's Ire",):[1,-2,["AB1","Magic"]],
-}
-
-MagicItemDict = {
-    "Pelt of Charandis": [ImproveArmor1InCombat,ImproveArmor2InShooting, "Regen5"],
-}
-
-
 
 # Faction Dictionaries
 FactionProfiles = {

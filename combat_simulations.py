@@ -1,90 +1,11 @@
 import numpy as np
 
-from game_data import (RACE_NAMES, ArmourDict, FactionProfiles, FirstRoundOnly,
-                       FirstRoundStr, IthilmarWeapons, MeleeWeaponDict,
-                       StrikeFirst, StrikeLast, WeaponSkillChart,
-                       Wounds_vs_ToughnessChart)
-
-
-class Character:
-    def __init__(
-        self,
-        name,
-        Movement=None,
-        WeaponSkill=None,
-        BallisticSkill=None,
-        Strength=None,
-        Toughness=None,
-        Initiative=None,
-        Wounds=None,
-        Attacks=None,
-        Leadership=None,
-        Race=None,
-        Armor=None,
-        Weapon="HW",
-        Shield=None,
-        SpecialRules=None,
-        faction_type=None,
-        profile_name=None
-    ):
-        if faction_type and profile_name:
-            if faction_type not in FactionProfiles:
-                raise ValueError(f"Unknown faction: {faction_type}")
-            if profile_name not in FactionProfiles[faction_type]:
-                raise ValueError(f"Unknown {faction_type} profile: {profile_name}")
-                
-            # Load base profile
-            profile = FactionProfiles[faction_type][profile_name]["base_profile"]
-            
-            # Allow overriding specific stats while using defaults for others
-            self.name = name
-            self.Movement = Movement if Movement is not None else profile["Movement"]
-            self.WeaponSkill = WeaponSkill if WeaponSkill is not None else profile["WeaponSkill"]
-            self.BallisticSkill = BallisticSkill if BallisticSkill is not None else profile["BallisticSkill"]
-            self.Strength = Strength if Strength is not None else profile["Strength"]
-            self.Toughness = Toughness if Toughness is not None else profile["Toughness"]
-            self.Initiative = Initiative if Initiative is not None else profile["Initiative"]
-            self.Wounds = Wounds if Wounds is not None else profile["Wounds"]
-            self.Attacks = Attacks if Attacks is not None else profile["Attacks"]
-            self.Leadership = Leadership if Leadership is not None else profile["Leadership"]
-            self.Race = Race if Race is not None else profile["Race"]
-            self.Armor = Armor if Armor is not None else profile["Armor"]
-            self.Weapon = Weapon if Weapon != "HW" else profile["Weapon"]
-            self.Shield = Shield if Shield is not None else profile["Shield"]
-            self.SpecialRules = SpecialRules if SpecialRules is not None else profile["SpecialRules"]
-            
-            # Validate equipment options
-            options = FactionProfiles[faction_type][profile_name]["equipment_options"]
-            if self.Weapon not in options["weapons"]:
-                raise ValueError(f"Invalid weapon choice for {profile_name}: {self.Weapon}")
-            if self.Armor and self.Armor not in options["armor"]:
-                raise ValueError(f"Invalid armor choice for {profile_name}: {self.Armor}")
-            if self.Shield and not options["shield"]:
-                raise ValueError(f"{profile_name} cannot use a shield")
-        else:
-            # Original initialization for custom characters
-            self.name = name
-            self.Movement = Movement
-            self.WeaponSkill = WeaponSkill
-            self.BallisticSkill = BallisticSkill
-            self.Strength = Strength
-            self.Toughness = Toughness
-            self.Initiative = Initiative
-            self.Wounds = Wounds
-            self.Attacks = Attacks
-            self.Leadership = Leadership
-            self.Race = Race
-            self.Armor = Armor
-            self.Weapon = Weapon
-            self.Shield = Shield
-            self.SpecialRules = SpecialRules if SpecialRules else None
-            
-        # Common initialization
-        self.original_Strength = self.Strength
-        self.original_Initiative = self.Initiative
-        self.original_Weapon = self.Weapon
-        self.ArmourPiercing = 0
-        self.original_ArmourPiercing = 0
+from armor import *
+from character_model import *
+from elven_honors import *
+from game_data import *
+from magic_items import *
+from weapons import *
 
 
 def RollToHit(attacker, defender, verbose=False, is_first_round=False):
@@ -301,11 +222,25 @@ def RollArmorSave(attacker, defender, num_wounds, wound_rolls=None, verbose=Fals
             armor_key = key
             break
     
+
+    if defender.Armor is None:
+        return 0  # No armor, no saves possible
+
+    # Find matching armor key in ArmourDict
+    armor_key = None
+    for key in ArmourDict:
+        if isinstance(key, tuple):
+            if defender.Armor in key:
+                armor_key = key
+                break
+        elif defender.Armor == key:
+            armor_key = key
+            break
     if armor_key is None:
         if verbose:
-            print(f"Warning: Armor type '{defender.Armor}' not found in ArmourDict")
+            print(f"{defender.name} has unknown armor type: {defender.Armor}")
         return 0
-        
+
     armor_save_target = ArmourDict[armor_key]
     if defender.Shield is not None:
         armor_save_target -= 1  # Shield improves armor save by 1
@@ -315,14 +250,14 @@ def RollArmorSave(attacker, defender, num_wounds, wound_rolls=None, verbose=Fals
     if defender.SpecialRules:
         if isinstance(defender.SpecialRules, list):
             for rule in defender.SpecialRules:
-                if isinstance(rule, str) and rule.startswith('AH'):
+                if str(rule).startswith('AH'):
                     try:
-                        ah_bonus += int(rule[2:])
+                        ah_bonus += int(str(rule).replace('AH',''))
                     except Exception:
                         pass
         elif isinstance(defender.SpecialRules, str) and defender.SpecialRules.startswith('AH'):
             try:
-                ah_bonus += int(defender.SpecialRules[2:])
+                ah_bonus += int(defender.SpecialRules.replace('AH',''))
             except Exception:
                 pass
     armor_save_target -= ah_bonus  # Lower is better
@@ -330,7 +265,7 @@ def RollArmorSave(attacker, defender, num_wounds, wound_rolls=None, verbose=Fals
     # Get base armor piercing and AB value if weapon has it
     base_ap = np.abs(attacker.ArmourPiercing)
     ab_value = 0
-    
+
     # Find weapon in MeleeWeaponDict
     weapon_key = None
     for key in MeleeWeaponDict:
@@ -341,6 +276,41 @@ def RollArmorSave(attacker, defender, num_wounds, wound_rolls=None, verbose=Fals
         elif attacker.Weapon == key:
             weapon_key = key
             break
+    if weapon_key:
+        special_rules = MeleeWeaponDict[weapon_key][2]
+        if special_rules:
+            for rule in special_rules:
+                if str(rule).startswith('AB'):
+                    try:
+                        ab_value += int(str(rule).replace('AB',''))
+                    except Exception:
+                        pass
+
+    successful_saves = 0
+    wound_rolls = wound_rolls if wound_rolls else [0] * num_wounds  # Default to 0 if no wound rolls provided
+
+    for wound_index in range(num_wounds):
+        current_ap = base_ap
+        # If this wound was from a 6 and weapon has Armor Bane, increase AP
+        if wound_rolls[wound_index] == 6:
+            current_ap += ab_value
+        current_save_target = armor_save_target  # Start with base save
+        current_save_target += current_ap  # AP makes save harder by increasing target
+        # Cap minimum save at 2+
+        current_save_target = max(2, current_save_target)
+        if current_save_target > 6:
+            if verbose:
+                print(f"Armor save roll {wound_index+1}: No save possible! (Save of {current_save_target}+ required)")
+            continue
+        roll = np.random.randint(1, 7)  # Roll a D6
+        if roll >= current_save_target:
+            successful_saves += 1
+            if verbose:
+                print(f"Armor save roll {wound_index+1}: {roll} vs {current_save_target}+ - Saved!")
+        elif verbose:
+            print(f"Armor save roll {wound_index+1}: {roll} vs {current_save_target}+ - Failed!")
+
+    return successful_saves
             
     if weapon_key:
         special_rules = MeleeWeaponDict[weapon_key][2]
@@ -536,38 +506,94 @@ def OneRoundMeleeCombat(
             print(f"{attacker.name} failed to wound with any hits!")
             return
 
-    # Roll for armor saves
-    saves = RollArmorSave(attacker, defender, wounds, wound_rolls, verbose)
-    if verbose:
-        print(f"Total saves: {saves}")
 
     # Check for Ward save
     final_wounds = wounds - saves
     ward_target = None
+    ward_applied = False
+    is_flaming = False
+    # Determine if attack is flaming
+    if attacker.SpecialRules:
+        if isinstance(attacker.SpecialRules, list):
+            is_flaming = any("Flaming" in str(rule) or "FlamingAttacks" in str(rule) for rule in attacker.SpecialRules)
+        else:
+            is_flaming = "Flaming" in str(attacker.SpecialRules) or "FlamingAttacks" in str(attacker.SpecialRules)
+    if attacker.Weapon in MeleeWeaponDict:
+        weapon_key = None
+        for key in MeleeWeaponDict:
+            if attacker.Weapon == key or (isinstance(key, tuple) and attacker.Weapon in key):
+                weapon_key = key
+                break
+        if weapon_key:
+            weapon_rules = MeleeWeaponDict[weapon_key][2]
+            if weapon_rules:
+                is_flaming = is_flaming or ("Flaming" in str(weapon_rules) or "FlamingAttacks" in str(weapon_rules))
+
+
+
+    # Blessings of Asuryan: 5+ ward vs flaming
     if defender.SpecialRules:
         if isinstance(defender.SpecialRules, list):
-            ward_rules = [rule for rule in defender.SpecialRules if isinstance(rule, str) and rule.startswith("Ward")]
-            if ward_rules:
-                ward_target = int(ward_rules[0][4:])  # Extract number from "WardX"
-        elif isinstance(defender.SpecialRules, str) and defender.SpecialRules.startswith("Ward"):
-            ward_target = int(defender.SpecialRules[4:])  # Extract number from "WardX"
-    
+            if any("BlessingsofAsuryan" in str(rule) for rule in defender.SpecialRules) and is_flaming:
+                ward_target = 5
+            if any("DragonArmour" in str(rule) for rule in defender.SpecialRules):
+                ward_target = min(ward_target, 6) if ward_target else 6
+            if any("WitnesstoDestiny" in str(rule) for rule in defender.SpecialRules):
+                ward_target = min(ward_target, 6) if ward_target else 6
+        elif "BlessingsofAsuryan" in str(defender.SpecialRules) and is_flaming:
+            ward_target = 5
+        elif "DragonArmour" in str(defender.SpecialRules):
+            ward_target = min(ward_target, 6) if ward_target else 6
+        elif "WitnesstoDestiny" in str(defender.SpecialRules):
+            ward_target = min(ward_target, 6) if ward_target else 6
+
     # Killing Blow resolution (only Ward save can prevent)
     if killing_blow_triggered and killing_blow_value:
-        ward_save_success = False
+        # Only ward save can prevent killing blow
         if ward_target is not None:
             roll = np.random.randint(1, 7)
-            if verbose:
-                print(f"Ward save vs Killing Blow: rolled {roll} vs target {ward_target}+")
             if roll >= ward_target:
-                ward_save_success = True
                 if verbose:
-                    print(f"Ward save successful! Killing Blow averted.")
-        if not ward_save_success:
-            defender.Wounds = 0
-            if verbose:
-                print(f"Killing Blow! {defender.name} is instantly slain!")
-            return
+                    print(f"Ward save roll {roll}: Saved Killing Blow!")
+                final_wounds -= 1
+            else:
+                if verbose:
+                    print(f"Ward save roll {roll}: Failed to save Killing Blow!")
+
+    # Apply ward save to normal wounds
+    if ward_target is not None and final_wounds > 0:
+        for i in range(final_wounds):
+            roll = np.random.randint(1, 7)
+            if roll >= ward_target:
+                if verbose:
+                    print(f"Ward save roll {roll}: Saved wound!")
+                final_wounds -= 1
+            else:
+                if verbose:
+                    print(f"Ward save roll {roll}: Failed to save wound!")
+
+    # Check for Regeneration save
+    regen_target = None
+    can_regen = True
+    # Check if defender is flammable
+    if defender.SpecialRules:
+        if isinstance(defender.SpecialRules, list):
+            can_regen = not any("Flammable" in str(rule) for rule in defender.SpecialRules)
+        else:
+            can_regen = "Flammable" not in str(defender.SpecialRules)
+
+    if is_flaming and not can_regen:
+        if verbose:
+            print("Defender is flammable and cannot regenerate against flaming attacks.")
+    else:
+        if regen_target is not None:
+            # Implement regeneration logic here
+            pass
+
+    defender.Wounds -= final_wounds
+    if verbose:
+        print(f"{defender.name} has {defender.Wounds} wounds remaining!")
+            
 
     if ward_target is not None:
         ward_saves = 0
@@ -725,3 +751,6 @@ def combat_simulation(
 
         if verbose:
             print("The defender strikes back!")
+
+        if character_1.Wounds <= 0 or character_2.Wounds <= 0:
+            break
