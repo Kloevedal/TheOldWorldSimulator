@@ -1,13 +1,5 @@
 
 
-add elven honors 
-blessings of asuryan 5+ ward if fire 
-witness to destiny
-lion cloak
-
-
-
-
 
 
 
@@ -21,3 +13,8 @@ ranged
 cover
 movement
 leadership stuff : fear, terror, stubborn, veteran, valour of ages etc.
+
+special rules that should be added later: 
+lion cloak
+
+

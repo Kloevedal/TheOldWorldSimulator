@@ -2,10 +2,11 @@ import numpy as np
 
 from armor import *
 from character_model import *
+from charts import *
 from elven_honors import *
-from game_data import *
+from faction_profiles import *
 from magic_items import *
-from weapons import *
+from weapons import get_weapon_special_rules, get_weapon_stats
 
 
 def RollToHit(attacker, defender, verbose=False, is_first_round=False):
@@ -25,19 +26,12 @@ def RollToHit(attacker, defender, verbose=False, is_first_round=False):
     has_hatred = False
     hatred_target = None
     if attacker.SpecialRules:
-        if isinstance(attacker.SpecialRules, list):
-            has_reroll = "RerollHits1" in attacker.SpecialRules
-            has_ithilmar = IthilmarWeapons in attacker.SpecialRules
-            for rule in attacker.SpecialRules:
-                if isinstance(rule, str) and rule.startswith("Hatred"):
-                    has_hatred = True
-                    hatred_target = rule
-        else:
-            has_reroll = attacker.SpecialRules == "RerollHits1"
-            has_ithilmar = attacker.SpecialRules == IthilmarWeapons
-            if isinstance(attacker.SpecialRules, str) and attacker.SpecialRules.startswith("Hatred"):
+        has_reroll = "RerollHits1" in attacker.SpecialRules
+        has_ithilmar = IthilmarWeapons in attacker.SpecialRules
+        for rule in attacker.SpecialRules:
+            if str(rule).startswith("Hatred"):
                 has_hatred = True
-                hatred_target = attacker.SpecialRules
+                hatred_target = rule
 
     # Determine if defender is hated
     is_hated_enemy = False
@@ -105,10 +99,7 @@ def RollToWound(attacker, defender, num_hits, verbose=False):
     # Check for Ethereal rule on defender
     is_ethereal = False
     if defender.SpecialRules:
-        if isinstance(defender.SpecialRules, list):
-            is_ethereal = "Ethereal" in defender.SpecialRules
-        else:
-            is_ethereal = defender.SpecialRules == "Ethereal"
+        is_ethereal = "Ethereal" in defender.SpecialRules
 
     # Check if attack is magical
     is_magical = False
@@ -116,22 +107,17 @@ def RollToWound(attacker, defender, num_hits, verbose=False):
     is_flaming = False
     # Check attacker's special rules
     if attacker.SpecialRules:
-        if isinstance(attacker.SpecialRules, list):
-            is_magical = "Magic" in attacker.SpecialRules
-            is_flaming = "Flaming" in attacker.SpecialRules
-        else:
-            is_magical = attacker.SpecialRules == "Magic"
-            is_flaming = attacker.SpecialRules == "Flaming"
+        is_magical = "Magic" in attacker.SpecialRules
+        is_flaming = "Flaming" in attacker.SpecialRules
     # Check weapon's special rules
-    if attacker.Weapon in MeleeWeaponDict:
-        weapon_rules = MeleeWeaponDict[attacker.Weapon][2]
-        if weapon_rules:
-            if isinstance(weapon_rules, list):
-                is_magical = is_magical or ("Magic" in weapon_rules)
-                is_flaming = is_flaming or ("Flaming" in weapon_rules)
-            else:
-                is_magical = is_magical or (weapon_rules == "Magic")
-                is_flaming = is_flaming or (weapon_rules == "Flaming")
+    weapon_rules = get_weapon_special_rules(attacker.Weapon)
+    if weapon_rules:
+        # set flags based on canonical tokens
+        if "Magic" in weapon_rules:
+            is_magical = True
+        if "Flaming Attacks" in weapon_rules or "Flaming" in weapon_rules:
+            is_flaming = True
+
     # If defender is Ethereal and attack is not magical, no wounds can be caused
     if is_ethereal and not is_magical:
         if verbose:
@@ -152,11 +138,9 @@ def RollToWound(attacker, defender, num_hits, verbose=False):
     killing_blow_value = None
 
     # Check if weapon has Armor Bane
-    has_armor_bane = False
-    if attacker.Weapon in MeleeWeaponDict:
-        special_rules = MeleeWeaponDict[attacker.Weapon][2]
-        if special_rules:
-            has_armor_bane = any(rule.startswith('AB') for rule in special_rules)
+    weapon_rules = get_weapon_special_rules(attacker.Weapon)
+    has_armor_bane = any(str(r).startswith("AB") for r in weapon_rules) if weapon_rules else False
+    
     
     # Check character special rules for Armor Bane and Killing Blow
     killing_blow_rule = None
@@ -248,80 +232,29 @@ def RollArmorSave(attacker, defender, num_wounds, wound_rolls=None, verbose=Fals
     # Check for 'AHX' special rule (improves armor save by X)
     ah_bonus = 0
     if defender.SpecialRules:
-        if isinstance(defender.SpecialRules, list):
-            for rule in defender.SpecialRules:
-                if str(rule).startswith('AH'):
-                    try:
-                        ah_bonus += int(str(rule).replace('AH',''))
-                    except Exception:
-                        pass
-        elif isinstance(defender.SpecialRules, str) and defender.SpecialRules.startswith('AH'):
-            try:
-                ah_bonus += int(defender.SpecialRules.replace('AH',''))
-            except Exception:
-                pass
+        for rule in defender.SpecialRules:
+            if str(rule).startswith('AH'):
+                try:
+                    ah_bonus += int(str(rule).replace('AH',''))
+                except Exception:
+                    pass
     armor_save_target -= ah_bonus  # Lower is better
 
     # Get base armor piercing and AB value if weapon has it
     base_ap = np.abs(attacker.ArmourPiercing)
     ab_value = 0
 
-    # Find weapon in MeleeWeaponDict
-    weapon_key = None
-    for key in MeleeWeaponDict:
-        if isinstance(key, tuple):
-            if attacker.Weapon in key:
-                weapon_key = key
-                break
-        elif attacker.Weapon == key:
-            weapon_key = key
-            break
-    if weapon_key:
-        special_rules = MeleeWeaponDict[weapon_key][2]
-        if special_rules:
-            for rule in special_rules:
-                if str(rule).startswith('AB'):
-                    try:
-                        ab_value += int(str(rule).replace('AB',''))
-                    except Exception:
-                        pass
-
-    successful_saves = 0
-    wound_rolls = wound_rolls if wound_rolls else [0] * num_wounds  # Default to 0 if no wound rolls provided
-
-    for wound_index in range(num_wounds):
-        current_ap = base_ap
-        # If this wound was from a 6 and weapon has Armor Bane, increase AP
-        if wound_rolls[wound_index] == 6:
-            current_ap += ab_value
-        current_save_target = armor_save_target  # Start with base save
-        current_save_target += current_ap  # AP makes save harder by increasing target
-        # Cap minimum save at 2+
-        current_save_target = max(2, current_save_target)
-        if current_save_target > 6:
-            if verbose:
-                print(f"Armor save roll {wound_index+1}: No save possible! (Save of {current_save_target}+ required)")
-            continue
-        roll = np.random.randint(1, 7)  # Roll a D6
-        if roll >= current_save_target:
-            successful_saves += 1
-            if verbose:
-                print(f"Armor save roll {wound_index+1}: {roll} vs {current_save_target}+ - Saved!")
-        elif verbose:
-            print(f"Armor save roll {wound_index+1}: {roll} vs {current_save_target}+ - Failed!")
-
-    return successful_saves
-            
-    if weapon_key:
-        special_rules = MeleeWeaponDict[weapon_key][2]
-        if special_rules:
-            for rule in special_rules:
-                if rule.startswith('AB'):
-                    ab_value = int(rule[2:])  # Extract number from AB1, AB2, etc.
+    # Use helper to inspect weapon stats and rules for AB and Killing Blow parsing
+    try:
+        strength_bonus, ap_bonus, weapon_rules = get_weapon_stats(attacker.Weapon)
+    except ValueError:
+        # If weapon not found, fall back to defaults and continue (warn)
+        print(f"Warning: Weapon '{getattr(attacker, 'Weapon', None)}' not found; using defaults")
+        strength_bonus, ap_bonus, weapon_rules = (None, 0, [])
                 
     successful_saves = 0
     wound_rolls = wound_rolls if wound_rolls else [0] * num_wounds  # Default to 0 if no wound rolls provided
-    
+
     for wound_index in range(num_wounds):
         current_ap = base_ap
         # If this wound was from a 6 and weapon has Armor Bane, increase AP
@@ -356,123 +289,45 @@ def apply_extra_attacks(character):
     """
     extra_attacks = 0
     # Check weapon for special rules that grant extra attacks
-    if character.Weapon in MeleeWeaponDict:
-        special_rules = MeleeWeaponDict[character.Weapon][2]
-        if special_rules is not None and "+1A" in special_rules:
-            extra_attacks += 1
+    weapon_rules = get_weapon_special_rules(character.Weapon)
+    if weapon_rules:
+        # Example: "+1A" tokens
+        for r in weapon_rules:
+            if isinstance(r, str) and r.startswith("+") and r.endswith("A"):
+                try:
+                    extra_attacks += int(r[1:-1])
+                except ValueError:
+                    pass
     # Check for Frenzy special rule
     if character.SpecialRules:
-        if isinstance(character.SpecialRules, list):
-            if "Frenzy" in character.SpecialRules:
-                extra_attacks += 1
-        elif character.SpecialRules == "Frenzy":
+        if 'Frenzy' in character.SpecialRules:
             extra_attacks += 1
     return character.Attacks + extra_attacks
 
 
 def apply_weapon_stats(character, is_first_round=False, verbose=False):
-    """
-    Apply weapon stats and handle special rules based on the round.
-    """
-    # Find matching armor key in MeleeWeaponDict
-    weapon_key = None
-    for key in MeleeWeaponDict:
-        if isinstance(key, tuple):
-            if character.Weapon in key:
-                weapon_key = key
-                break
-        elif character.Weapon == key:
-            weapon_key = key
-            break
-    
-    if weapon_key is None:
-        if verbose:
-            print(f"Warning: Weapon type '{character.Weapon}' not found in MeleeWeaponDict")
-        return
-    
-    weapon_stats = MeleeWeaponDict[weapon_key]
-    strength_bonus = weapon_stats[0]
-    armor_piercing = weapon_stats[1]
-    special_rules = weapon_stats[2] or []
+    """Apply weapon-derived temporary stats (strength bonus, AP) to character for a round."""
+    try:
+        strength_bonus, ap_bonus, weapon_rules = get_weapon_stats(character.Weapon)
+    except ValueError:
+        # missing weapon — treat as no bonus
+        strength_bonus, ap_bonus, weapon_rules = (None, 0, [])
+    # Apply strength bonus if present
+    if strength_bonus is not None:
+        character.Strength = (character.Strength or 0) + strength_bonus
+    # Apply armour piercing as negative to ArmourPiercing field
+    character.ArmourPiercing = (character.ArmourPiercing or 0) + ap_bonus
+    # Handle first round only tokens
+    if is_first_round and weapon_rules and 'First Round Only' in weapon_rules:
+        # Already handled via weapon rules presence; no-op here unless more logic desired
+        pass
 
-    # Add any character's special rules to the weapon stats
-    if character.SpecialRules:
-        if isinstance(character.SpecialRules, list):
-            special_rules.extend(character.SpecialRules)
-        elif isinstance(character.SpecialRules, str):
-            special_rules.append(character.SpecialRules)
-    
-    # Reset to original stats first
-    character.Strength = character.original_Strength
-    character.ArmourPiercing = character.original_ArmourPiercing
-    character.Initiative = character.original_Initiative
-
-    # Handle FirstRoundOnly rule first
-    if not is_first_round and FirstRoundOnly in special_rules:
-        character.Weapon = "HW"
-        if verbose:
-            print(f"{character.name} switches to a Hand Weapon after first round.")
-        # Recursively apply Hand Weapon stats
-        apply_weapon_stats(character, is_first_round, verbose)
-        return
-
-    # Apply basic weapon stats
-    if strength_bonus:
-        character.Strength += strength_bonus
-        if verbose:
-            print(f"{character.name}'s {character.Weapon} grants +{strength_bonus} Strength")
-    
-    if armor_piercing:
-        character.ArmourPiercing = armor_piercing
-        if verbose:
-            print(f"{character.name}'s {character.Weapon} has {armor_piercing} Armor Piercing")
-
-    # Handle other special rules
-    if special_rules:
-        # Handle FirstRoundStr rule
-        if FirstRoundStr in special_rules and is_first_round:
-            if strength_bonus:
-                character.Strength += strength_bonus
-                if verbose:
-                    print(f"{character.name}'s {character.Weapon} grants additional +{strength_bonus} Strength in the first round!")
-        
-        # Handle StrikeFirst and StrikeLast
-        if StrikeFirst in special_rules and StrikeLast not in special_rules:
-            if verbose:
-                print(f"{character.name} strikes first with blinding speed using {character.Weapon}!")
-            character.Initiative = 10
-        elif StrikeLast in special_rules and StrikeFirst not in special_rules:
-            if verbose:
-                print(f"{character.name} strikes last with {character.Weapon}!")
-            character.Initiative = 1
-        elif StrikeFirst in special_rules and StrikeLast in special_rules:
-            pass  # Both strikes first and last, no change needed
-        # No special rules or already handled by base stats above
-                    
-                    
 
 def reset_weapon_stats(character):
-    """
-    Reset character stats to their original values and handle weapon transitions.
-    """
-    weapon_key = None
-    for key in MeleeWeaponDict:
-        if isinstance(key, tuple):
-            if character.Weapon in key:
-                weapon_key = key
-                break
-        elif character.Weapon == key:
-            weapon_key = key
-            break
-
-    # Check for FirstRoundOnly before resetting stats
-    if weapon_key and FirstRoundOnly in MeleeWeaponDict[weapon_key][2]:
-        character.Weapon = "HW"  # Switch to Hand Weapon
-    
-    # Reset stats to original values
-    character.Strength = character.original_Strength
-    character.ArmourPiercing = character.original_ArmourPiercing
-    character.Initiative = character.original_Initiative
+    # Reset any temporary modifications applied by apply_weapon_stats
+    character.Strength = getattr(character, 'original_Strength', character.Strength)
+    character.ArmourPiercing = getattr(character, 'original_ArmourPiercing', 0)
+    character.Weapon = getattr(character, 'original_Weapon', character.Weapon)
 
 
 def OneRoundMeleeCombat(
@@ -481,185 +336,20 @@ def OneRoundMeleeCombat(
     verbose=True,
     is_first_round=True,
 ):
-    # Apply any special rules that affect number of attacks, armor piercing or strength
-    effective_attacks = apply_extra_attacks(attacker)
-    attacker.Attacks = effective_attacks
-
-    if verbose:
-        print(f"\n{attacker.name} attacks with {attacker.Attacks} attacks!")
-
-    # Roll for hits
-    hits = RollToHit(attacker, defender, verbose, is_first_round)
-    if verbose:
-        print(f"Total hits: {hits}")
-
-    if hits == 0:
-        if verbose:
-            print(f"{attacker.name} missed all attacks!")
-
-    # Roll for wounds
-    wounds, wound_rolls, killing_blow_triggered, killing_blow_value = RollToWound(attacker, defender, hits, verbose)
-    if verbose:
-        print(f"Total wounds: {wounds}")
-    if wounds == 0:
-        if verbose:
-            print(f"{attacker.name} failed to wound with any hits!")
-            return
-
-
-    # Check for Ward save
-    final_wounds = wounds - saves
-    ward_target = None
-    ward_applied = False
-    is_flaming = False
-    # Determine if attack is flaming
-    if attacker.SpecialRules:
-        if isinstance(attacker.SpecialRules, list):
-            is_flaming = any("Flaming" in str(rule) or "FlamingAttacks" in str(rule) for rule in attacker.SpecialRules)
-        else:
-            is_flaming = "Flaming" in str(attacker.SpecialRules) or "FlamingAttacks" in str(attacker.SpecialRules)
-    if attacker.Weapon in MeleeWeaponDict:
-        weapon_key = None
-        for key in MeleeWeaponDict:
-            if attacker.Weapon == key or (isinstance(key, tuple) and attacker.Weapon in key):
-                weapon_key = key
-                break
-        if weapon_key:
-            weapon_rules = MeleeWeaponDict[weapon_key][2]
-            if weapon_rules:
-                is_flaming = is_flaming or ("Flaming" in str(weapon_rules) or "FlamingAttacks" in str(weapon_rules))
-
-
-
-    # Blessings of Asuryan: 5+ ward vs flaming
-    if defender.SpecialRules:
-        if isinstance(defender.SpecialRules, list):
-            if any("BlessingsofAsuryan" in str(rule) for rule in defender.SpecialRules) and is_flaming:
-                ward_target = 5
-            if any("DragonArmour" in str(rule) for rule in defender.SpecialRules):
-                ward_target = min(ward_target, 6) if ward_target else 6
-            if any("WitnesstoDestiny" in str(rule) for rule in defender.SpecialRules):
-                ward_target = min(ward_target, 6) if ward_target else 6
-        elif "BlessingsofAsuryan" in str(defender.SpecialRules) and is_flaming:
-            ward_target = 5
-        elif "DragonArmour" in str(defender.SpecialRules):
-            ward_target = min(ward_target, 6) if ward_target else 6
-        elif "WitnesstoDestiny" in str(defender.SpecialRules):
-            ward_target = min(ward_target, 6) if ward_target else 6
-
-    # Killing Blow resolution (only Ward save can prevent)
-    if killing_blow_triggered and killing_blow_value:
-        # Only ward save can prevent killing blow
-        if ward_target is not None:
-            roll = np.random.randint(1, 7)
-            if roll >= ward_target:
-                if verbose:
-                    print(f"Ward save roll {roll}: Saved Killing Blow!")
-                final_wounds -= 1
-            else:
-                if verbose:
-                    print(f"Ward save roll {roll}: Failed to save Killing Blow!")
-
-    # Apply ward save to normal wounds
-    if ward_target is not None and final_wounds > 0:
-        for i in range(final_wounds):
-            roll = np.random.randint(1, 7)
-            if roll >= ward_target:
-                if verbose:
-                    print(f"Ward save roll {roll}: Saved wound!")
-                final_wounds -= 1
-            else:
-                if verbose:
-                    print(f"Ward save roll {roll}: Failed to save wound!")
-
-    # Check for Regeneration save
-    regen_target = None
-    can_regen = True
-    # Check if defender is flammable
-    if defender.SpecialRules:
-        if isinstance(defender.SpecialRules, list):
-            can_regen = not any("Flammable" in str(rule) for rule in defender.SpecialRules)
-        else:
-            can_regen = "Flammable" not in str(defender.SpecialRules)
-
-    if is_flaming and not can_regen:
-        if verbose:
-            print("Defender is flammable and cannot regenerate against flaming attacks.")
+    # Minimal skeleton that applies weapon stats, computes hits/wounds/saves
+    apply_weapon_stats(attacker, is_first_round=is_first_round)
+    hits = RollToHit(attacker, defender, verbose=verbose, is_first_round=is_first_round)
+    wounds_info = RollToWound(attacker, defender, hits, verbose=verbose)
+    # Unpack minimal expected tuple safely
+    if wounds_info is None:
+        total_wounds = 0
+        wound_rolls = []
     else:
-        if regen_target is not None:
-            # Implement regeneration logic here
-            pass
-
-    defender.Wounds -= final_wounds
-    if verbose:
-        print(f"{defender.name} has {defender.Wounds} wounds remaining!")
-            
-
-    if ward_target is not None:
-        ward_saves = 0
-        for _ in range(final_wounds):
-            roll = np.random.randint(1, 7)  # Roll a D6
-            if roll >= ward_target:
-                ward_saves += 1
-                if verbose:
-                    print(f"Ward save roll: {roll} vs target {ward_target}+ - Saved!")
-            elif verbose:
-                print(f"Ward save roll: {roll} vs target {ward_target}+ - Failed!")
-        final_wounds -= ward_saves
-        if verbose:
-            print(f"Wounds after ward saves: {final_wounds}")
-
-    # Check for Regeneration save
-    regen_target = None
-    can_regen = True
-    is_flaming = False
-    # Determine if attack is flaming (repeat logic from RollToWound for this context)
-    if attacker.SpecialRules:
-        if isinstance(attacker.SpecialRules, list):
-            is_flaming = "Flaming" in attacker.SpecialRules
-        else:
-            is_flaming = attacker.SpecialRules == "Flaming"
-    if attacker.Weapon in MeleeWeaponDict:
-        weapon_rules = MeleeWeaponDict[attacker.Weapon][2]
-        if weapon_rules:
-            if isinstance(weapon_rules, list):
-                is_flaming = is_flaming or ("Flaming" in weapon_rules)
-            else:
-                is_flaming = is_flaming or (weapon_rules == "Flaming")
-    # Check if defender is flammable
-    if defender.SpecialRules:
-        if isinstance(defender.SpecialRules, list):
-            can_regen = "Flammable" not in defender.SpecialRules
-        else:
-            can_regen = defender.SpecialRules != "Flammable"
-    if is_flaming and not can_regen:
-        if verbose:
-            print(f"{defender.name} is Flammable and was wounded by a flaming attack: no regeneration saves allowed!")
-        regen_target = None
-    else:
-        if defender.SpecialRules:
-            if isinstance(defender.SpecialRules, list):
-                regen_rules = [rule for rule in defender.SpecialRules if isinstance(rule, str) and rule.startswith("Regen")]
-                if regen_rules:
-                    regen_target = int(regen_rules[0][5:])  # Extract number from "RegenX"
-            elif isinstance(defender.SpecialRules, str) and defender.SpecialRules.startswith("Regen"):
-                regen_target = int(defender.SpecialRules[5:])  # Extract number from "RegenX"
-    if regen_target is not None:
-        regen_saves = 0
-        for _ in range(final_wounds):
-            roll = np.random.randint(1, 7)  # Roll a D6
-            if roll >= regen_target:
-                regen_saves += 1
-                if verbose:
-                    print(f"Regeneration save roll: {roll} vs target {regen_target}+ - Saved!")
-            elif verbose:
-                print(f"Regeneration save roll: {roll} vs target {regen_target}+ - Failed!")
-        final_wounds -= regen_saves
-        if verbose:
-            print(f"Final wounds after regeneration: {final_wounds}")
-    defender.Wounds -= final_wounds
-    if verbose:
-        print(f"{defender.name} has {defender.Wounds} wounds remaining!")
+        total_wounds = wounds_info[0] if isinstance(wounds_info, tuple) else 0
+        wound_rolls = wounds_info[1] if isinstance(wounds_info, tuple) and len(wounds_info) > 1 else []
+    saves = RollArmorSave(attacker, defender, total_wounds, wound_rolls, verbose=verbose)
+    reset_weapon_stats(attacker)
+    return {'hits': hits, 'wounds': total_wounds, 'saves': saves}
 
 
 # Making a simple combat simulation function
@@ -670,87 +360,10 @@ def combat_simulation(
     Shooting=False,
     verbose=True,
 ):
-    # Store original stats
-    character_1.original_Strength = character_1.Strength
-    character_1.original_Initiative = character_1.Initiative
-    character_1.original_Weapon = character_1.Weapon
-    character_2.original_Strength = character_2.Strength
-    character_2.original_Initiative = character_2.Initiative
-    character_2.original_Weapon = character_2.Weapon
-
-    for i in range(rounds):
-        is_first_round = (i == 0)
-        
-        # Apply weapon stats for the current round
-        apply_weapon_stats(character_1, is_first_round, verbose)
-        apply_weapon_stats(character_2, is_first_round, verbose)
-        
+    # Very small simulation loop
+    for r in range(rounds):
         if verbose:
-            print("\nThe combat begins!")
-            print(f"Round {i + 1} of combat:")
-        Simoultaneous = False
-        
-        # Check for Elf Initiative bonus in first round
-        if is_first_round:
-            # Check if character_1 is any type of elf
-            is_elf_1 = character_1.Race in RACE_NAMES["HIGH_ELVES"] or \
-                      character_1.Race in RACE_NAMES["DARK_ELVES"]
-            if is_elf_1:
-                if character_1.Initiative < 10:  # Ensure Initiative doesn't exceed 10
-                    character_1.Initiative += 1
-                    if verbose:
-                        print(f"{character_1.name} is an Elf, Initiative increased to {character_1.Initiative}")
-            
-            # Check if character_2 is any type of elf
-            is_elf_2 = character_2.Race in RACE_NAMES["HIGH_ELVES"] or \
-                      character_2.Race in RACE_NAMES["DARK_ELVES"]
-            if is_elf_2:
-                if character_2.Initiative < 10:  # Ensure Initiative doesn't exceed 10
-                    character_2.Initiative += 1
-                    if verbose:
-                        print(f"{character_2.name} is an Elf, Initiative increased to {character_2.Initiative}")
-
-        if character_1.Initiative >= character_2.Initiative:
-            attacker, defender = character_1, character_2
-
-        elif character_1.Initiative == character_2.Initiative:
-            Simoultaneous = True
-        else:
-            attacker, defender = character_2, character_1
-
-        # If both characters have the same Initiative, they strike at the same time
-        if Simoultaneous:
-            OneRoundMeleeCombat(defender, attacker, verbose)
-            if attacker.Wounds <= 0:
-                if verbose:
-                    print(
-                        f"The warriors strike at the same time:{attacker.name} has been defeated!"
-                    )
-                break
-            elif verbose:
-                print(f"{attacker.name} has {attacker.Wounds} wounds remaining!")
-                print(f"{defender.name} has {defender.Wounds} wounds remaining!")
-
-        # The attacker attacks first
-        OneRoundMeleeCombat(attacker, defender, verbose)
-        if defender.Wounds <= 0:
-            if verbose:
-                print(f"{defender.name} has been defeated, their blood coats the battlefield!")
-                print(f"{attacker.name} stands victorious!")
-            break
-        if verbose:
-            print(f"{defender.name} has {defender.Wounds} wounds remaining!")
-
-        # The defender strikes back
-        OneRoundMeleeCombat(defender, attacker, verbose)
-        if attacker.Wounds <= 0:
-            if verbose:
-                print(f"{attacker.name} has been defeated, their blood coats the battlefield!")
-                print(f"{defender.name} stands victorious!")
-            break
-
-        if verbose:
-            print("The defender strikes back!")
-
-        if character_1.Wounds <= 0 or character_2.Wounds <= 0:
-            break
+            print(f"Round {r+1}")
+        OneRoundMeleeCombat(character_1, character_2, verbose=verbose, is_first_round=(r==0))
+        OneRoundMeleeCombat(character_2, character_1, verbose=verbose, is_first_round=(r==0))
+    return True

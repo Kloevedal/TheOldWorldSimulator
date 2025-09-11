@@ -1,7 +1,3 @@
-# Ward Save Special Rule
-WitnesstoDestiny = "Witness to Destiny (6+ Ward)"
-DragonArmour = "Dragon Armour (6+ Ward)"
-
 # Special Rule Names
 FirstRoundStr = "1st round strength only"
 FirstRoundOnly = "First Round Only"
@@ -24,5 +20,17 @@ Frenzy = "Frenzy"
 ImproveArmor1InCombat = "Improve Armor 1 in Combat"
 ImproveArmor2InShooting = "Improve Armor 2 in Shooting"
 
-# Conditional Ward Save Special Rule
+
+# High Elf Specific Special Rules
+IthilmarWeapons = "Ithilmar Weapons"
+ValourOfAges = "Valour of Ages"
+ArrowsOfIsha = "Arrows of Isha"
+IthilmarArmour = "Ithilmar Armour"
+MightyConstitution = "Mighty Constitution"
+CommandingVoice = "Commanding Voice"
+NavalDiscipline = "Naval Discipline"
+PrecisionStrikes = "Precision Strikes"
 BlessingsofAsuryan = "Blessings of Asuryan (5+ Ward vs Flaming)"
+WitnesstoDestiny = "Witness to Destiny (6+ Ward)"
+DragonArmour = "Dragon Armour (6+ Ward)"
+

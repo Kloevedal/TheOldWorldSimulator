@@ -1,4 +1,4 @@
-from game_data import *
+from faction_profiles import *
 from special_rules import *
 
 # Special rules can include: "+1A" for +1 Attack
@@ -20,3 +20,46 @@ MeleeWeaponDict = {
     ("ChracianGreatBlade",):[2,-3,["RequiresTwoHands",StrikeLast]], # Chracian Great Blade, +2 Strength, -3 Armor Piercing, Requires Two Hands, Strike Last
     
 }
+
+def find_weapon_key(weapon):
+    """Return the MeleeWeaponDict key tuple that contains the given weapon name, or None."""
+    for key in MeleeWeaponDict:
+        if weapon in key:
+            return key
+    return None
+
+
+def get_weapon_stats(weapon, raise_on_missing=True):
+    """Return (strength_bonus, armour_piercing, special_rules) for a weapon name.
+    If raise_on_missing is True, raise ValueError when weapon not found.
+    """
+    key = find_weapon_key(weapon)
+    if key is None:
+        if raise_on_missing:
+            raise ValueError(f"Weapon '{weapon}' not found in MeleeWeaponDict")
+        return (None, 0, [])
+    data = MeleeWeaponDict[key]
+    strength_bonus = data[0]
+    armour_piercing = data[1]
+    rules = data[2] if data[2] else []
+    return (strength_bonus, armour_piercing, rules)
+
+
+def get_weapon_special_rules(weapon):
+    # Return normalized list of special rules, don't raise on missing by default
+    try:
+        _, _, rules = get_weapon_stats(weapon, raise_on_missing=False)
+        return rules
+    except Exception:
+        return []
+
+def get_weapon_strength_bonus(weapon, raise_on_missing=True):
+    """Return the weapon's strength bonus (or None)."""
+    strength, _, _ = get_weapon_stats(weapon, raise_on_missing=raise_on_missing)
+    return strength
+
+
+def get_weapon_ap(weapon, raise_on_missing=True):
+    """Return the weapon's armour-piercing value (int, may be negative or 0)."""
+    _, ap, _ = get_weapon_stats(weapon, raise_on_missing=raise_on_missing)
+    return ap

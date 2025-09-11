@@ -2,9 +2,9 @@ import numpy as np
 
 from armor import *
 from elven_honors import *
-from game_data import *
+from faction_profiles import *
 from magic_items import *
-from weapons import *
+from weapons import get_weapon_special_rules
 
 
 class Character:
@@ -53,7 +53,15 @@ class Character:
             self.Armor = Armor if Armor is not None else profile["Armor"]
             self.Weapon = Weapon if Weapon != "HW" else profile["Weapon"]
             self.Shield = Shield if Shield is not None else profile["Shield"]
-            self.SpecialRules = SpecialRules if SpecialRules is not None else profile["SpecialRules"]
+            # Always store SpecialRules as a list
+            base_rules = profile["SpecialRules"] if profile["SpecialRules"] else []
+            if SpecialRules is not None:
+                if isinstance(SpecialRules, list):
+                    self.SpecialRules = base_rules + SpecialRules
+                else:
+                    self.SpecialRules = base_rules + [SpecialRules]
+            else:
+                self.SpecialRules = base_rules
             
             # Validate equipment options
             options = FactionProfiles[faction_type][profile_name]["equipment_options"]
@@ -65,13 +73,10 @@ class Character:
                 raise ValueError(f"{profile_name} cannot use a shield")
 
             # Enforce 'RequiresTwoHands' rule: cannot use shield with such weapons
-            weapon_special_rules = None
-            for key in MeleeWeaponDict:
-                if self.Weapon == key or (isinstance(key, tuple) and self.Weapon in key):
-                    weapon_special_rules = MeleeWeaponDict[key][2]
-                    break
+            # Use helper to fetch weapon special rules (avoids iterating MeleeWeaponDict)
+            weapon_special_rules = get_weapon_special_rules(self.Weapon)
             if weapon_special_rules and "RequiresTwoHands" in weapon_special_rules and self.Shield:
-                raise ValueError(f"Cannot use a shield with a two-handed weapon: {self.Weapon}")
+                raise ValueError(f"Weapon {self.Weapon} requires two hands and cannot be used with a shield")
         else:
             # Original initialization for custom characters
             self.name = name
@@ -88,17 +93,20 @@ class Character:
             self.Armor = Armor
             self.Weapon = Weapon
             self.Shield = Shield
-            self.SpecialRules = SpecialRules if SpecialRules else None
+            # Always store SpecialRules as a list
+            if SpecialRules:
+                if isinstance(SpecialRules, list):
+                    self.SpecialRules = SpecialRules
+                else:
+                    self.SpecialRules = [SpecialRules]
+            else:
+                self.SpecialRules = []
 
             # Enforce 'RequiresTwoHands' rule: cannot use shield with such weapons
-            from weapons import MeleeWeaponDict
-            weapon_special_rules = None
-            for key in MeleeWeaponDict:
-                if self.Weapon == key or (isinstance(key, tuple) and self.Weapon in key):
-                    weapon_special_rules = MeleeWeaponDict[key][2]
-                    break
+            # Use helper to fetch weapon special rules (avoids iterating MeleeWeaponDict)
+            weapon_special_rules = get_weapon_special_rules(self.Weapon)
             if weapon_special_rules and "RequiresTwoHands" in weapon_special_rules and self.Shield:
-                raise ValueError(f"Cannot use a shield with a two-handed weapon: {self.Weapon}")
+                raise ValueError(f"Weapon {self.Weapon} requires two hands and cannot be used with a shield")
             
         # Common initialization
         self.original_Strength = self.Strength
@@ -108,24 +116,6 @@ class Character:
         self.original_ArmourPiercing = 0
 
         # Apply Elven Honors if High Elf and honors are provided
+        # Use centralized helper to apply stat mods, add special rules, and update equipment options
         if self.Race in RACE_NAMES["HIGH_ELVES"] and elven_honors:
-            for honor in elven_honors:
-                if honor in ElvenHonors:
-                    honor_data = ElvenHonors[honor]
-                    # Apply stat modifications
-                    for stat, mod in honor_data.get("stat_mods", {}).items():
-                        if hasattr(self, stat):
-                            setattr(self, stat, getattr(self, stat) + mod)
-                    # Add special rules
-                    if honor_data.get("special_rules"):
-                        if isinstance(self.SpecialRules, list):
-                            self.SpecialRules.extend(honor_data["special_rules"])
-                        elif self.SpecialRules:
-                            self.SpecialRules = [self.SpecialRules] + honor_data["special_rules"]
-                        else:
-                            self.SpecialRules = honor_data["special_rules"]
-                    # Update equipment options
-                    # (You may want to store these in the character for validation)
-                    if hasattr(self, "equipment_options"):
-                        for k, v in honor_data.get("equipment_options", {}).items():
-                            self.equipment_options[k] = v
+            apply_elven_honors(self, elven_honors)

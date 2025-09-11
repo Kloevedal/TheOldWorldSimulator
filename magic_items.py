@@ -1,4 +1,4 @@
-from game_data import *
+from faction_profiles import *
 from special_rules import *
 
 MagicItemDict = {

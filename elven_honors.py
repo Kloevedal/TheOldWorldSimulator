@@ -1,4 +1,3 @@
-
 from special_rules import *
 
 ElvenHonors = {
@@ -46,3 +45,19 @@ ElvenHonors = {
         "equipment_options":{"weapons": ["Warbow"]}
     }
 }
+
+def apply_elven_honors(character, honors):
+    for honor in honors:
+        if honor in ElvenHonors:
+            honor_data = ElvenHonors[honor]
+            # Apply stat modifications
+            for stat, mod in honor_data.get("stat_mods", {}).items():
+                if hasattr(character, stat):
+                    setattr(character, stat, getattr(character, stat) + mod)
+            # Add special rules
+            if honor_data.get("special_rules"):
+                character.SpecialRules.extend(honor_data["special_rules"])
+            # Update equipment options (if needed)
+            if hasattr(character, "equipment_options") and honor_data.get("equipment_options"):
+                for k, v in honor_data["equipment_options"].items():
+                    character.equipment_options[k] = v
