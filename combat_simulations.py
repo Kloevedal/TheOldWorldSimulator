@@ -640,6 +640,9 @@ def combat_simulation(
         - Most wounds remaining after all rounds
         - Draw if equal wounds remaining
     """
+    # Initialize current wounds at start of combat
+    character_1.current_wounds = character_1.Wounds
+    character_2.current_wounds = character_2.Wounds
     for r in range(rounds):
         if verbose:
             print(f"Round {r+1}")
@@ -648,36 +651,136 @@ def combat_simulation(
         c1_rules = character_1.SpecialRules if character_1.SpecialRules else []
         c2_rules = character_2.SpecialRules if character_2.SpecialRules else []
 
-        # Decide who strikes first this round
+        # Decide strike timing this round
+        simultaneous_combat = False
         c1_first = False
         c2_first = False
-        if 'Strike First' in c1_rules and 'Strike First' not in c2_rules:
-            c1_first = True
-        elif 'Strike First' in c2_rules and 'Strike First' not in c1_rules:
-            c2_first = False
-        elif 'Strike Last' in c1_rules and 'Strike Last' not in c2_rules:
-            c1_first = False
-        elif 'Strike Last' in c2_rules and 'Strike Last' not in c1_rules:
-            c2_first = True
-        else:
-            # Fall back to Initiative
-            if character_1.Initiative > character_2.Initiative:
+        
+        if verbose:
+            print("\nDetermining strike order...")
+
+        # Check for Strike First/Last
+        c1_strikes_first = 'Strike First' in c1_rules
+        c2_strikes_first = 'Strike First' in c2_rules
+        c1_strikes_last = 'Strike Last' in c1_rules
+        c2_strikes_last = 'Strike Last' in c2_rules
+
+        if c1_strikes_first and c2_strikes_first:
+            # Both have Strike First - simultaneous based on Initiative
+            if verbose:
+                print(f"Both {character_1.name} and {character_2.name} have Strike First")
+            if character_1.Initiative == character_2.Initiative:
+                simultaneous_combat = True
+                if verbose:
+                    print("Equal Initiative - both strike simultaneously")
+            elif character_1.Initiative > character_2.Initiative:
                 c1_first = True
-            elif character_2.Initiative > character_1.Initiative:
-                c2_first = True
+                if verbose:
+                    print(f"{character_1.name} has higher Initiative and strikes first")
             else:
-                # Tie: arbitrarily let character_1 strike first
+                c2_first = True
+                if verbose:
+                    print(f"{character_2.name} has higher Initiative and strikes first")
+        elif c1_strikes_last and c2_strikes_last:
+            # Both have Strike Last - simultaneous based on Initiative
+            if verbose:
+                print(f"Both {character_1.name} and {character_2.name} have Strike Last")
+            if character_1.Initiative == character_2.Initiative:
+                simultaneous_combat = True
+                if verbose:
+                    print("Equal Initiative - both strike simultaneously")
+            elif character_1.Initiative > character_2.Initiative:
                 c1_first = True
-
-        # Create ordered list of attackers for this round
-        order = []
-        if c1_first:
-            order = [(character_1, character_2), (character_2, character_1)]
+                if verbose:
+                    print(f"{character_1.name} has higher Initiative and strikes first")
+            else:
+                c2_first = True
+                if verbose:
+                    print(f"{character_2.name} has higher Initiative and strikes first")
+        elif c1_strikes_first and not c2_strikes_first:
+            c1_first = True
+            if verbose:
+                print(f"{character_1.name} has Strike First and {character_2.name} doesn't - {character_1.name} strikes first")
+        elif c2_strikes_first and not c1_strikes_first:
+            c2_first = True
+            if verbose:
+                print(f"{character_2.name} has Strike First and {character_1.name} doesn't - {character_2.name} strikes first")
+        elif c1_strikes_last and not c2_strikes_last:
+            c1_first = False
+            if verbose:
+                print(f"{character_1.name} has Strike Last and must strike after {character_2.name}")
+        elif c2_strikes_last and not c1_strikes_last:
+            c2_first = False
+            if verbose:
+                print(f"{character_2.name} has Strike Last and must strike after {character_1.name}")
         else:
-            order = [(character_2, character_1), (character_1, character_2)]
+            # No Strike First/Last - fall back to Initiative
+            if verbose:
+                print("No Strike First/Last rules - comparing Initiative values")
+                print(f"{character_1.name}: Initiative {character_1.Initiative}")
+                print(f"{character_2.name}: Initiative {character_2.Initiative}")
+            
+            if character_1.Initiative == character_2.Initiative:
+                simultaneous_combat = True
+                if verbose:
+                    print("Equal Initiative - both strike simultaneously")
+            elif character_1.Initiative > character_2.Initiative:
+                c1_first = True
+                if verbose:
+                    print(f"{character_1.name} has higher Initiative and strikes first")
+            else:
+                c2_first = True
+                if verbose:
+                    print(f"{character_2.name} has higher Initiative and strikes first")
 
-        # Execute strikes: for each side in order, perform one OneRoundMeleeCombat and apply wounds
-        for attacker, defender in order:
+        # Create list of attackers and track pending strikes
+        order = []
+        if simultaneous_combat:
+            # Both strike at once - calculate all results before applying any
+            pending_results = []
+            
+            # Both characters strike
+            if verbose:
+                print(f"\nSimultaneous combat round - both fighters strike before wounds are applied")
+            
+            # First character strikes
+            if verbose:
+                print(f"\n{character_1.name} strikes:")
+            result1 = OneRoundMeleeCombat(character_1, character_2, verbose=verbose, is_first_round=(r==0))
+            pending_results.append((character_1, character_2, result1))
+            
+            # Second character strikes
+            if verbose:
+                print(f"\n{character_2.name} strikes:")
+            result2 = OneRoundMeleeCombat(character_2, character_1, verbose=verbose, is_first_round=(r==0))
+            pending_results.append((character_2, character_1, result2))
+            
+            if verbose:
+                print("\nApplying all combat results:")
+            
+            # Now apply all results
+            for attacker, defender, result in pending_results:
+                if verbose:
+                    print(f"{attacker.name} vs {defender.name}: {result}")
+                if result:
+                    defender.current_wounds = max(0, defender.current_wounds - result)
+        else:
+            # Normal sequential combat
+            if c1_first:
+                order = [(character_1, character_2), (character_2, character_1)]
+            else:
+                order = [(character_2, character_1), (character_1, character_2)]
+                
+            # Execute strikes in order
+            for attacker, defender in order:
+                if verbose:
+                    print(f"\n{attacker.name} strikes at {defender.name}!")
+                result = OneRoundMeleeCombat(attacker, defender, verbose=verbose, is_first_round=(r==0))
+                if result:
+                    wounds = result['wounds'] if isinstance(result, dict) else result
+                    if wounds and verbose:
+                        print(f"{defender.name} takes {wounds} wounds!")
+                    defender.current_wounds = max(0, defender.current_wounds - wounds)
             if verbose:
                 print(f"{attacker.name} strikes at {defender.name}!")
             result = OneRoundMeleeCombat(attacker, defender, verbose=verbose, is_first_round=(r==0))
@@ -737,10 +840,10 @@ def combat_simulation(
                 return winner
 
     # No decisive winner after rounds
-    if character_1.Wounds > character_2.Wounds:
+    if character_1.current_wounds > character_2.current_wounds:
         winner = character_1
         loser = character_2
-    elif character_2.Wounds > character_1.Wounds:
+    elif character_2.current_wounds > character_1.current_wounds:
         winner = character_2
         loser = character_1
     else:

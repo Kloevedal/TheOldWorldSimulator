@@ -15,6 +15,11 @@ FlamingAttacks = "Flaming Attacks"
 Magic = "Magic"
 Ethereal = "Ethereal"
 Frenzy = "Frenzy"
+Hatred = "Hatred"
+RequiresTwoHands = "Requires Two Hands"
+KillingBlow = "Killing Blow"
+KillingBlow6 = "Killing Blow 6+"
+
 
 # Derived Special Rules
 ImproveArmor1InCombat = "Improve Armor 1 in Combat"
@@ -26,7 +31,7 @@ IthilmarWeapons = "Ithilmar Weapons"
 ValourOfAges = "Valour of Ages"
 ArrowsOfIsha = "Arrows of Isha"
 IthilmarArmour = "Ithilmar Armour"
-MightyConstitution = "Mighty Constitution"
+MightyConstitution = "Mighty Constitution" ### improves str by one if moved and nullifies poison attacks 
 CommandingVoice = "Commanding Voice"
 NavalDiscipline = "Naval Discipline"
 PrecisionStrikes = "Precision Strikes"
