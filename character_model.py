@@ -105,7 +105,7 @@ class Character:
             # Enforce 'RequiresTwoHands' rule: cannot use shield with such weapons
             # Use helper to fetch weapon special rules (avoids iterating MeleeWeaponDict)
             weapon_special_rules = get_weapon_special_rules(self.Weapon)
-            if weapon_special_rules and "RequiresTwoHands" in weapon_special_rules and self.Shield:
+            if weapon_special_rules and RequiresTwoHands in weapon_special_rules and self.Shield:
                 raise ValueError(f"Weapon {self.Weapon} requires two hands and cannot be used with a shield")
             
         # Common initialization
