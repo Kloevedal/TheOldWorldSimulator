@@ -18,7 +18,7 @@ ElvenHonors = {
     },
     
     "BloodofCaledor":{
-        "stat_mods": {+1:"WeaponSkill"},
+        "stat_mods": {"WeaponSkill": 1},
         "special_rules":[DragonArmour,"Impetous","FreeFullPlate"],
         "equipment_options": {"weapons": []}
     },

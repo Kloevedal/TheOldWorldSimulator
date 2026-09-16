@@ -1,523 +1,658 @@
-import numpy as np
+"""The combat engine: rolling dice for a duel between two Characters.
 
-from armor import *
-from character_model import *
-from charts import *
-from elven_honors import *
-from faction_profiles import *
-from magic_items import *
-from special_rules import FirstRoundOnly, StrikeFirst, StrikeLast
-from weapons import get_weapon_special_rules, get_weapon_stats
+The resolution order for a single strike is:
+
+    apply_weapon_stats -> RollToHit -> RollToWound -> RollArmorSave
+        -> resolve_strike (ward / regeneration / killing blow / wounds)
+
+`Character.Wounds` is the profile maximum and is never modified here.
+All damage is applied to `Character.current_wounds`.
+"""
+
+from __future__ import annotations
+
+import re
+from dataclasses import dataclass, field
+
+from armor import NO_ARMOUR, UNARMOURED_SAVE, ArmourDict, get_armour_save
+from character_model import Character
+from charts import WeaponSkillChart, Wounds_vs_ToughnessChart
+from dice import MISFIRE, roll_amount, roll_artillery, roll_d6
+from elven_honors import ElvenHonors
+from faction_profiles import RACE_NAMES, FactionProfiles
+from magic_items import MagicItemDict
+from special_rules import (
+    ArtilleryStrength,
+    BloodRage,
+    Choppas,
+    ElvenReflexes,
+    EnsorcelledWeapons,
+    Ethereal,
+    FirstRoundOnly,
+    FirstRoundStr,
+    FlamingAttacks,
+    Flammable,
+    ForceRerollOneHit,
+    Frenzy,
+    FuriousCharge,
+    GromrilArmour,
+    GromrilWeapons,
+    Hatred,
+    ImmuneToKillingBlow,
+    IthilmarWeapons,
+    Khopesh,
+    Magic,
+    MagicalAttacks,
+    Murderous,
+    ObsidianBlades,
+    PrimalFury,
+    RerollArmourSaves1,
+    RerollHits1,
+    StrikeFirst,
+    StrikeLast,
+    WarpstoneWeapons,
+    WoundStealing,
+    parse_armour_bane,
+    parse_armour_bonus,
+    parse_killing_blow,
+    parse_multiple_wounds,
+    parse_regeneration,
+    parse_ward,
+)
+from weapons import MeleeWeaponDict, get_weapon_special_rules, get_weapon_stats
+
+# The charts are 10x10; clamp lookups so an over-buffed stat cannot index off
+# the end of the table.
+_CHART_MAX = 10
+
+# The Old World caps how far an armour save can be improved. Verify this value
+# against the rulebook before relying on it for close results.
+BEST_POSSIBLE_ARMOUR_SAVE = 2
 
 
-def RollToHit(attacker: Character, defender: Character, verbose: bool = True, is_first_round: bool = False) -> int:
-    """Roll dice for attacker to hit defender based on Weapon Skill comparison.
-    
-    Args:
-        attacker: The attacking Character making the hit rolls
-        defender: The defending Character being attacked
-        verbose: Whether to print detailed roll results
-        is_first_round: Whether this is the first round of combat (affects Hatred)
-    
-    Returns:
-        int: Number of successful hits scored
+def _clamp(value: int | None, low: int = 1, high: int = _CHART_MAX) -> int:
+    return max(low, min(high, value or low))
+
+
+@dataclass
+class Wound:
+    """A single wound that got past the to-wound roll."""
+
+    roll: int
+    killing_blow: bool = False
+
+
+@dataclass
+class StrikeResult:
+    """Everything one character's attacks produced in one round."""
+
+    attacks: int = 0
+    hits: int = 0
+    raw_wounds: int = 0
+    saves: int = 0
+    unsaved: list[Wound] = field(default_factory=list)
+    is_flaming: bool = False
+    is_magical: bool = False
+    multiple_wounds: int | str = 1  # a dice value such as "D3" is rolled per wound
+    self_wounds: int = 0
+
+    @property
+    def wounds(self) -> int:
+        """Wounds that got past armour, before wards and regeneration."""
+        return len(self.unsaved)
+
+
+# ---------------------------------------------------------------------------
+# Attack characteristics
+# ---------------------------------------------------------------------------
+
+
+def apply_extra_attacks(character: Character, is_first_round: bool = False) -> int:
+    """Total attacks for the round: base profile plus weapon and rule bonuses.
 
     Special Rules Handled:
-        - Ithilmar Weapons: Reroll hit rolls of 1 when using Hand Weapons
-        - RerollHits1: Reroll hit rolls of 1 with any weapon
-        - Hatred(X): In first round only, reroll all failed hits vs specified enemy type
+        - "+XA" weapon rule: adds X attacks (e.g. Two Hand Weapons)
+        - Frenzy: +1 attack
+        - Furious Charge: +1 attack on the charge round only
     """
-    to_hit_target = WeaponSkillChart[attacker.WeaponSkill - 1][defender.WeaponSkill - 1]
-    successful_hits = 0
+    extra = 0
+    for rule in get_weapon_special_rules(character.Weapon):
+        rule = str(rule)
+        if rule.startswith("+") and rule.endswith("A"):
+            try:
+                extra += int(rule[1:-1])
+            except ValueError:
+                pass
+    rules = character.SpecialRules or []
+    if Frenzy in rules:
+        extra += 1
+    if is_first_round and FuriousCharge in rules:
+        extra += 1
+    # Blood Rage can make a Beastman Frenzied part-way through a fight.
+    if getattr(character, "blood_rage_frenzied", False) and Frenzy not in rules:
+        extra += 1
+    return (character.Attacks or 0) + extra
 
-    # Check for reroll abilities
-    has_reroll = False
-    has_ithilmar = False
-    has_hatred = False
-    hatred_target = None
-    if attacker.SpecialRules:
-        has_reroll = RerollHits1 in attacker.SpecialRules
-        has_ithilmar = IthilmarWeapons in attacker.SpecialRules
-        for rule in attacker.SpecialRules:
-            if str(rule).startswith("Hatred"):
-                has_hatred = True
-                hatred_target = rule
 
-    # Determine if defender is hated
-    is_hated_enemy = False
-    if has_hatred and hatred_target:
-        # Hatred (all) or Hatred (X)
-        if hatred_target.strip().lower() == "hatred (all)":
-            is_hated_enemy = True
-        elif "(" in hatred_target and ")" in hatred_target:
-            # Extract the race or type from Hatred (X)
-            hated_str = hatred_target[hatred_target.find("(")+1:hatred_target.find(")")].strip().lower()
-            # Defender's race or name
-            defender_race = getattr(defender, "Race", "").lower() if getattr(defender, "Race", None) else ""
-            defender_name = getattr(defender, "name", "").lower() if getattr(defender, "name", None) else ""
-            if hated_str and (hated_str in defender_race or hated_str in defender_name):
-                is_hated_enemy = True
+def apply_weapon_stats(
+    character: Character, is_first_round: bool = False, verbose: bool = True
+) -> None:
+    """Apply the equipped weapon's temporary Strength and AP modifiers.
 
-    for attack in range(attacker.Attacks):
-        roll = np.random.randint(1, 7)  # Roll a D6
-        # Check if a reroll is allowed
-        can_reroll_1 = has_reroll or (has_ithilmar and attacker.Weapon == "HW")
-        # If roll is 1 and has reroll ability, reroll
-        if roll == 1 and can_reroll_1:
-            old_roll = roll
-            roll = np.random.randint(1, 7)  # Reroll
+    Weapons flagged FirstRoundOnly (lances, cavalry spears) or
+    FirstRoundStr (flails, morning stars) only contribute on the charge round,
+    as does the Orc Choppas rule. Call reset_weapon_stats afterwards to revert.
+    """
+    strength_bonus, ap_bonus, weapon_rules = _weapon_stats_or_default(character.Weapon)
+
+    first_round_gated = FirstRoundOnly in weapon_rules
+    strength_gated = first_round_gated or FirstRoundStr in weapon_rules
+
+    if strength_bonus is not None and (is_first_round or not strength_gated):
+        character.Strength = (character.Strength or 0) + strength_bonus
+    # Weapon AP is stored as a magnitude; RollArmorSave adds it to the save target.
+    if ap_bonus and (is_first_round or not first_round_gated):
+        character.ArmourPiercing = (character.ArmourPiercing or 0) + abs(ap_bonus)
+
+    # Ensorcelled, Gromril, Warpstone Weapons, Khopesh and Obsidian Blades each
+    # give a plain hand weapon AP -1.
+    if has_ensorcelled_hand_weapon(character) or has_gromril_hand_weapon(character):
+        character.ArmourPiercing = (character.ArmourPiercing or 0) + 1
+
+    # Choppas improves the weapon's AP by 1 on the charge round, but does
+    # nothing for a magic weapon.
+    if (
+        is_first_round
+        and Choppas in (character.SpecialRules or [])
+        and Magic not in weapon_rules
+    ):
+        character.ArmourPiercing = (character.ArmourPiercing or 0) + 1
+
+
+def reset_weapon_stats(character: Character) -> None:
+    """Undo apply_weapon_stats, restoring the character's own characteristics."""
+    character.Strength = getattr(character, "original_Strength", character.Strength)
+    character.ArmourPiercing = getattr(character, "original_ArmourPiercing", 0)
+    character.Weapon = getattr(character, "original_Weapon", character.Weapon)
+
+
+# Hand weapon names, for rules that only apply to a plain hand weapon.
+_HAND_WEAPONS = ("HW", "Hand Weapon", "HandWeapon")
+
+
+# Killing Blow only affects models whose troop type is infantry or cavalry.
+# A custom character with no troop type is treated as infantry, that being the
+# common case for a hand-built fighter.
+def is_killing_blow_target(character: Character) -> bool:
+    """Whether Killing Blow can slay this model outright."""
+    if ImmuneToKillingBlow in (character.SpecialRules or []):
+        return False
+    troop_type = getattr(character, "TroopType", None)
+    if not troop_type:
+        return True
+    troop_type = str(troop_type).lower()
+    return "infantry" in troop_type or "cavalry" in troop_type
+
+
+def _upgrades_plain_hand_weapon(character: Character, *rules: str) -> bool:
+    """Whether a hand-weapon-only rule applies to what this model is wielding.
+
+    These rules (Ensorcelled Weapons, Gromril Weapons and their equivalents)
+    only work with a single ordinary hand weapon: not two hand weapons, not
+    another weapon type, and not a hand weapon that is already magical or runed.
+    The model needs any one of `rules`.
+    """
+    if not any(rule in (character.SpecialRules or []) for rule in rules):
+        return False
+    if character.Weapon not in _HAND_WEAPONS:
+        return False
+    return Magic not in get_weapon_special_rules(character.Weapon)
+
+
+def has_ensorcelled_hand_weapon(character: Character) -> bool:
+    """A plain hand weapon gets Magical Attacks and AP -1.
+
+    Ensorcelled Weapons (Warriors of Chaos) and Warpstone Weapons (Skaven).
+    """
+    return _upgrades_plain_hand_weapon(character, EnsorcelledWeapons, WarpstoneWeapons)
+
+
+def has_gromril_hand_weapon(character: Character) -> bool:
+    """A plain hand weapon gets AP -1 (no magic).
+
+    Gromril Weapons (Dwarfs), Khopesh (Tomb Kings) and Obsidian Blades
+    (Lizardmen) all read the same.
+    """
+    return _upgrades_plain_hand_weapon(character, GromrilWeapons, Khopesh, ObsidianBlades)
+
+
+def has_murderous_hand_weapon(character: Character) -> bool:
+    """Murderous: reroll to-wound rolls of 1 with a plain hand weapon."""
+    return _upgrades_plain_hand_weapon(character, Murderous)
+
+
+def _weapon_stats_or_default(weapon):
+    """Weapon stats, tolerating weapons that have no melee profile (e.g. bows)."""
+    try:
+        return get_weapon_stats(weapon)
+    except ValueError:
+        return (None, 0, [])
+
+
+# ---------------------------------------------------------------------------
+# The dice rolls
+# ---------------------------------------------------------------------------
+
+
+def RollToHit(
+    attacker: Character,
+    defender: Character,
+    verbose: bool = True,
+    is_first_round: bool = False,
+) -> int:
+    """Roll to hit, comparing the two Weapon Skills. Returns the number of hits.
+
+    Special Rules Handled:
+        - Ithilmar Weapons: reroll hit rolls of 1 when using a Hand Weapon
+        - Reroll Hits 1: reroll hit rolls of 1 with any weapon
+        - Hatred(X): reroll failed hits in the first round against a hated foe
+        - Primal Fury: reroll hit rolls of 1 once its Leadership test is passed
+        - Force Reroll of One Successful Hit (on the defender, e.g. Mathlann's
+          Ire): the first hit scored against them each round is rerolled once
+    """
+    to_hit_target = WeaponSkillChart[_clamp(attacker.WeaponSkill) - 1][
+        _clamp(defender.WeaponSkill) - 1
+    ]
+    rules = attacker.SpecialRules or []
+
+    can_reroll_1 = (
+        RerollHits1 in rules
+        or getattr(attacker, "primal_fury_active", False)
+        or (
+            IthilmarWeapons in rules
+            and attacker.Weapon in ("HW", "Hand Weapon", "HandWeapon")
+        )
+    )
+    reroll_misses = is_first_round and _is_hated_enemy(rules, defender)
+
+    # A defender may force one successful hit per round to be rerolled.
+    defender_rules = list(defender.SpecialRules or []) + list(
+        get_weapon_special_rules(defender.Weapon)
+    )
+    forced_reroll_available = ForceRerollOneHit in defender_rules
+
+    attacks = apply_extra_attacks(attacker, is_first_round=is_first_round)
+    hits = 0
+    for _ in range(attacks):
+        roll = _hit_roll(can_reroll_1, verbose)
+        if roll >= to_hit_target and forced_reroll_available:
+            forced_reroll_available = False
+            roll = _hit_roll(can_reroll_1, verbose)
             if verbose:
-                if has_reroll:
-                    print(f"RerollHits1: Rerolling hit roll of 1 -> New roll: {roll}")
-                else:
-                    print(f"Ithilmar Weapons: Rerolling hit roll of 1 -> New roll: {roll}")
+                print(
+                    f"{defender.name} forces the successful hit to be rerolled "
+                    f"-> {roll}"
+                )
         if roll >= to_hit_target:
-            successful_hits += 1
+            hits += 1
             if verbose:
-                print(f"Hit roll: {roll} vs target {to_hit_target} - Hit!")
-        elif is_first_round and is_hated_enemy:
-            # Hatred: reroll failed hit in first round
-            reroll = np.random.randint(1, 7)
+                print(f"Hit roll: {roll} vs target {to_hit_target}+ - Hit!")
+            continue
+
+        if reroll_misses:
+            roll = _hit_roll(can_reroll_1, verbose)
             if verbose:
-                print(f"Hatred: Rerolling failed hit roll of {roll} -> New roll: {reroll}")
-            # Reroll 1s if reroll abilities apply
-            if reroll == 1 and can_reroll_1:
-                old_reroll = reroll
-                reroll = np.random.randint(1, 7)
+                print(f"Hatred: rerolling the failed hit -> {roll}")
+            if roll >= to_hit_target:
+                hits += 1
                 if verbose:
-                    if has_reroll:
-                        print(f"RerollHits1: Rerolling hit roll of 1 on hatred reroll -> New roll: {reroll}")
-                    else:
-                        print(f"Ithilmar Weapons: Rerolling hit roll of 1 on hatred reroll -> New roll: {reroll}")
-            if reroll >= to_hit_target:
-                successful_hits += 1
-                if verbose:
-                    print(f"Hatred reroll: {reroll} vs target {to_hit_target} - Hit!")
-            elif verbose:
-                print(f"Hatred reroll: {reroll} vs target {to_hit_target} - Miss!")
-        elif verbose:
-            print(f"Hit roll: {roll} vs target {to_hit_target} - Miss!")
-    return successful_hits
+                    print(f"Hatred reroll: {roll} vs target {to_hit_target}+ - Hit!")
+                continue
+
+        if verbose:
+            print(f"Hit roll: {roll} vs target {to_hit_target}+ - Miss!")
+    return hits
 
 
-def RollToWound(attacker: Character, defender: Character, num_hits: int, verbose: bool = True) -> tuple[int, list[int], bool, int | None, bool, bool]:
-    """Roll dice to wound based on Strength vs Toughness comparison.
-    
-    Args:
-        attacker: The attacking Character making wound rolls
-        defender: The defending Character being wounded
-        num_hits: Number of successful hits to roll for wounds
-        verbose: Whether to print detailed roll results
-    
-    Returns:
-        tuple containing:
-        - int: Number of wounds caused
-        - list[int]: List of successful wound roll values (for Armor Bane)
-        - bool: Whether a Killing Blow was triggered
-        - int | None: Target number for Killing Blow (usually 6) or None
-        - bool: Whether the attack is considered Flaming
-        - bool: Whether the attack is considered Magical
+def test_primal_fury(character: Character, verbose: bool = True) -> tuple[bool, bool]:
+    """Roll the Primal Fury Leadership test. Returns (furious, frenzied).
+
+    Per the rule, the test is taken when this model's combat is chosen. Passing
+    it lets the model reroll To Hit rolls of a natural 1 for the rest of the
+    Combat phase. Blood Rage adds: a pass on a natural double also makes the
+    model Frenzied.
+    """
+    rules = character.SpecialRules or []
+    if PrimalFury not in rules:
+        return False, False
+
+    first, second = roll_d6(), roll_d6()
+    total = first + second
+    passed = total <= (character.Leadership or 0)
+    frenzied = passed and BloodRage in rules and first == second
+    if verbose:
+        outcome = "passed" if passed else "failed"
+        print(
+            f"Primal Fury: {character.name} rolls {first}+{second}={total} vs "
+            f"Ld{character.Leadership} - {outcome}"
+            + (" and works itself into a Frenzy!" if frenzied else "")
+        )
+    return passed, frenzied
+
+
+def _hit_roll(can_reroll_1: bool, verbose: bool) -> int:
+    roll = roll_d6()
+    if roll == 1 and can_reroll_1:
+        roll = roll_d6()
+        if verbose:
+            print(f"Rerolling a hit roll of 1 -> {roll}")
+    return roll
+
+
+# Rule text names races in the plural ("Hatred (Dwarfs)") while profiles name
+# them in the singular (Race: "Dwarf"), so both are reduced to a stem first.
+_IRREGULAR_PLURALS = {
+    "elves": "elf",
+    "dwarves": "dwarf",
+    "wolves": "wolf",
+    "men": "man",
+}
+
+
+def _stem(word: str) -> str:
+    word = word.strip().lower()
+    if word in _IRREGULAR_PLURALS:
+        return _IRREGULAR_PLURALS[word]
+    # "beastmen" -> "beastman", "marauders" -> "marauder".
+    if word.endswith("men") and len(word) > 3:
+        return word[:-3] + "man"
+    return word[:-1] if word.endswith("s") and len(word) > 3 else word
+
+
+# Words that carry no identifying weight in a Hatred target.
+_HATRED_STOPWORDS = {"of", "the", "and", "models", "model", "&"}
+
+
+def _significant_stems(text: str) -> set:
+    return {_stem(w) for w in text.split()} - _HATRED_STOPWORDS
+
+
+def _names_match(target: str, candidate: str) -> bool:
+    """Whether a rule's target names the same thing as a Race or model name.
+
+    A target may list several foes - "Orcs & Goblins", or "Warriors of Chaos,
+    Beastmen Brayherds & Daemonic models" - so it is split into alternatives
+    first. An alternative matches only if *every* significant word in it is
+    present, which is what keeps "Hatred (High Elves)" off a Dark Elf.
+    """
+    if not target or not candidate:
+        return False
+    if target in candidate:
+        return True
+
+    candidate_stems = _significant_stems(candidate)
+    if not candidate_stems:
+        return False
+
+    for alternative in re.split(r"[,&]|\band\b", target):
+        wanted = _significant_stems(alternative)
+        if not wanted:
+            continue
+        # Either the target fully describes the candidate ("Orcs" vs an Orc), or
+        # the candidate is one part of a longer army name ("Beastmen Brayherds"
+        # vs a Beastman). Both directions are a match; a partial overlap in
+        # neither direction is not, which is what excludes a Dark Elf from
+        # "Hatred (High Elves)".
+        if wanted <= candidate_stems or candidate_stems <= wanted:
+            return True
+    return False
+
+
+def _is_hated_enemy(rules, defender: Character) -> bool:
+    """Whether any Hatred(X) rule on the attacker applies to this defender."""
+    for rule in rules:
+        rule = str(rule)
+        if not rule.lower().startswith(Hatred.lower()):
+            continue
+        if "(" not in rule or ")" not in rule:
+            continue  # bare "Hatred" with no target
+        target = rule[rule.find("(") + 1 : rule.find(")")].strip().lower()
+        if target.startswith("all"):  # "all", "all enemies"
+            return True
+        race = (getattr(defender, "Race", "") or "").lower()
+        name = (getattr(defender, "name", "") or "").lower()
+        if _names_match(target, race) or _names_match(target, name):
+            return True
+    return False
+
+
+def RollToWound(
+    attacker: Character,
+    defender: Character,
+    num_hits: int,
+    verbose: bool = True,
+    is_first_round: bool = False,
+) -> tuple[list[Wound], bool, bool]:
+    """Roll to wound, comparing Strength against Toughness.
+
+    Returns (wounds, is_flaming, is_magical). Each Wound records its roll (for
+    Armour Bane) and whether it triggered a Killing Blow.
 
     Special Rules Handled:
-        - Ethereal: Only magical attacks can wound
-        - Killing Blow: Wound rolls of 6 trigger instant death (unless warded)
-        - Armor Bane: Track 6s for increased AP
-        - Magic/Flaming: Track for ward save interactions
+        - Ethereal: only magical attacks can wound
+        - Ensorcelled Weapons: a plain hand weapon counts as magical
+        - Killing Blow (from the character or the weapon)
+        - Choppas: reroll to-wound rolls of 1 on the charge round
+        - Murderous: reroll to-wound rolls of 1 with a plain hand weapon
+        - Killing Blow only applies to infantry and cavalry targets
+        - Magic / Flaming: tracked for ward save interactions
     """
-    # Check for Ethereal rule on defender
-    is_ethereal = False
-    if defender.SpecialRules:
-        is_ethereal = Ethereal in defender.SpecialRules
-
-    # Check if attack is magical
-    is_magical = False
-    # Check if attack is flaming
-    is_flaming = False
-    # Check attacker's special rules
-    if attacker.SpecialRules:
-        is_magical = "Magic" in attacker.SpecialRules
-        is_flaming = FlamingAttacks in attacker.SpecialRules
-    # Check weapon's special rules
     weapon_rules = get_weapon_special_rules(attacker.Weapon)
-    if weapon_rules:
-        # set flags based on canonical tokens
-        if Magic in weapon_rules:
-            is_magical = True
-        if FlamingAttacks in weapon_rules:
-            is_flaming = True
+    attacker_rules = attacker.SpecialRules or []
 
-    # If defender is Ethereal and attack is not magical, no wounds can be caused
-    if is_ethereal and not is_magical:
+    is_magical = (
+        Magic in attacker_rules
+        or MagicalAttacks in attacker_rules
+        or Magic in weapon_rules
+        or MagicalAttacks in weapon_rules
+        or has_ensorcelled_hand_weapon(attacker)
+    )
+    is_flaming = FlamingAttacks in attacker_rules or FlamingAttacks in weapon_rules
+
+    if Ethereal in (defender.SpecialRules or []) and not is_magical:
         if verbose:
-            print(f"{defender.name} is Ethereal and can only be wounded by magical attacks!")
-        return 0, [], False, None
+            print(
+                f"{defender.name} is Ethereal and can only be wounded by "
+                "magical attacks!"
+            )
+        return [], is_flaming, is_magical
 
-    to_wound_target = Wounds_vs_ToughnessChart[attacker.Strength - 1][
-        defender.Toughness - 1
+    to_wound_target = Wounds_vs_ToughnessChart[_clamp(attacker.Strength) - 1][
+        _clamp(defender.Toughness) - 1
     ]
     if to_wound_target is None:
         if verbose:
             print(f"{attacker.name} is too weak to wound {defender.name}!")
-        return 0, [], False, None
+        return [], is_flaming, is_magical
 
-    successful_wounds = 0
-    wound_rolls = []  # Store the roll value for each successful wound
-    killing_blow_triggered = False
-    killing_blow_value = None
+    killing_blow_target = parse_killing_blow(attacker_rules, weapon_rules)
+    if not is_killing_blow_target(defender):
+        # Against anything but infantry or cavalry - or a model immune to it -
+        # a Killing Blow is just an ordinary wound.
+        killing_blow_target = None
+    armour_bane = parse_armour_bane(weapon_rules, attacker_rules)
 
-    # Check if weapon has Armor Bane
-    weapon_rules = get_weapon_special_rules(attacker.Weapon)
-    has_armor_bane = any(str(r).startswith("AB") for r in weapon_rules) if weapon_rules else False
-    
-    
-    # Check character special rules for Armor Bane and Killing Blow
-    killing_blow_rule = None
-    if attacker.SpecialRules:
-        if isinstance(attacker.SpecialRules, list):
-            if KillingBlow in attacker.SpecialRules:
-                killing_blow_rule = KillingBlow in attacker.SpecialRules
-            has_armor_bane = has_armor_bane or any(str(rule).startswith('AB') for rule in attacker.SpecialRules)
-        elif isinstance(attacker.SpecialRules, str):
-            if attacker.SpecialRules.startswith('KillingBlow'):
-                killing_blow_rule = attacker.SpecialRules
-            has_armor_bane = has_armor_bane or str(attacker.SpecialRules).startswith('AB')
+    # Choppas lets an Orc reroll to-wound rolls of a natural 1 when it charged,
+    # but only with a non-magical weapon.
+    reroll_wound_1s = (
+        is_first_round and Choppas in attacker_rules and Magic not in weapon_rules
+    ) or has_murderous_hand_weapon(attacker)
 
-    if killing_blow_rule:
-        killing_blow_value = 6  # fallback
-
-    for hit in range(num_hits):
-        roll = np.random.randint(1, 7)  # Roll a D6
-        if roll >= to_wound_target:
-            successful_wounds += 1
-            wound_rolls.append(roll)  # Store the roll value
-            # Check for Killing Blow
-            if killing_blow_value and roll == 6:
-                killing_blow_triggered = True
-                if verbose:
-                    print(f"Killing Blow triggered! Wound roll: 6. {defender.name} will be instantly killed unless a Ward save is made.")
-            else:
-                if verbose:
-                    ab_text = " (Armor Bane triggered!)" if (roll == 6 and has_armor_bane) else ""
-                    print(
-                        f"Wound roll: {roll} vs target {to_wound_target} - Wounded!{ab_text}"
-                    )
-        elif verbose:
-            print(
-                f"Wound roll : {roll} vs target {to_wound_target} - Failed to wound!"
-            )
-
-    return successful_wounds, wound_rolls, killing_blow_triggered, killing_blow_value, is_flaming, is_magical
-
-
-def RollArmorSave(attacker: Character, defender: Character, num_wounds: int, wound_rolls: list[int] | None = None, verbose: bool = True) -> int:
-    """Roll armor saves for wounds, accounting for AP and save modifiers.
-    
-    Args:
-        attacker: The attacking Character (for AP and special rules)
-        defender: The defending Character making armor saves
-        num_wounds: Number of wounds to attempt to save
-        wound_rolls: List of the original wound roll values (for Armor Bane)
-        verbose: Whether to print detailed roll results
-    
-    Returns:
-        int: Number of wounds successfully saved by armor
-
-    Special Rules Handled:
-        - Armor Bane (AB): Increases AP when wound roll was 6
-        - AHX: Improves armor save by X
-        - ImproveArmor1InCombat: +1 to armor saves in combat
-        - Shield: +1 to armor saves if equipped
-    """
-    if defender.Armor is None:
-        return 0  # No armor, no saves possible
-
-    # Find matching armor key in ArmourDict
-    armor_key = None
-    for key in ArmourDict:
-        if isinstance(key, tuple):
-            if defender.Armor in key:
-                armor_key = key
-                break
-        elif defender.Armor == key:
-            armor_key = key
-            break
-    
-
-    if defender.Armor is None:
-        return 0  # No armor, no saves possible
-
-    # Find matching armor key in ArmourDict
-    armor_key = None
-    for key in ArmourDict:
-        if isinstance(key, tuple):
-            if defender.Armor in key:
-                armor_key = key
-                break
-        elif defender.Armor == key:
-            armor_key = key
-            break
-    if armor_key is None:
-        if verbose:
-            print(f"{defender.name} has unknown armor type: {defender.Armor}")
-        return 0
-
-    armor_save_target = ArmourDict[armor_key]
-    if defender.Shield is not None:
-        armor_save_target -= 1  # Shield improves armor save by 1
-
-    # Check for 'AHX' special rule (improves armor save by X)
-    ah_bonus = 0
-    if defender.SpecialRules:
-        for rule in defender.SpecialRules:
-            if str(rule).startswith('AH'):
-                try:
-                    ah_bonus += int(str(rule).replace('AH',''))
-                except Exception:
-                    pass
-            if ImproveArmor1InCombat in defender.SpecialRules:
-                ah_bonus += 1
-                
-    armor_save_target -= ah_bonus  # Lower is better
-
-    # Get base armor piercing and AB value if weapon has it
-    base_ap = np.abs(attacker.ArmourPiercing)
-    ab_value = 0
-
-    # Use helper to inspect weapon stats and rules for AB and Killing Blow parsing
-    try:
-        strength_bonus, ap_bonus, weapon_rules = get_weapon_stats(attacker.Weapon)
-    except ValueError:
-        # If weapon not found, fall back to defaults and continue (warn)
-        print(f"Warning: Weapon '{getattr(attacker, 'Weapon', None)}' not found; using defaults")
-        strength_bonus, ap_bonus, weapon_rules = (None, 0, [])
-                
-    successful_saves = 0
-    wound_rolls = wound_rolls if wound_rolls else [0] * num_wounds  # Default to 0 if no wound rolls provided
-
-    for wound_index in range(num_wounds):
-        current_ap = base_ap
-        # If this wound was from a 6 and weapon has Armor Bane, increase AP
-        if wound_rolls[wound_index] == 6:
-            current_ap += ab_value
-        current_save_target = armor_save_target  # Start with base save
-        current_save_target += current_ap  # AP makes save harder by increasing target
-        
-        # Cap minimum save at 2+
-        current_save_target = max(2, current_save_target)
-            
-        if current_save_target > 6:  # No save possible
+    wounds = []
+    for _ in range(num_hits):
+        roll = roll_d6()
+        if roll == 1 and reroll_wound_1s:
+            roll = roll_d6()
             if verbose:
-                print(f"Armor save roll {wound_index + 1}: No save possible! (Save of {current_save_target}+ required)")
+                print(f"Rerolling a to-wound roll of 1 -> {roll}")
+        if roll < to_wound_target:
+            if verbose:
+                print(f"Wound roll: {roll} vs target {to_wound_target}+ - Failed!")
             continue
-            
-        roll = np.random.randint(1, 7)  # Roll a D6
-        if roll >= current_save_target:
-            successful_saves += 1
-            if verbose:
-                print(f"Armor save roll {wound_index + 1}: {roll} vs target {current_save_target}+ - Saved!")
-        elif verbose:
-            print(f"Armor save roll {wound_index + 1}: {roll} vs target {current_save_target}+ - Failed!")
-            
-    return successful_saves
+
+        is_killing_blow = killing_blow_target is not None and roll >= killing_blow_target
+        wounds.append(Wound(roll=roll, killing_blow=is_killing_blow))
+        if verbose:
+            notes = ""
+            if is_killing_blow:
+                notes += " (Killing Blow!)"
+            if roll == 6 and armour_bane:
+                notes += f" (Armour Bane {armour_bane}!)"
+            print(f"Wound roll: {roll} vs target {to_wound_target}+ - Wounded!{notes}")
+    return wounds, is_flaming, is_magical
 
 
-def apply_extra_attacks(character: Character) -> int:
-    """Calculate total attacks including bonuses from weapon rules and special rules.
-    
-    Args:
-        character: The Character whose attacks are being calculated
-    
-    Returns:
-        int: Total number of attacks (base + bonuses)
+def RollArmorSave(
+    attacker: Character, defender: Character, wounds: list[Wound], verbose: bool = True
+) -> list[Wound]:
+    """Roll armour saves. Returns the wounds that were NOT saved.
 
     Special Rules Handled:
-        - +XA weapon rule: Adds X additional attacks
-        - Frenzy: +1 attack
+        - Armour Bane (ABX): extra armour piercing on a wound roll of 6
+        - AHX / Improve Armor 1 in Combat: improve the save
+        - Gromril Armour / Reroll Armour Saves 1: reroll armour saves of a natural 1
+        - Killing Blow: permits no armour save
+        - Shield: improves the save by 1
     """
-    extra_attacks = 0
-    # Check weapon for special rules that grant extra attacks
-    weapon_rules = get_weapon_special_rules(character.Weapon)
-    if weapon_rules:
-        # Example: "+1A" tokens
-        for r in weapon_rules:
-            if isinstance(r, str) and r.startswith("+") and r.endswith("A"):
-                try:
-                    extra_attacks += int(r[1:-1])
-                except ValueError:
-                    pass
-    # Check for Frenzy special rule
-    if character.SpecialRules:
-        if 'Frenzy' in character.SpecialRules:
-            extra_attacks += 1
-    return character.Attacks + extra_attacks
-
-
-def apply_weapon_stats(character: Character, is_first_round: bool = False, verbose: bool = True) -> None:
-    """Apply temporary stat modifications from equipped weapon.
-    
-    Args:
-        character: The Character to modify
-        is_first_round: Whether this is first round (affects FirstRoundOnly rules)
-        verbose: Whether to print modification details
-
-    Effects:
-        - Applies weapon strength bonus
-        - Applies weapon AP bonus
-        - Respects FirstRoundOnly restrictions
-        
-    Note: Use reset_weapon_stats to revert these changes after combat round.
-    """
-    try:
-        strength_bonus, ap_bonus, weapon_rules = get_weapon_stats(character.Weapon)
-    except ValueError:
-        # missing weapon — treat as no bonus
-        strength_bonus, ap_bonus, weapon_rules = (None, 0, [])
-    # Apply strength bonus only if not FirstRoundOnly or if it's the first round
-    if strength_bonus is not None:
-        if FirstRoundOnly in weapon_rules:
-            if is_first_round:
-                character.Strength = (character.Strength or 0) + strength_bonus
-        else:
-            character.Strength = (character.Strength or 0) + strength_bonus
-    # Apply armour piercing similarly
-    if ap_bonus:
-        if FirstRoundOnly in weapon_rules:
-            if is_first_round:
-                character.ArmourPiercing = (character.ArmourPiercing or 0) + ap_bonus
-        else:
-            character.ArmourPiercing = (character.ArmourPiercing or 0) + ap_bonus
-    # Handle first round only tokens
-    if is_first_round and weapon_rules and 'First Round Only' in weapon_rules:
-        # Already handled via weapon rules presence; no-op here unless more logic desired
-        pass
-
-
-def reset_weapon_stats(character: Character) -> None:
-    """Reset character stats to their original values after weapon modifications.
-    
-    Args:
-        character: The Character whose stats should be reset
-        
-    Effects:
-        - Restores original Strength
-        - Restores original ArmourPiercing
-        - Restores original Weapon
-    """
-    character.Strength = getattr(character, 'original_Strength', character.Strength)
-    character.ArmourPiercing = getattr(character, 'original_ArmourPiercing', 0)
-    character.Weapon = getattr(character, 'original_Weapon', character.Weapon)
-
-
-def attempt_regeneration_save(defender: Character, num_wounds: int, verbose: bool = True) -> int:
-    """Attempt regeneration saves against wounds using best available regeneration.
-    
-    Args:
-        defender: The Character attempting regeneration
-        num_wounds: Number of wounds to attempt to regenerate
-        verbose: Whether to print detailed roll results
-    
-    Returns:
-        int: Number of wounds successfully regenerated
-
-    Regeneration Sources:
-        - RegenX special rule: Regenerate on X+
-        Uses the lowest (best) regeneration target if multiple sources exist.
-    """
-    if not defender.SpecialRules:
-        return 0
-
-    # Find regeneration target if any
-    regen_target = None
-    for rule in defender.SpecialRules:
-        rule_str = str(rule)
-        if rule_str.startswith('Regen'):
-            try:
-                target = int(rule_str.replace('Regen', ''))
-                if regen_target is None or target < regen_target:
-                    regen_target = target
-            except ValueError:
-                pass
-
-    if regen_target is None:
-        return 0
-
-    if verbose:
-        print(f"Attempting regeneration save: {regen_target}+ required")
-
-    successful_regens = 0
-    for _ in range(num_wounds):
-        roll = np.random.randint(1, 7)  # Roll D6
-        if roll >= regen_target:
-            successful_regens += 1
+    base_save = get_armour_save(defender.Armor)
+    if base_save is None:
+        if defender.Armor not in NO_ARMOUR:
             if verbose:
-                print(f"Regeneration save roll: {roll} vs target {regen_target}+ - Regenerated!")
-        elif verbose:
-            print(f"Regeneration save roll: {roll} vs target {regen_target}+ - Failed!")
+                print(f"{defender.name} has unknown armor type: {defender.Armor}")
+            return list(wounds)
+        # An unarmoured model has an armour value of 7+ for the purposes of
+        # rules that improve it, so a shield or Armoured Hide gives it a 6+.
+        base_save = UNARMOURED_SAVE
 
-    return successful_regens
+    save_target = base_save
+    if defender.Shield:
+        save_target -= 1
+    save_target -= parse_armour_bonus(defender.SpecialRules)
+    if save_target > 6:
+        return list(wounds)  # no armour, and nothing improving it
+
+    rerolls_armour_ones = any(
+        rule in (defender.SpecialRules or [])
+        for rule in (GromrilArmour, RerollArmourSaves1)
+    )
+    armour_piercing = abs(attacker.ArmourPiercing or 0)
+    armour_bane = parse_armour_bane(
+        get_weapon_special_rules(attacker.Weapon), attacker.SpecialRules
+    )
+
+    unsaved = []
+    for index, wound in enumerate(wounds, start=1):
+        # A Killing Blow permits no Armour save at all.
+        if wound.killing_blow:
+            if verbose:
+                print(f"Armor save {index}: no save against a Killing Blow")
+            unsaved.append(wound)
+            continue
+        current = save_target + armour_piercing
+        if wound.roll == 6 and armour_bane:
+            current += armour_bane
+        current = max(BEST_POSSIBLE_ARMOUR_SAVE, current)
+
+        if current > 6:
+            if verbose:
+                print(f"Armor save {index}: no save possible ({current}+ needed)")
+            unsaved.append(wound)
+            continue
+
+        roll = roll_d6()
+        if roll == 1 and rerolls_armour_ones:
+            roll = roll_d6()
+            if verbose:
+                print(f"Rerolling an armour save of 1 -> {roll}")
+        if roll >= current:
+            if verbose:
+                print(f"Armor save {index}: {roll} vs {current}+ - Saved!")
+        else:
+            if verbose:
+                print(f"Armor save {index}: {roll} vs {current}+ - Failed!")
+            unsaved.append(wound)
+    return unsaved
 
 
-def attempt_ward_save(defender: Character, num_wounds: int, is_flaming: bool = False, verbose: bool = False) -> int:
-    """Attempt ward saves against wounds using best available ward save.
-    
-    Args:
-        defender: The Character attempting ward saves
-        num_wounds: Number of wounds to attempt to save
-        is_flaming: Whether the wounds are from a Flaming attack
-        verbose: Whether to print detailed roll results
-    
-    Returns:
-        int: Number of wounds successfully saved by wards
+def attempt_ward_save(
+    defender: Character,
+    num_wounds: int,
+    is_flaming: bool = False,
+    verbose: bool = False,
+    is_killing_blow: bool = False,
+    is_multiple_wounds: bool = False,
+    is_magical: bool = False,
+) -> int:
+    """Roll ward saves against `num_wounds`. Returns the number saved.
 
-    Ward Save Sources (uses lowest applicable target):
-        - WardX special rule: Save on X+
-        - Witness to Destiny: Save on 6+
-        - Dragon Armour: Save on 6+
-        - Blessings of Asuryan: Save on 5+ vs Flaming only
-
-    Effects:
-        - Sets defender.ward_applied when any ward save succeeds
+    Ward sources (best target wins): WardX, Chaos Armour, Witness to Destiny,
+    Dragon Armour, and conditional wards such as Blessings of Asuryan (Flaming
+    only), the Armour of Skaldour (Killing Blow or Multiple Wounds only) or the
+    Daemonic 5+ (non-magical attacks only), so the kind of wound being saved
+    against has to be passed in.
     """
-    if not defender.SpecialRules:
+    ward_target = parse_ward(
+        defender.SpecialRules,
+        is_flaming,
+        is_killing_blow=is_killing_blow,
+        is_multiple_wounds=is_multiple_wounds,
+        is_magical=is_magical,
+    )
+    if ward_target is None or num_wounds <= 0:
         return 0
 
-    # Find all ward save targets
-    ward_targets = []
-    for rule in defender.SpecialRules:
-        # Check for WardX format
-        rule_str = str(rule)
-        if rule_str.startswith('Ward'):
-            try:
-                target = int(rule_str.replace('Ward', ''))
-                ward_targets.append(target)
-            except ValueError:
-                pass
-        # Check named ward sources
-        elif rule_str == "Witness to Destiny (6+ Ward)" or rule_str == "Dragon Armour (6+ Ward)":
-            ward_targets.append(6)
-        elif rule_str == "Blessings of Asuryan (5+ Ward vs Flaming)" and is_flaming:
-            ward_targets.append(5)
-
-    if not ward_targets:
-        return 0  # No applicable ward saves
-
-    # Use lowest valid target
-    ward_target = min(ward_targets)
     if verbose:
-        print(f"Attempting ward save: {ward_target}+ required")
+        print(f"Attempting ward saves: {ward_target}+ required")
 
-    successful_wards = 0
+    saved = 0
     for _ in range(num_wounds):
-        roll = np.random.randint(1, 7)  # Roll D6
+        roll = roll_d6()
         if roll >= ward_target:
-            successful_wards += 1
+            saved += 1
+            defender.ward_applied = True
             if verbose:
-                print(f"Ward save roll: {roll} vs target {ward_target}+ - Saved!")
-                defender.ward_applied = True  # Flag that a ward succeeded
+                print(f"Ward save: {roll} vs {ward_target}+ - Saved!")
         elif verbose:
-            print(f"Ward save roll: {roll} vs target {ward_target}+ - Failed!")
+            print(f"Ward save: {roll} vs {ward_target}+ - Failed!")
+    return saved
 
-    return successful_wards
+
+def attempt_regeneration_save(
+    defender: Character, num_wounds: int, verbose: bool = True
+) -> int:
+    """Roll regeneration saves against `num_wounds`. Returns the number saved."""
+    regen_target = parse_regeneration(defender.SpecialRules)
+    if regen_target is None or num_wounds <= 0:
+        return 0
+
+    if verbose:
+        print(f"Attempting regeneration saves: {regen_target}+ required")
+
+    saved = 0
+    for _ in range(num_wounds):
+        roll = roll_d6()
+        if roll >= regen_target:
+            saved += 1
+            if verbose:
+                print(f"Regeneration: {roll} vs {regen_target}+ - Regenerated!")
+        elif verbose:
+            print(f"Regeneration: {roll} vs {regen_target}+ - Failed!")
+    return saved
+
+
+# ---------------------------------------------------------------------------
+# Resolving a strike
+# ---------------------------------------------------------------------------
 
 
 def OneRoundMeleeCombat(
@@ -525,82 +660,196 @@ def OneRoundMeleeCombat(
     defender: Character,
     verbose: bool = True,
     is_first_round: bool = True,
-) -> dict[str, int | bool | list[int] | None]:
-    """Execute one round of melee combat between two characters.
-    
-    Args:
-        attacker: The Character making the attack
-        defender: The Character being attacked
-        verbose: Whether to print detailed combat results
-        is_first_round: Whether this is first round (affects various rules)
-    
-    Returns:
-        dict containing:
-        - hits (int): Number of successful hits
-        - wounds (int): Number of wounds after armor saves
-        - raw_wounds (int): Number of wounds before armor saves
-        - saves (int): Number of successful armor saves
-        - killing_blow_triggered (bool): Whether a Killing Blow occurred
-        - killing_blow_value (int | None): Target number for Killing Blow
-        - is_flaming (bool): Whether the attack was Flaming
-        - is_magical (bool): Whether the attack was Magical
+) -> StrikeResult:
+    """Roll one character's attacks for one round. Applies no damage.
 
-    Effects:
-        - Temporarily modifies attacker's stats based on weapon
-        - Resets attacker's stats after combat
+    Damage is left to resolve_strike so that simultaneous combat can roll both
+    sides before either takes a wound.
     """
-    apply_weapon_stats(attacker, is_first_round=is_first_round)
-    hits = RollToHit(attacker, defender, verbose=verbose, is_first_round=is_first_round)
-    wounds_info = RollToWound(attacker, defender, hits, verbose=verbose)
-    # Unpack minimal expected tuple safely
-    if wounds_info is None:
-        total_wounds = 0
-        wound_rolls = []
-        killing_blow_triggered = False
-        killing_blow_value = None
-        is_flaming = False
-        is_magical = False
-    else:
-        total_wounds = wounds_info[0] if isinstance(wounds_info, tuple) else 0
-        wound_rolls = wounds_info[1] if isinstance(wounds_info, tuple) and len(wounds_info) > 1 else []
-        killing_blow_triggered = wounds_info[2] if isinstance(wounds_info, tuple) and len(wounds_info) > 2 else False
-        killing_blow_value = wounds_info[3] if isinstance(wounds_info, tuple) and len(wounds_info) > 3 else None,
-        is_flaming = wounds_info[4] if isinstance(wounds_info, tuple) and len(wounds_info) > 4 else False
-        is_magical = wounds_info[5] if isinstance(wounds_info, tuple) and len(wounds_info) > 5 else False
+    furious, frenzied = test_primal_fury(attacker, verbose=verbose)
+    attacker.primal_fury_active = furious
+    if frenzied:
+        attacker.blood_rage_frenzied = True
 
-
-    # Do not auto-kill here; return killing blow info for higher-level resolution
-    saves = RollArmorSave(attacker, defender, total_wounds, wound_rolls, verbose=verbose)
-    
-    # Effective wounds after saves
-    effective_wounds = max(0, total_wounds - saves)
-    reset_weapon_stats(attacker)
-    # Determine if the attack was flaming (weapon or attacker rules)
-    is_flaming = False
-    try:
-        # Check attacker and weapon for flaming
-        if attacker.SpecialRules and FlamingAttacks in attacker.SpecialRules:
-            is_flaming = True
-    except Exception:
-        pass
+    apply_weapon_stats(attacker, is_first_round=is_first_round, verbose=verbose)
     weapon_rules = get_weapon_special_rules(attacker.Weapon)
-    if weapon_rules and FlamingAttacks in weapon_rules:
-        is_flaming = True
-        
-    if weapon_rules and Magic in weapon_rules:
-        is_magical = True
+
+    # A weapon whose Strength is rolled on an Artillery dice, such as Burlok
+    # Damminson's Furnace Hammer. A Misfire costs its wielder a Wound and all
+    # of its attacks.
+    if ArtilleryStrength in weapon_rules:
+        rolled = roll_artillery()
+        if rolled == MISFIRE:
+            if verbose:
+                print(f"{attacker.name}'s weapon misfires! No attacks, and a Wound lost.")
+            reset_weapon_stats(attacker)
+            return StrikeResult(self_wounds=1)
+        attacker.Strength = rolled
+        if verbose:
+            print(f"Artillery dice: {attacker.name} strikes at Strength {rolled}")
+
+    try:
+        attacks = apply_extra_attacks(attacker, is_first_round=is_first_round)
+        hits = RollToHit(
+            attacker, defender, verbose=verbose, is_first_round=is_first_round
+        )
+        wounds, is_flaming, is_magical = RollToWound(
+            attacker, defender, hits, verbose=verbose, is_first_round=is_first_round
+        )
+        unsaved = RollArmorSave(attacker, defender, wounds, verbose=verbose)
+    finally:
+        reset_weapon_stats(attacker)
+
+    return StrikeResult(
+        attacks=attacks,
+        hits=hits,
+        raw_wounds=len(wounds),
+        saves=len(wounds) - len(unsaved),
+        unsaved=unsaved,
+        is_flaming=is_flaming,
+        is_magical=is_magical,
+        multiple_wounds=parse_multiple_wounds(weapon_rules, attacker.SpecialRules),
+    )
 
 
-    return {
-        'hits': hits,
-        'wounds': effective_wounds,
-        'raw_wounds': total_wounds,
-        'saves': saves,
-        'killing_blow_triggered': killing_blow_triggered,
-        'killing_blow_value': killing_blow_value,
-        'is_flaming': is_flaming,
-        'magical': is_magical
-    }
+def resolve_strike(
+    defender: Character, result: StrikeResult, verbose: bool = True
+) -> tuple[int, bool]:
+    """Apply one StrikeResult to the defender. Returns (wounds_taken, slain).
+
+    This is the single place where wards, regeneration, Killing Blow and
+    Multiple Wounds are resolved, so sequential and simultaneous combat behave
+    identically.
+
+    Per The Old World, a Killing Blow permits a Ward save but no Armour or
+    Regeneration save, and slays an infantry or cavalry model outright. An
+    ordinary wound may be warded, then regenerated; whatever survives costs the
+    defender the attack's Multiple Wounds value, normally 1.
+    """
+    wounds_taken = 0
+    slain = False
+    multiplier = result.multiple_wounds
+    if isinstance(multiplier, int):
+        multiplier = max(1, multiplier)
+
+    for wound in result.unsaved:
+        warded = attempt_ward_save(
+            defender,
+            1,
+            result.is_flaming,
+            verbose,
+            is_killing_blow=wound.killing_blow,
+            is_multiple_wounds=multiplier != 1,
+            is_magical=result.is_magical,
+        )
+        if warded:
+            if verbose and wound.killing_blow:
+                print(f"{defender.name} wards off the Killing Blow!")
+            continue
+
+        # A Killing Blow allows no Regeneration save, and neither does a
+        # Flaming attack against a Flammable model.
+        can_regenerate = not wound.killing_blow and not (
+            result.is_flaming and Flammable in (defender.SpecialRules or [])
+        )
+        if can_regenerate and attempt_regeneration_save(defender, 1, verbose):
+            continue
+
+        if wound.killing_blow:
+            if verbose:
+                print(f"Killing Blow strikes {defender.name} down!")
+            slain = True
+            break
+        lost = roll_amount(multiplier)
+        if verbose and not isinstance(multiplier, int):
+            print(f"Multiple Wounds ({multiplier}): {lost} wound(s)")
+        wounds_taken += lost
+
+    if slain:
+        defender.current_wounds = 0
+    elif wounds_taken:
+        defender.current_wounds = max(0, defender.current_wounds - wounds_taken)
+
+    if verbose and (wounds_taken or slain):
+        print(
+            f"{defender.name} suffers {wounds_taken} wound(s). "
+            f"Remaining: {defender.current_wounds}/{defender.Wounds}"
+        )
+    return wounds_taken, slain
+
+
+# ---------------------------------------------------------------------------
+# Strike order
+# ---------------------------------------------------------------------------
+
+# Lower sorts earlier. Strike First always precedes normal, which always
+# precedes Strike Last; Initiative only breaks ties within the same band.
+_STRIKE_FIRST, _STRIKE_NORMAL, _STRIKE_LAST = 0, 1, 2
+
+
+def _strike_band(character: Character) -> int:
+    # Strike First/Last can come from the fighter or from the weapon - a Great
+    # Weapon carries Strike Last, which is not copied onto the character.
+    rules = list(character.SpecialRules or []) + list(
+        get_weapon_special_rules(character.Weapon)
+    )
+    first = StrikeFirst in rules
+    last = StrikeLast in rules
+    if first and last:
+        return _STRIKE_NORMAL  # the two cancel out
+    if first:
+        return _STRIKE_FIRST
+    if last:
+        return _STRIKE_LAST
+    return _STRIKE_NORMAL
+
+
+def effective_initiative(character: Character, is_first_round: bool = False) -> int:
+    """Initiative for this round, after rules that modify it.
+
+    Special Rules Handled:
+        - Elven Reflexes: +1 Initiative (to a maximum of 10) in the first round
+    """
+    initiative = character.Initiative or 0
+    if is_first_round and ElvenReflexes in (character.SpecialRules or []):
+        initiative = min(10, initiative + 1)
+    return initiative
+
+
+def determine_strike_order(
+    character_1: Character,
+    character_2: Character,
+    verbose: bool = True,
+    is_first_round: bool = False,
+) -> list[list[tuple[Character, Character]]]:
+    """Group the two fighters into strike steps.
+
+    Returns a list of steps; each step is a list of (attacker, defender) pairs
+    that strike together. Two steps means one fighter strikes before the other,
+    one step means they strike simultaneously.
+    """
+    key_1 = (_strike_band(character_1), -effective_initiative(character_1, is_first_round))
+    key_2 = (_strike_band(character_2), -effective_initiative(character_2, is_first_round))
+
+    if key_1 == key_2:
+        if verbose:
+            print(
+                f"{character_1.name} and {character_2.name} strike "
+                "simultaneously."
+            )
+        return [[(character_1, character_2), (character_2, character_1)]]
+
+    first, second = (
+        (character_1, character_2) if key_1 < key_2 else (character_2, character_1)
+    )
+    if verbose:
+        print(f"{first.name} strikes before {second.name}.")
+    return [[(first, second)], [(second, first)]]
+
+
+# ---------------------------------------------------------------------------
+# The duel
+# ---------------------------------------------------------------------------
 
 
 def combat_simulation(
@@ -610,247 +859,101 @@ def combat_simulation(
     Shooting: bool = False,
     verbose: bool = True,
 ) -> Character | None:
-    """Simulate a full combat between two characters.
-    
-    Args:
-        character_1: First combatant
-        character_2: Second combatant
-        rounds: Maximum number of combat rounds
-        Shooting: Whether this is a shooting phase (not yet implemented)
-        verbose: Whether to print detailed combat results
-    
-    Returns:
-        Character | None: Winning character, or None if combat was a draw
-        
-    Combat Flow:
-        1. Determine strike order (StrikeFirst/Last, Initiative)
-        2. Each character attacks in order
-        3. For each attack:
-            - Roll to hit
-            - Roll to wound
-            - Apply armor saves
-            - Apply ward saves
-            - Apply regeneration saves
-        4. Apply remaining wounds
-        5. Check for victory conditions
-    
-    Victory Conditions:
-        - Instant win on successful Killing Blow (after saves)
-        - Win when opponent reaches 0 wounds
-        - Most wounds remaining after all rounds
-        - Draw if equal wounds remaining
+    """Fight a duel between two characters. Returns the winner, or None on a draw.
+
+    Each round: work out strike order, roll each step's attacks, apply the
+    results, and stop as soon as one fighter is down. If both survive all
+    rounds, whoever has more wounds remaining wins.
     """
-    # Initialize current wounds at start of combat
+    if Shooting:
+        raise NotImplementedError("Shooting is not implemented yet")
+
     character_1.current_wounds = character_1.Wounds
     character_2.current_wounds = character_2.Wounds
-    for r in range(rounds):
+
+    for round_number in range(1, rounds + 1):
+        is_first_round = round_number == 1
         if verbose:
-            print(f"Round {r+1}")
+            print(f"\n=== Round {round_number} ===")
 
-        # Determine strike order: check StrikeFirst/StrikeLast rules and Initiative
-        c1_rules = character_1.SpecialRules if character_1.SpecialRules else []
-        c2_rules = character_2.SpecialRules if character_2.SpecialRules else []
-
-        # Decide strike timing this round
-        simultaneous_combat = False
-        c1_first = False
-        c2_first = False
-        
-        if verbose:
-            print("\nDetermining strike order...")
-
-        # Check for Strike First/Last
-        c1_strikes_first = 'Strike First' in c1_rules
-        c2_strikes_first = 'Strike First' in c2_rules
-        c1_strikes_last = 'Strike Last' in c1_rules
-        c2_strikes_last = 'Strike Last' in c2_rules
-
-        if c1_strikes_first and c2_strikes_first:
-            # Both have Strike First - simultaneous based on Initiative
-            if verbose:
-                print(f"Both {character_1.name} and {character_2.name} have Strike First")
-            if character_1.Initiative == character_2.Initiative:
-                simultaneous_combat = True
-                if verbose:
-                    print("Equal Initiative - both strike simultaneously")
-            elif character_1.Initiative > character_2.Initiative:
-                c1_first = True
-                if verbose:
-                    print(f"{character_1.name} has higher Initiative and strikes first")
-            else:
-                c2_first = True
-                if verbose:
-                    print(f"{character_2.name} has higher Initiative and strikes first")
-        elif c1_strikes_last and c2_strikes_last:
-            # Both have Strike Last - simultaneous based on Initiative
-            if verbose:
-                print(f"Both {character_1.name} and {character_2.name} have Strike Last")
-            if character_1.Initiative == character_2.Initiative:
-                simultaneous_combat = True
-                if verbose:
-                    print("Equal Initiative - both strike simultaneously")
-            elif character_1.Initiative > character_2.Initiative:
-                c1_first = True
-                if verbose:
-                    print(f"{character_1.name} has higher Initiative and strikes first")
-            else:
-                c2_first = True
-                if verbose:
-                    print(f"{character_2.name} has higher Initiative and strikes first")
-        elif c1_strikes_first and not c2_strikes_first:
-            c1_first = True
-            if verbose:
-                print(f"{character_1.name} has Strike First and {character_2.name} doesn't - {character_1.name} strikes first")
-        elif c2_strikes_first and not c1_strikes_first:
-            c2_first = True
-            if verbose:
-                print(f"{character_2.name} has Strike First and {character_1.name} doesn't - {character_2.name} strikes first")
-        elif c1_strikes_last and not c2_strikes_last:
-            c1_first = False
-            if verbose:
-                print(f"{character_1.name} has Strike Last and must strike after {character_2.name}")
-        elif c2_strikes_last and not c1_strikes_last:
-            c2_first = False
-            if verbose:
-                print(f"{character_2.name} has Strike Last and must strike after {character_1.name}")
-        else:
-            # No Strike First/Last - fall back to Initiative
-            if verbose:
-                print("No Strike First/Last rules - comparing Initiative values")
-                print(f"{character_1.name}: Initiative {character_1.Initiative}")
-                print(f"{character_2.name}: Initiative {character_2.Initiative}")
-            
-            if character_1.Initiative == character_2.Initiative:
-                simultaneous_combat = True
-                if verbose:
-                    print("Equal Initiative - both strike simultaneously")
-            elif character_1.Initiative > character_2.Initiative:
-                c1_first = True
-                if verbose:
-                    print(f"{character_1.name} has higher Initiative and strikes first")
-            else:
-                c2_first = True
-                if verbose:
-                    print(f"{character_2.name} has higher Initiative and strikes first")
-
-        # Create list of attackers and track pending strikes
-        order = []
-        if simultaneous_combat:
-            # Both strike at once - calculate all results before applying any
-            pending_results = []
-            
-            # Both characters strike
-            if verbose:
-                print(f"\nSimultaneous combat round - both fighters strike before wounds are applied")
-            
-            # First character strikes
-            if verbose:
-                print(f"\n{character_1.name} strikes:")
-            result1 = OneRoundMeleeCombat(character_1, character_2, verbose=verbose, is_first_round=(r==0))
-            pending_results.append((character_1, character_2, result1))
-            
-            # Second character strikes
-            if verbose:
-                print(f"\n{character_2.name} strikes:")
-            result2 = OneRoundMeleeCombat(character_2, character_1, verbose=verbose, is_first_round=(r==0))
-            pending_results.append((character_2, character_1, result2))
-            
-            if verbose:
-                print("\nApplying all combat results:")
-            
-            # Now apply all results
-            for attacker, defender, result in pending_results:
-                if verbose:
-                    print(f"{attacker.name} vs {defender.name}: {result}")
-                if result:
-                    defender.current_wounds = max(0, defender.current_wounds - result)
-        else:
-            # Normal sequential combat
-            if c1_first:
-                order = [(character_1, character_2), (character_2, character_1)]
-            else:
-                order = [(character_2, character_1), (character_1, character_2)]
-                
-            # Execute strikes in order
-            for attacker, defender in order:
+        for step in determine_strike_order(
+            character_1, character_2, verbose, is_first_round=is_first_round
+        ):
+            # Roll every strike in this step before applying any of it, so that
+            # simultaneous fighters both get to swing.
+            rolled = []
+            for attacker, defender in step:
                 if verbose:
                     print(f"\n{attacker.name} strikes at {defender.name}!")
-                result = OneRoundMeleeCombat(attacker, defender, verbose=verbose, is_first_round=(r==0))
-                if result:
-                    wounds = result['wounds'] if isinstance(result, dict) else result
-                    if wounds and verbose:
-                        print(f"{defender.name} takes {wounds} wounds!")
-                    defender.current_wounds = max(0, defender.current_wounds - wounds)
-            if verbose:
-                print(f"{attacker.name} strikes at {defender.name}!")
-            result = OneRoundMeleeCombat(attacker, defender, verbose=verbose, is_first_round=(r==0))
-            # Process wounds and killing blows
-            wounds = result.get('wounds', 0) if isinstance(result, dict) else 0
-            is_flaming = result.get('is_flaming', False) if isinstance(result, dict) else False
-            killing_blow = result.get('killing_blow_triggered', False) if isinstance(result, dict) else False
+                rolled.append(
+                    (
+                        attacker,
+                        defender,
+                        OneRoundMeleeCombat(
+                            attacker,
+                            defender,
+                            verbose=verbose,
+                            is_first_round=is_first_round,
+                        ),
+                    )
+                )
 
-            # First handle potential killing blow
-            if killing_blow:
-                if verbose:
-                    print(f"Killing Blow triggered against {defender.name}!")
-                # First attempt ward save against the killing blow
-                wards_vs_killing = attempt_ward_save(defender, 1, is_flaming, verbose)
-                if wards_vs_killing:
+            for attacker, defender, result in rolled:
+                if result.self_wounds:
+                    attacker.current_wounds = max(
+                        0, attacker.current_wounds - result.self_wounds
+                    )
+                inflicted, _ = resolve_strike(defender, result, verbose=verbose)
+                recover_wounds(attacker, inflicted, verbose=verbose)
+
+            down = [c for c in (character_1, character_2) if c.current_wounds <= 0]
+            if down:
+                if len(down) == 2:
                     if verbose:
-                        print(f"{defender.name} wards off the Killing Blow!")
-                    # Killing blow warded; proceed with normal wound resolution
-                else:
-                    # Attempt regeneration save against the killing blow
-                    regen_vs_killing = attempt_regeneration_save(defender, 1, verbose)
-                    if regen_vs_killing:
-                        if verbose:
-                            print(f"{defender.name} regenerates from the Killing Blow!")
-                        # Killing blow regenerated; proceed with normal wound resolution
-                    else:
-                        # Neither ward nor regeneration succeeded - instant death
-                        defender.Wounds = 0
-                        winner = attacker
-                        loser = defender
-                        print(f"{winner.name} stands victorious, the blood of {loser.name} stains the field of battle")
-                        return winner
+                        print("\nBoth fighters fall together.")
+                    return None
+                winner = character_2 if down[0] is character_1 else character_1
+                return _declare(winner, down[0], verbose)
 
-            # Handle regular wounds (if no killing blow or it was warded)
-            if wounds:
-                # First attempt ward saves against regular wounds
-                wounds_after_wards = wounds - attempt_ward_save(defender, wounds, is_flaming, verbose)
-                
-                # Then attempt regeneration for any wounds that weren't warded
-                if wounds_after_wards > 0:
-                    wounds_after_regen = wounds_after_wards - attempt_regeneration_save(defender, wounds_after_wards, verbose)
-                    
-                    # Apply any wounds that weren't warded or regenerated
-                    if wounds_after_regen > 0:
-                        defender.Wounds = max(0, defender.Wounds - wounds_after_regen)
-                        if verbose:
-                            saved_wounds = wounds - wounds_after_regen
-                            if saved_wounds > 0:
-                                print(f"{defender.name} saved {saved_wounds} wound(s) through wards/regeneration.")
-                            print(f"{defender.name} suffers {wounds_after_regen} wound(s). Remaining Wounds: {defender.Wounds}")
-
-            # Check if defender died from regular wounds
-            if defender.Wounds <= 0:
-                winner = attacker
-                loser = defender
-                print(f"{winner.name} stands victorious, the blood of {loser.name} stains the field of battle")
-                return winner
-
-    # No decisive winner after rounds
     if character_1.current_wounds > character_2.current_wounds:
-        winner = character_1
-        loser = character_2
-    elif character_2.current_wounds > character_1.current_wounds:
-        winner = character_2
-        loser = character_1
-    else:
-        # Tie -> no one stands victorious
-        if verbose:
-            print("The battle ends in a bloody stalemate.")
-        return None
+        return _declare(character_1, character_2, verbose)
+    if character_2.current_wounds > character_1.current_wounds:
+        return _declare(character_2, character_1, verbose)
 
-    print(f"{winner.name} stands victorious, the blood of {loser.name} stains the field of battle")
+    if verbose:
+        print("\nThe battle ends in a bloody stalemate.")
+    return None
+
+
+def recover_wounds(character: Character, wounds_inflicted: int, verbose: bool = True) -> int:
+    """Heal a Wound Stealing model for each unsaved Wound it inflicted.
+
+    Never takes the model above its profile Wounds. Returns the number healed.
+    """
+    if wounds_inflicted <= 0:
+        return 0
+    rules = list(character.SpecialRules or []) + list(
+        get_weapon_special_rules(character.Weapon)
+    )
+    if WoundStealing not in rules:
+        return 0
+
+    missing = (character.Wounds or 0) - character.current_wounds
+    healed = min(wounds_inflicted, max(0, missing))
+    if healed:
+        character.current_wounds += healed
+        if verbose:
+            print(
+                f"{character.name} drains {healed} Wound(s) back. "
+                f"Remaining: {character.current_wounds}/{character.Wounds}"
+            )
+    return healed
+
+
+def _declare(winner: Character, loser: Character, verbose: bool) -> Character:
+    if verbose:
+        print(
+            f"\n{winner.name} stands victorious, the blood of {loser.name} "
+            "stains the field of battle"
+        )
     return winner

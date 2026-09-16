@@ -1,177 +1,87 @@
-# Faction Profiles
+"""Faction data: statlines, points, special rules and legal equipment.
 
-# Race Synonyms and Race Names
+The profiles themselves live one module per faction in the `factions` package;
+this module assembles them and provides the name-resolution helpers. Adding a
+faction means adding a module there, not editing this file.
+"""
+
+from __future__ import annotations
+
+from factions import (
+    build_faction_aliases,
+    build_profile_aliases,
+    build_profiles,
+)
+
+# Race synonyms. Races cut across factions (a Goblin appears in an Orc army),
+# so this stays central rather than being split per faction.
 RACE_NAMES = {
     "HIGH_ELVES": ["High Elf", "High Elves", "Asur"],
     "DARK_ELVES": ["Dark Elf", "Dark Elves", "Druchii"],
     "ORCS": ["Orc", "Orcs", "Greenskins", "Orks", "Ork"],
-    # Add more races as needed
+    "GOBLINS": ["Goblin", "Goblins", "Grot", "Grots", "Hobgoblin"],
+    "NIGHT_GOBLINS": ["Night Goblin", "Night Goblins"],
+    "TROLLS": ["Troll", "Trolls"],
+    "EMPIRE": ["Empire", "Human", "Humans", "Men"],
+    "DWARVES": ["Dwarf", "Dwarfs", "Dwarves", "Dawi"],
+    "LIZARDMEN": ["Lizardman", "Lizardmen", "Saurus", "Skink", "Slann"],
+    "BRETONNIA": ["Bretonnia", "Bretonnian", "French"],
+    "CHAOS": ["Chaos", "Chaos Warrior", "Chaos Warriors", "Chaos Marauder",
+              "Marauder", "Chaos Dragon"],
+    "SKAVEN": ["Skaven", "Ratmen"],
+    "VAMPIRE_COUNTS": ["Vampire Counts", "Vampires", "Vampire", "Necromancer",
+                       "Wight", "Spirit"],
+    "OGRES": ["Ogre", "Ogres"],
+    "WOOD_ELVES": ["Wood Elf", "Wood Elves", "Asrai", "Forest Spirit"],
+    "TOMB_KINGS": ["Tomb Kings", "Tomb King", "Nehekhara"],
+    "CATHAY": ["Cathay", "Cathayan"],
+    "CHAOS_DWARVES": ["Chaos Dwarf", "Chaos Dwarves", "Dawi Zharr",
+                      "Bull Centaur"],
+    "DAEMONS": ["Daemon", "Daemons", "Chaos Daemons"],
+    "BEASTMEN": ["Beastman", "Beastmen", "Beastmen of Chaos", "Gor", "Centigor",
+                 "Minotaur", "Farm Animals"],
+    "KISLEV": ["Kislev", "Kislevites"],
 }
 
 
+FactionProfiles = build_profiles()
 
-FactionProfiles = {
-    "High Elves": {
-        "Noble": {
-            "base_profile": {
-                "Movement": 5,
-                "WeaponSkill": 6,
-                "BallisticSkill": 6,
-                "Strength": 4,
-                "Toughness": 3,
-                "Initiative": 5,
-                "Wounds": 2,
-                "Attacks": 3,
-                "Leadership": 9,
-                "Race": "High Elf",
-                "Armor": "Light Armor",
-                "Weapon": "Hand Weapon",
-                "Shield": None,
-                "SpecialRules": ["Strike First","Ithilmar Weapons","Valour of Ages"],
-            },
-            "equipment_options": {
-                "weapons": ["Hand Weapon", "Great Weapon", "Lance", "Cavalry Spear", "Halberd"],
-                "armor": ["Light Armor", "Heavy Armor", "Plate Armor"],
-                "shield": True,
-                "items": [],
-            }
-        },
-        "Prince": {
-            "base_profile": {
-                "Movement": 5,
-                "WeaponSkill": 7,
-                "BallisticSkill": 7,
-                "Strength": 4,
-                "Toughness": 3,
-                "Initiative": 6,
-                "Wounds": 3,
-                "Attacks": 4,
-                "Leadership": 10,
-                "Race": "High Elf",
-                "Armor": "Light Armor",
-                "Weapon": "Hand Weapon",
-                "Shield": None,
-                "SpecialRules": ["Strike First","Ithilmar Weapons","Valour of Ages"],
-            },
-            "equipment_options": {
-                "weapons": ["Hand Weapon","Two Hand Weapons", "Great Weapon", "Lance", "Cavalry Spear", "Halberd"],
-                "armor": ["Light Armor", "Heavy Armor", "Plate Armor"],
-                "shield": True,
-                "items":[],
-            },
-        },
-        "Handmaiden of the Everqueen": {
-            "base_profile": {
-                "Movement": 5,
-                "WeaponSkill": 6,
-                "BallisticSkill": 7,
-                "Strength": 4,
-                "Toughness": 3,
-                "Wounds": 2,
-                "Initiative": 6,
-                "Race": "High Elf",
-                "Attacks": 2,
-                "Leadership": 8,
-                "SpecialRules": ["Arrows of Isha","Ithilmar Weapons", "Strike First","Evasive","Ignores Cover","Immune to Psychology","Ithilmar Armour"],
-            },
-            "equipment_options": {
-                "weapons":["Handmaiden's Spear", "Bow of Avelorn", "Hand Weapon"],
-                "armor": ["Light Armor", "Heavy Armor"],
-                "shield": False,
-                "items": [],
-            },
-        },
-        "Korhil": {
-            "base_profile": {
-                "Movement": 5,
-                "WeaponSkill": 7,
-                "BallisticSkill": 5,
-                "Strength": 4,
-                "Toughness": 3,
-                "Initiative": 6,
-                "Race": "High Elf",
-                "Wounds": 3,
-                "Attacks": 4,
-                "Leadership": 9,
-                "SpecialRules":["Furious Charge", "Mighty Constitution", "Move Through Cover", "Stubborn", "Valour of Ages"],
-            },
-            "equipment_options": {
-                "weapons": ["Chayal", "Hand Weapon"],
-                "armor": ["Heavy Armor"],
-                "shield": True,
-                "items": ["Pelt Of Charandis"],
-            },
-        },
-        "Ishaya Vess": {
-            "base_profile": {
-                "Movement": 5,
-                "WeaponSkill": 7,
-                "BallisticSkill": 7,
-                "Strength": 4,
-                "Toughness": 3,
-                "Initiative": 7,
-                "Race": "High Elf",
-                "Wounds": 3,
-                "Attacks": 4,
-                "Leadership": 9,
-                "SpecialRules":["Commanding Voice","Ithilmar Weapons","Naval Discipline","Rallying Cry","Strike First","Precision Strikes","Valour of Ages"],
-            },
-            "equipment_options": {
-                "weapons": ["Mathlann's Ire", "Hand Weapon","Warbow"],
-                "armor": ["Heavy Armor"],
-                "shield": True,
-                "items": [],
-            },
-        },
-    },
-    "Orcs": {
-        "Orc Boss": {
-            "base_profile": {
-                "Movement": 4,
-                "WeaponSkill": 4,
-                "BallisticSkill": 3,
-                "Strength": 4,
-                "Toughness": 4,
-                "Initiative": 3,
-                "Wounds": 2,
-                "Attacks": 3,
-                "Leadership": 8,
-                "Race": "Orc",
-                "Armor": None,
-                "Weapon": "Hand Weapon",
-                "Shield": None,
-                "SpecialRules": ["Animosity"],
-            },
-            "equipment_options": {
-                "weapons": ["Hand Weapon", "Great Weapon", "Two Hand Weapons"],
-                "armor": ["Light Armor", "Heavy Armor"],
-                "shield": True,
-                "items": [],
-            }
-        },
-        "Black Orc Boss": {
-            "base_profile": {
-                "Movement": 4,
-                "WeaponSkill": 5,
-                "BallisticSkill": 3,
-                "Strength": 4,
-                "Toughness": 4,
-                "Initiative": 3,
-                "Wounds": 2,
-                "Attacks": 3,
-                "Leadership": 8,
-                "Race": "Orc",
-                "Armor": "Heavy Armor",
-                "Weapon": "Hand Weapon",
-                "Shield": None,
-                "SpecialRules": ["Immune to Psychology"],
-            },
-            "equipment_options": {
-                "weapons": ["Hand Weapon", "Great Weapon", "Two Hand Weapons"],
-                "armor": ["Heavy Armor", "Plate Armor"],
-                "shield": True,
-                "items": [],
-            }
-        }
-    }
-}
+# Alternative names for the keys of FactionProfiles, contributed by each faction
+# module. Matching is case-insensitive and ignores '&'/'and' and punctuation, so
+# "Orc and Goblin Tribes" and "orc & goblin tribes" both resolve.
+FACTION_ALIASES = build_faction_aliases()
+
+# Shorthand names for profiles, per faction.
+PROFILE_ALIASES = build_profile_aliases()
+
+
+def _normalise_faction(name):
+    """Lowercase, drop punctuation, and treat '&' as 'and' for alias matching."""
+    if not isinstance(name, str):
+        return ""
+    text = name.lower().replace("&", " and ")
+    text = "".join(ch if ch.isalnum() else " " for ch in text)
+    return " ".join(text.split())
+
+
+_FACTION_LOOKUP = {_normalise_faction(k): v for k, v in FACTION_ALIASES.items()}
+
+
+def resolve_faction(name):
+    """Return the FactionProfiles key for a faction name or alias, else None."""
+    if name in FactionProfiles:
+        return name
+    return _FACTION_LOOKUP.get(_normalise_faction(name))
+
+
+def resolve_profile(faction, name):
+    """Return the profile key within `faction` for a name, alias or casing."""
+    profiles = FactionProfiles.get(faction, {})
+    if name in profiles:
+        return name
+    if not isinstance(name, str):
+        return None
+    aliases = PROFILE_ALIASES.get(faction, {})
+    folded = {key.lower(): key for key in profiles}
+    folded.update({alias.lower(): key for alias, key in aliases.items()})
+    return folded.get(name.strip().lower())
