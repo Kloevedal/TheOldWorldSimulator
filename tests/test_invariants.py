@@ -163,7 +163,7 @@ class TestEveryUnit(TestEveryCharacter):
 
 class TestReproducibility(unittest.TestCase):
     PAIRS = [
-        (("High Elves", "Prince"), ("Orcs", "Black Orc Warboss")),
+        (("High Elf Realms", "Prince"), ("Orc & Goblin Tribes", "Black Orc Warboss")),
         (("Dwarfen Mountain Holds", "King"), ("Warriors of Chaos", "Chaos Lord")),
         (("Vampire Counts", "Vampire Count"), ("Empire of Man", "General of the Empire")),
     ]
@@ -203,7 +203,7 @@ class TestVerboseAndQuietAgree(unittest.TestCase):
         for seed in range(30 if not FULL else 300):
             outcomes = []
             for verbose in (False, True):
-                a = build("Orcs", "Orc Warboss", name="A", SpecialRules=["Frenzy"])
+                a = build("Orc & Goblin Tribes", "Orc Warboss", name="A", SpecialRules=["Frenzy"])
                 b = build("Beastmen Brayherds", "Beastlord", name="B")
                 dice.seed(seed)
                 with redirect_stdout(io.StringIO()):

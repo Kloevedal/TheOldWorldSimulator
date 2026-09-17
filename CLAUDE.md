@@ -14,7 +14,7 @@ Dice-level combat simulator for Warhammer: The Old World. Pure standard-library 
 
 ## Data generated from tow.whfb.app
 
-- `magic_items_data.py` and `item_allowances.py` are generated (`python3 tools/transcribe_items.py -w`, `python3 tools/transcribe_allowances.py -w`); never hand-edit them. Put corrections in `magic_items.py` (hand-reviewed entries and `CURATED_ABILITIES` win).
+- `magic_items_data.py`, `item_allowances.py` and `option_costs.py` are generated (`python3 tools/transcribe_items.py -w`, `python3 tools/transcribe_allowances.py -w`, `python3 tools/transcribe_costs.py -w`); never hand-edit them. A priced option the roster doesn't offer fails `tests/test_points.py`: fix the roster's `equipment_options`. Put corrections in `magic_items.py` (hand-reviewed entries and `CURATED_ABILITIES` win).
 - After any roster or statline change run `python3 tools/verify_rosters.py` (offline from `.tow_cache/`); it must report 0 problems.
 - Item effects are converted conservatively: conditional wording is never applied, and "during a challenge" counts as always true (a duel is a challenge).
 

@@ -39,11 +39,11 @@ ARCHETYPES = {
 }
 
 # Profiles whose mirror match once came out lopsided; always checked.
-REGRESSION_MIRRORS = [("Orcs", "Ogdruz Swampdigga")]
+REGRESSION_MIRRORS = [("Orc & Goblin Tribes", "Ogdruz Swampdigga")]
 
 # Asymmetric pairs for the seat-order check.
 SEAT_PAIRS = [
-    (("High Elves", "Prince"), ("Orcs", "Black Orc Warboss")),
+    (("High Elf Realms", "Prince"), ("Orc & Goblin Tribes", "Black Orc Warboss")),
     (("Dwarfen Mountain Holds", "Thane"), ("Beastmen Brayherds", "Wargor")),
     (("Dark Elves", "Dreadlord"), ("Warriors of Chaos", "Exalted Champion")),
     (("Skaven", "Warlord"), ("Lizardmen", "Saurus Oldblood")),

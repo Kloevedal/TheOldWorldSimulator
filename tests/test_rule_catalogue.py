@@ -260,24 +260,24 @@ class TestElvenHonours(unittest.TestCase):
                     self.assertIsNotNone(rc.classify(rule))
 
     def test_anointed_of_asuryan_grants_a_six_up_ward(self):
-        prince = build("High Elves", "Prince", elven_honors=["AnointedofAsuryan"])
+        prince = build("High Elf Realms", "Prince", elven_honors=["AnointedofAsuryan"])
         self.assertEqual(parse_ward(prince.SpecialRules), 6)
         self.assertEqual(parse_ward(prince.SpecialRules, is_flaming=True), 5)
 
     def test_blood_of_caledor_grants_dragon_armour(self):
-        prince = build("High Elves", "Prince", elven_honors=["BloodofCaledor"])
+        prince = build("High Elf Realms", "Prince", elven_honors=["BloodofCaledor"])
         self.assertEqual(parse_ward(prince.SpecialRules), 6)
 
     def test_warden_of_saphery_grants_killing_blow(self):
-        prince = build("High Elves", "Prince", elven_honors=["WardenofSaphery"])
+        prince = build("High Elf Realms", "Prince", elven_honors=["WardenofSaphery"])
         self.assertIn("Killing Blow", prince.SpecialRules)
 
     def test_an_honour_taken_twice_applies_once(self):
-        prince = build("High Elves", "Prince", elven_honors=["BloodofCaledor"] * 2)
+        prince = build("High Elf Realms", "Prince", elven_honors=["BloodofCaledor"] * 2)
         self.assertEqual(prince.WeaponSkill, 8)
 
     def test_an_unknown_honour_is_rejected(self):
-        noble = build("High Elves", "Noble")
+        noble = build("High Elf Realms", "Noble")
         with self.assertRaises(ValueError):
             apply_elven_honors(noble, ["Blood of Caledor"])
 

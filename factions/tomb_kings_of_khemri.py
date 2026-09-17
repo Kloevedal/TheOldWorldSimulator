@@ -578,7 +578,7 @@ UNITS = {
             "OptionalRules": ["Drilled", "Nehekharan Phalanx"],
         },
         "equipment_options": {
-            "weapons": ["Hand Weapon"],
+            "weapons": ["Hand Weapon", "Halberd"],
             "armor": ["Light Armor"],
             "shield": True,
             "items": [],

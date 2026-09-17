@@ -66,12 +66,16 @@ def apply_style(root, fonts):
 
 
 class StatTiles(tk.Canvas):
-    """A statline as a row of rounded tiles: WS 7 | S 4 | ..."""
+    """A statline as a row of rounded tiles: WS 7 | S 6 (4) | ...
+
+    A value can be a pair (with gear, bare profile); the bare value is shown
+    small in brackets after it, or under it if the tile is too narrow.
+    """
 
     NAMES = ("WS", "S", "T", "W", "I", "A", "Ld")
 
     def __init__(self, master, fonts, colour):
-        super().__init__(master, height=52, bg=BACKGROUND, highlightthickness=0)
+        super().__init__(master, height=62, bg=BACKGROUND, highlightthickness=0)
         self.fonts, self.colour = fonts, colour
         self.values, self.message = None, ""
         self.bind("<Configure>", lambda _e: self._draw())
@@ -90,11 +94,30 @@ class StatTiles(tk.Canvas):
         tile = (width - gap * 6) / 7
         for i, name in enumerate(self.NAMES):
             x0 = i * (tile + gap)
-            _rounded(self, x0 + 1, 1, x0 + tile - 1, 50, 8, fill=SURFACE, outline=TRACK)
+            _rounded(self, x0 + 1, 1, x0 + tile - 1, 60, 8, fill=SURFACE, outline=TRACK)
             self.create_text(x0 + tile / 2, 14, text=name, font=self.fonts.small, fill=MUTED)
             value = self.values.get(name)
-            self.create_text(x0 + tile / 2, 33, text="–" if value is None else str(value),
-                             font=self.fonts.stat_value, fill=self.colour)
+            bare = None
+            if isinstance(value, tuple):
+                value, bare = value
+            shown = "–" if value is None else str(value)
+            colour = self.colour
+            if bare is None:
+                self.create_text(x0 + tile / 2, 37, text=shown, font=self.fonts.stat_value, fill=colour)
+                continue
+            if str(bare) != shown:
+                colour = GREEN if _number(value) > _number(bare) else (
+                    RED if _number(value) < _number(bare) else colour)
+            note = f"({bare})"
+            wide = tkfont.Font(font=self.fonts.stat_value).measure(shown)
+            small = tkfont.Font(font=self.fonts.small).measure(note)
+            if wide + small + 4 <= tile - 6:
+                left = x0 + (tile - wide - small - 4) / 2
+                self.create_text(left, 37, text=shown, anchor="w", font=self.fonts.stat_value, fill=colour)
+                self.create_text(left + wide + 4, 38, text=note, anchor="w", font=self.fonts.small, fill=MUTED)
+            else:
+                self.create_text(x0 + tile / 2, 33, text=shown, font=self.fonts.stat_value, fill=colour)
+                self.create_text(x0 + tile / 2, 51, text=note, font=self.fonts.small, fill=MUTED)
 
 
 class WinBar(tk.Canvas):
@@ -176,6 +199,12 @@ class LogView(ttk.Frame):
             self.text.insert("end", line + "\n", tag)
         self.text.configure(state="disabled")
         self.text.see("1.0")
+
+
+def _number(value):
+    """The leading number of a stat such as 4 or "3+D3", for comparing."""
+    match = re.match(r"\d+", str(value))
+    return int(match.group()) if match else 0
 
 
 def _rounded(canvas, x0, y0, x1, y1, r, **kw):

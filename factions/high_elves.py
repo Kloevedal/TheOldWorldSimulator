@@ -6,11 +6,11 @@ Profiles from https://tow.whfb.app/army/high-elf-realms
 from __future__ import annotations
 
 # The key this faction is filed under in FactionProfiles.
-FACTION = "High Elves"
+FACTION = "High Elf Realms"
 
 # Other names that should resolve to this faction.
 ALIASES = [
-    "High Elf Realms",
+    "High Elves",
     "High Elf",
     "Asur",
 ]

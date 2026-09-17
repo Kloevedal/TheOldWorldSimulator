@@ -151,7 +151,7 @@ CHARACTERS = {
         "equipment_options": {
             "weapons": ["Hand Weapon", "Morning Star", "Great Weapon", "Lance"],
             "armor": ["Heavy Armor"],
-            "shield": False,
+            "shield": True,
             "items": [],
         },
         "mount_options": {
@@ -281,7 +281,7 @@ CHARACTERS = {
         "equipment_options": {
             "weapons": ["Hand Weapon", "Morning Star", "Great Weapon", "Lance"],
             "armor": ["Heavy Armor"],
-            "shield": False,
+            "shield": True,
             "items": [],
         },
         "mount_options": {
@@ -548,7 +548,7 @@ UNITS = {
         },
         "equipment_options": {
             "weapons": ["Hand Weapon"],
-            "armor": [],
+            "armor": ["Light Armor"],
             "shield": False,
             "items": [],
         },

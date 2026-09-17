@@ -62,14 +62,14 @@ class TestDuelRunsToCompletion(unittest.TestCase):
         dice.seed(20260904)
         elf = Character(
             name="Altir",
-            faction_type="High Elves",
+            faction_type="High Elf Realms",
             profile_name="Noble",
             Armor="Heavy Armor",
             Weapon="Great Weapon",
         )
         orc = Character(
             name="Grimgor",
-            faction_type="Orcs",
+            faction_type="Orc & Goblin Tribes",
             profile_name="Black Orc Bigboss",
             Weapon="Great Weapon",
         )
@@ -388,21 +388,21 @@ class TestCharacterConstruction(unittest.TestCase):
 
         from faction_profiles import FactionProfiles
 
-        entry = copy.deepcopy(FactionProfiles["High Elves"]["Noble"])
+        entry = copy.deepcopy(FactionProfiles["High Elf Realms"]["Noble"])
         del entry["base_profile"]["Weapon"]
-        FactionProfiles["High Elves"]["_Test Noble"] = entry
+        FactionProfiles["High Elf Realms"]["_Test Noble"] = entry
         try:
             c = Character(
-                name="X", faction_type="High Elves", profile_name="_Test Noble"
+                name="X", faction_type="High Elf Realms", profile_name="_Test Noble"
             )
             self.assertEqual(c.Weapon, "Hand Weapon")
         finally:
-            del FactionProfiles["High Elves"]["_Test Noble"]
+            del FactionProfiles["High Elf Realms"]["_Test Noble"]
 
     def test_korhil_defaults_to_chayal(self):
         """Chayal is his listed standard kit, not an upgrade."""
         korhil = Character(
-            name="Korhil", faction_type="High Elves", profile_name="Korhil"
+            name="Korhil", faction_type="High Elf Realms", profile_name="Korhil"
         )
         self.assertEqual(korhil.Weapon, "Chayal")
 
@@ -410,7 +410,7 @@ class TestCharacterConstruction(unittest.TestCase):
         with self.assertRaises(ValueError):
             Character(
                 name="Cheat",
-                faction_type="Orcs",
+                faction_type="Orc & Goblin Tribes",
                 profile_name="Orc BigBoss",
                 Weapon="Chayal",
             )
@@ -419,7 +419,7 @@ class TestCharacterConstruction(unittest.TestCase):
         with self.assertRaises(ValueError):
             Character(
                 name="Cheat",
-                faction_type="High Elves",
+                faction_type="High Elf Realms",
                 profile_name="Noble",
                 Weapon="Great Weapon",
                 Shield=True,
@@ -428,7 +428,7 @@ class TestCharacterConstruction(unittest.TestCase):
     def test_elven_honour_stat_mods_apply(self):
         c = Character(
             name="Caledorian",
-            faction_type="High Elves",
+            faction_type="High Elf Realms",
             profile_name="Prince",
             elven_honors=["BloodofCaledor"],
         )
@@ -553,14 +553,14 @@ class TestOrcProfiles(unittest.TestCase):
     def test_the_whole_roster_is_present(self):
         from faction_profiles import FactionProfiles
 
-        self.assertEqual(set(faction_characters("Orcs")), set(self.EXPECTED))
+        self.assertEqual(set(faction_characters("Orc & Goblin Tribes")), set(self.EXPECTED))
 
     def test_statlines_match_the_source(self):
         from faction_profiles import FactionProfiles
 
         for name, expected in self.EXPECTED.items():
             with self.subTest(profile=name):
-                p = FactionProfiles["Orcs"][name]["base_profile"]
+                p = FactionProfiles["Orc & Goblin Tribes"][name]["base_profile"]
                 actual = (
                     p["Movement"], p["WeaponSkill"], p["BallisticSkill"],
                     p["Strength"], p["Toughness"], p["Initiative"],
@@ -576,7 +576,7 @@ class TestOrcProfiles(unittest.TestCase):
         for name in ("Orc BigBoss", "Black Orc Bigboss", "Orc Warboss",
                      "Black Orc Warboss"):
             with self.subTest(profile=name):
-                rules = FactionProfiles["Orcs"][name]["base_profile"]["SpecialRules"]
+                rules = FactionProfiles["Orc & Goblin Tribes"][name]["base_profile"]["SpecialRules"]
                 self.assertIn(Choppas, rules)
                 self.assertIn(FuriousCharge, rules)
 
@@ -584,7 +584,7 @@ class TestOrcProfiles(unittest.TestCase):
         from special_rules import parse_regeneration
 
         troll = Character(
-            name="Troll Hag", faction_type="Orcs", profile_name="Troll Hag"
+            name="Troll Hag", faction_type="Orc & Goblin Tribes", profile_name="Troll Hag"
         )
         self.assertEqual(parse_regeneration(troll.SpecialRules), 5)
 
@@ -592,7 +592,7 @@ class TestOrcProfiles(unittest.TestCase):
         from special_rules import parse_armour_bonus
 
         kiknik = Character(
-            name="Kiknik", faction_type="Orcs", profile_name="Kiknik Toofsnatcha"
+            name="Kiknik", faction_type="Orc & Goblin Tribes", profile_name="Kiknik Toofsnatcha"
         )
         self.assertEqual(parse_armour_bonus(kiknik.SpecialRules), 1)
 
@@ -601,7 +601,7 @@ class TestOrcProfiles(unittest.TestCase):
         from special_rules import parse_armour_bane
 
         kiknik = Character(
-            name="Kiknik", faction_type="Orcs", profile_name="Kiknik Toofsnatcha"
+            name="Kiknik", faction_type="Orc & Goblin Tribes", profile_name="Kiknik Toofsnatcha"
         )
         self.assertEqual(parse_armour_bane(kiknik.SpecialRules), 0)
         # Chompa, now simulated as his mount, keeps it for its own attacks.
@@ -611,7 +611,7 @@ class TestOrcProfiles(unittest.TestCase):
     def test_hatred_dwarfs_matches_a_dwarf_defender(self):
         """The rule says "Dwarfs"; a profile's Race says "Dwarf"."""
         goblin = Character(
-            name="NG", faction_type="Orcs", profile_name="Night Goblin Warboss"
+            name="NG", faction_type="Orc & Goblin Tribes", profile_name="Night Goblin Warboss"
         )
         dwarf = fighter("Thorek", Race="Dwarf", WeaponSkill=4)
         # Four attacks, each missing on a 1 and rerolled into a hit by Hatred.
@@ -621,7 +621,7 @@ class TestOrcProfiles(unittest.TestCase):
 
     def test_hatred_does_not_apply_to_an_unhated_foe(self):
         goblin = Character(
-            name="NG", faction_type="Orcs", profile_name="Night Goblin Warboss"
+            name="NG", faction_type="Orc & Goblin Tribes", profile_name="Night Goblin Warboss"
         )
         orc = fighter("Orc", Race="Orc", WeaponSkill=4)
         with dice.scripted_dice([1, 1, 1, 1]):  # no rerolls should be requested
@@ -639,7 +639,7 @@ class TestOrcProfiles(unittest.TestCase):
         for name, level in casters.items():
             with self.subTest(profile=name):
                 self.assertEqual(
-                    FactionProfiles["Orcs"][name]["base_profile"]["WizardLevel"], level
+                    FactionProfiles["Orc & Goblin Tribes"][name]["base_profile"]["WizardLevel"], level
                 )
 
 
@@ -660,7 +660,41 @@ class TestPoints(unittest.TestCase):
 
         for name, points in self.EXPECTED.items():
             with self.subTest(profile=name):
-                self.assertEqual(FactionProfiles["Orcs"][name]["points"], points)
+                self.assertEqual(FactionProfiles["Orc & Goblin Tribes"][name]["points"], points)
+
+
+class TestOfficialFactionNames(unittest.TestCase):
+    """Armies are filed under the exact names The Old World uses."""
+
+    OFFICIAL = {
+        "Beastmen Brayherds", "Chaos Dwarfs", "Daemons of Chaos", "Dark Elves",
+        "Dwarfen Mountain Holds", "Empire of Man", "Grand Cathay", "High Elf Realms",
+        "Kingdom of Bretonnia", "Lizardmen", "Ogre Kingdoms", "Orc & Goblin Tribes",
+        "Realms of Men", "Regiments of Renown", "Skaven", "Tomb Kings of Khemri",
+        "Vampire Counts", "Warriors of Chaos", "Wood Elf Realms",
+    }
+
+    def test_every_faction_key_is_an_official_army_name(self):
+        from faction_profiles import FactionProfiles
+
+        self.assertEqual(set(FactionProfiles), self.OFFICIAL)
+
+    def test_the_old_short_names_still_resolve(self):
+        from faction_profiles import resolve_faction, resolve_profile
+
+        self.assertEqual(resolve_faction("High Elves"), "High Elf Realms")
+        self.assertEqual(resolve_faction("Orcs"), "Orc & Goblin Tribes")
+        self.assertEqual(resolve_profile("Orcs", "Kiknik"), "Kiknik Toofsnatcha")
+        orc = Character(name="G", faction_type="Orcs", profile_name="Orc Warboss")
+        self.assertEqual(orc.faction, "Orc & Goblin Tribes")
+
+    def test_a_fighter_saved_under_an_old_name_loads_under_the_new_one(self):
+        from app_model import FighterSpec
+
+        spec = FighterSpec.from_dict({"name": "P", "faction": "High Elves", "profile": "Prince",
+                                      "weapon": "Hand Weapon"})
+        self.assertEqual(spec.faction, "High Elf Realms")
+        spec.build()
 
 
 class TestFactionAliases(unittest.TestCase):
@@ -670,14 +704,14 @@ class TestFactionAliases(unittest.TestCase):
         for alias in ("Orc & Goblin Tribes", "Orc and Goblin Tribes",
                       "orc & goblin tribes", "O&G", "Greenskins", "Orcs"):
             with self.subTest(alias=alias):
-                self.assertEqual(resolve_faction(alias), "Orcs")
+                self.assertEqual(resolve_faction(alias), "Orc & Goblin Tribes")
 
     def test_high_elf_aliases_resolve(self):
         from faction_profiles import resolve_faction
 
-        for alias in ("High Elves", "High Elf Realms", "Asur"):
+        for alias in ("High Elf Realms", "High Elves", "Asur"):
             with self.subTest(alias=alias):
-                self.assertEqual(resolve_faction(alias), "High Elves")
+                self.assertEqual(resolve_faction(alias), "High Elf Realms")
 
     def test_an_unknown_faction_resolves_to_none(self):
         from faction_profiles import resolve_faction
@@ -698,24 +732,24 @@ class TestFactionAliases(unittest.TestCase):
             faction_type="Orc & Goblin Tribes",
             profile_name="Black Orc Warboss",
         )
-        self.assertEqual(c.faction, "Orcs")
+        self.assertEqual(c.faction, "Orc & Goblin Tribes")
         self.assertEqual(c.WeaponSkill, 7)
 
     def test_profile_names_are_matched_case_insensitively(self):
         """The published names mix "BigBoss" and "Bigboss"."""
         c = Character(
-            name="Boss", faction_type="Orcs", profile_name="black orc bigboss"
+            name="Boss", faction_type="Orc & Goblin Tribes", profile_name="black orc bigboss"
         )
         self.assertEqual(c.profile_name, "Black Orc Bigboss")
 
     def test_unknown_names_still_raise_with_the_options_listed(self):
         with self.assertRaises(ValueError) as ctx:
-            Character(name="X", faction_type="Orcs", profile_name="Squig Herder")
+            Character(name="X", faction_type="Orc & Goblin Tribes", profile_name="Squig Herder")
         self.assertIn("Troll Hag", str(ctx.exception))
 
         with self.assertRaises(ValueError) as ctx:
             Character(name="X", faction_type="Kislev", profile_name="Warlord")
-        self.assertIn("High Elves", str(ctx.exception))
+        self.assertIn("High Elf Realms", str(ctx.exception))
 
 
 class TestHighElfProfiles(unittest.TestCase):
@@ -743,14 +777,14 @@ class TestHighElfProfiles(unittest.TestCase):
     def test_the_whole_roster_is_present(self):
         from faction_profiles import FactionProfiles
 
-        self.assertEqual(set(faction_characters("High Elves")), set(self.POINTS))
+        self.assertEqual(set(faction_characters("High Elf Realms")), set(self.POINTS))
 
     def test_statlines_match_the_source(self):
         from faction_profiles import FactionProfiles
 
         for name, expected in self.EXPECTED.items():
             with self.subTest(profile=name):
-                p = FactionProfiles["High Elves"][name]["base_profile"]
+                p = FactionProfiles["High Elf Realms"][name]["base_profile"]
                 actual = (
                     p["Movement"], p["WeaponSkill"], p["BallisticSkill"],
                     p["Strength"], p["Toughness"], p["Initiative"],
@@ -763,7 +797,7 @@ class TestHighElfProfiles(unittest.TestCase):
         from faction_profiles import FactionProfiles
 
         self.assertEqual(
-            FactionProfiles["High Elves"]["Ishaya Vess"]["base_profile"]["Attacks"], 3
+            FactionProfiles["High Elf Realms"]["Ishaya Vess"]["base_profile"]["Attacks"], 3
         )
 
     def test_dragon_mage_has_no_movement_of_its_own(self):
@@ -771,7 +805,7 @@ class TestHighElfProfiles(unittest.TestCase):
         from faction_profiles import FactionProfiles
 
         self.assertIsNone(
-            FactionProfiles["High Elves"]["Dragon Mage"]["base_profile"]["Movement"]
+            FactionProfiles["High Elf Realms"]["Dragon Mage"]["base_profile"]["Movement"]
         )
 
     def test_points_match_the_source(self):
@@ -779,7 +813,7 @@ class TestHighElfProfiles(unittest.TestCase):
 
         for name, points in self.POINTS.items():
             with self.subTest(profile=name):
-                self.assertEqual(FactionProfiles["High Elves"][name]["points"], points)
+                self.assertEqual(FactionProfiles["High Elf Realms"][name]["points"], points)
 
 
 class TestAllProfiles(unittest.TestCase):
@@ -838,7 +872,7 @@ class TestAllProfiles(unittest.TestCase):
 class TestElvenReflexes(unittest.TestCase):
     def test_initiative_rises_by_one_in_the_first_round(self):
         korhil = Character(
-            name="Korhil", faction_type="High Elves", profile_name="Korhil Lionmane"
+            name="Korhil", faction_type="High Elf Realms", profile_name="Korhil Lionmane"
         )
         self.assertEqual(korhil.Initiative, 6)
         self.assertEqual(effective_initiative(korhil, is_first_round=True), 7)
@@ -850,7 +884,7 @@ class TestElvenReflexes(unittest.TestCase):
 
     def test_it_decides_the_first_round_strike_order(self):
         korhil = Character(
-            name="Korhil", faction_type="High Elves", profile_name="Korhil Lionmane"
+            name="Korhil", faction_type="High Elf Realms", profile_name="Korhil Lionmane"
         )
         foe = fighter("Foe", Initiative=6)
         first = determine_strike_order(korhil, foe, verbose=False, is_first_round=True)
@@ -871,7 +905,7 @@ class TestHighElfRuleParsing(unittest.TestCase):
         from special_rules import parse_ward
 
         mage = Character(
-            name="DM", faction_type="High Elves", profile_name="Dragon Mage"
+            name="DM", faction_type="High Elf Realms", profile_name="Dragon Mage"
         )
         self.assertEqual(parse_ward(mage.SpecialRules), 6)
 
@@ -879,7 +913,7 @@ class TestHighElfRuleParsing(unittest.TestCase):
         from special_rules import parse_ward
 
         mage = Character(
-            name="DM", faction_type="High Elves", profile_name="Dragon Mage"
+            name="DM", faction_type="High Elf Realms", profile_name="Dragon Mage"
         )
         # Dragon Armour gives 6+ regardless; Blessings improves it to 5+ vs flame.
         self.assertEqual(parse_ward(mage.SpecialRules, is_flaming=True), 5)
@@ -895,7 +929,7 @@ class TestHighElfRuleParsing(unittest.TestCase):
 
     def test_korhil_can_swing_chayal_because_he_has_no_shield(self):
         korhil = Character(
-            name="Korhil", faction_type="High Elves", profile_name="Korhil"
+            name="Korhil", faction_type="High Elf Realms", profile_name="Korhil"
         )
         self.assertEqual(korhil.Weapon, "Chayal")
         self.assertFalse(korhil.Shield)
@@ -910,7 +944,7 @@ class TestHighElfRuleParsing(unittest.TestCase):
 
     def test_korhil_keeps_his_pelt_and_fixed_kit(self):
         korhil = Character(
-            name="Korhil", faction_type="High Elves", profile_name="Korhil"
+            name="Korhil", faction_type="High Elf Realms", profile_name="Korhil"
         )
         self.assertEqual(korhil.Armor, "Heavy Armor")
         self.assertFalse(korhil.Shield)
@@ -918,21 +952,21 @@ class TestHighElfRuleParsing(unittest.TestCase):
 
     def test_ishaya_vess_carries_a_shield_as_standard(self):
         vess = Character(
-            name="Vess", faction_type="High Elves", profile_name="Ishaya Vess"
+            name="Vess", faction_type="High Elf Realms", profile_name="Ishaya Vess"
         )
         self.assertTrue(vess.Shield)
 
     def test_she_wields_mathlanns_ire_with_her_shield(self):
         """Mathlann's Ire is one-handed, so it coexists with her shield."""
         vess = Character(
-            name="Vess", faction_type="High Elves", profile_name="Ishaya Vess"
+            name="Vess", faction_type="High Elf Realms", profile_name="Ishaya Vess"
         )
         self.assertEqual(vess.Weapon, "Mathlann's Ire")
         self.assertTrue(vess.Shield)
 
     def test_chracian_chieftain_can_take_the_great_blade(self):
         chief = Character(
-            name="Chief", faction_type="High Elves",
+            name="Chief", faction_type="High Elf Realms",
             profile_name="Chracian Chieftain", Weapon="Chracian Great Blade",
         )
         self.assertEqual(chief.Strength, 4)
@@ -943,11 +977,11 @@ class TestProfileAliases(unittest.TestCase):
         from faction_profiles import resolve_profile
 
         cases = [
-            ("High Elves", "Korhil", "Korhil Lionmane"),
-            ("High Elves", "handmaiden", "Handmaiden of the Everqueen"),
-            ("High Elves", "Sea Guard Commander", "Sea Guard Garrison Commander"),
-            ("Orcs", "Kiknik", "Kiknik Toofsnatcha"),
-            ("Orcs", "Ogdruz", "Ogdruz Swampdigga"),
+            ("High Elf Realms", "Korhil", "Korhil Lionmane"),
+            ("High Elf Realms", "handmaiden", "Handmaiden of the Everqueen"),
+            ("High Elf Realms", "Sea Guard Commander", "Sea Guard Garrison Commander"),
+            ("Orc & Goblin Tribes", "Kiknik", "Kiknik Toofsnatcha"),
+            ("Orc & Goblin Tribes", "Ogdruz", "Ogdruz Swampdigga"),
         ]
         for faction, alias, expected in cases:
             with self.subTest(alias=alias):
@@ -965,7 +999,7 @@ class TestProfileAliases(unittest.TestCase):
     def test_an_unknown_profile_still_resolves_to_none(self):
         from faction_profiles import resolve_profile
 
-        self.assertIsNone(resolve_profile("High Elves", "Everqueen"))
+        self.assertIsNone(resolve_profile("High Elf Realms", "Everqueen"))
 
 
 class TestNamedCharacterMagicItems(unittest.TestCase):
@@ -977,13 +1011,13 @@ class TestNamedCharacterMagicItems(unittest.TestCase):
     def test_korhil_gains_the_pelt_of_charandis(self):
         from special_rules import parse_armour_bonus, parse_regeneration
 
-        korhil = self.named("High Elves", "Korhil")
+        korhil = self.named("High Elf Realms", "Korhil")
         self.assertEqual(parse_armour_bonus(korhil.SpecialRules), 1)
         self.assertEqual(parse_regeneration(korhil.SpecialRules), 5)
 
     def test_the_pelt_actually_improves_his_save(self):
         """Heavy armour 5+, improved to 4+ by the Pelt."""
-        korhil = self.named("High Elves", "Korhil")
+        korhil = self.named("High Elf Realms", "Korhil")
         attacker = fighter("A")
         attacker.ArmourPiercing = 0
         with dice.scripted_dice([4]):
@@ -993,26 +1027,26 @@ class TestNamedCharacterMagicItems(unittest.TestCase):
     def test_ogdruz_gains_the_trollhide_shawl(self):
         from special_rules import Flammable, parse_armour_bonus, parse_regeneration
 
-        ogdruz = self.named("Orcs", "Ogdruz")
+        ogdruz = self.named("Orc & Goblin Tribes", "Ogdruz")
         self.assertEqual(parse_armour_bonus(ogdruz.SpecialRules), 1)
         self.assertEqual(parse_regeneration(ogdruz.SpecialRules), 5)
         self.assertIn(Flammable, ogdruz.SpecialRules)
 
     def test_a_magic_weapon_item_adds_no_character_rules(self):
         """Mathlann's Ire reaches her as a Weapon, not as special rules."""
-        vess = self.named("High Elves", "Ishaya Vess")
+        vess = self.named("High Elf Realms", "Ishaya Vess")
         self.assertEqual(vess.Weapon, "Mathlann's Ire")
         self.assertNotIn("Magic", vess.SpecialRules)
 
     def test_an_item_with_no_duel_effect_adds_nothing(self):
         """Da Boss's Trophy Rack is Fear and combat result only."""
-        kiknik = self.named("Orcs", "Kiknik")
-        base = FactionProfilesRules("Orcs", "Kiknik Toofsnatcha")
+        kiknik = self.named("Orc & Goblin Tribes", "Kiknik")
+        base = FactionProfilesRules("Orc & Goblin Tribes", "Kiknik Toofsnatcha")
         self.assertEqual(kiknik.SpecialRules, base)
 
     def test_generic_characters_do_not_get_free_items(self):
         """The Handmaiden's Horn of Isha is a purchase, not standard kit."""
-        maiden = self.named("High Elves", "Handmaiden")
+        maiden = self.named("High Elf Realms", "Handmaiden")
         self.assertNotIn("Horn of Isha", maiden.SpecialRules)
 
     def test_every_named_characters_items_are_recognised(self):
@@ -1057,7 +1091,7 @@ class TestWoundStealing(unittest.TestCase):
         from combat_simulations import recover_wounds
 
         ogdruz = Character(
-            name="Ogdruz", faction_type="Orcs", profile_name="Ogdruz"
+            name="Ogdruz", faction_type="Orc & Goblin Tribes", profile_name="Ogdruz"
         )
         ogdruz.current_wounds = 1
         healed = recover_wounds(ogdruz, 2, verbose=False)
@@ -1068,7 +1102,7 @@ class TestWoundStealing(unittest.TestCase):
         from combat_simulations import recover_wounds
 
         ogdruz = Character(
-            name="Ogdruz", faction_type="Orcs", profile_name="Ogdruz"
+            name="Ogdruz", faction_type="Orc & Goblin Tribes", profile_name="Ogdruz"
         )
         ogdruz.current_wounds = 3  # already full
         self.assertEqual(recover_wounds(ogdruz, 3, verbose=False), 0)
@@ -1088,7 +1122,7 @@ class TestForcedHitReroll(unittest.TestCase):
 
     def test_the_first_successful_hit_is_rerolled_once(self):
         vess = Character(
-            name="Vess", faction_type="High Elves", profile_name="Ishaya Vess"
+            name="Vess", faction_type="High Elf Realms", profile_name="Ishaya Vess"
         )
         attacker = fighter("A", WeaponSkill=4, Attacks=2)
         # vs WS7 the attacker needs 5+. First 6 hits but is rerolled into a 1;
@@ -1099,7 +1133,7 @@ class TestForcedHitReroll(unittest.TestCase):
 
     def test_a_reroll_that_still_hits_keeps_the_hit(self):
         vess = Character(
-            name="Vess", faction_type="High Elves", profile_name="Ishaya Vess"
+            name="Vess", faction_type="High Elf Realms", profile_name="Ishaya Vess"
         )
         attacker = fighter("A", WeaponSkill=4, Attacks=1)
         with dice.scripted_dice([6, 6]):
@@ -1691,7 +1725,7 @@ class TestKillingBlowOldWorldRules(unittest.TestCase):
 
         for faction, profile in (
             ("Dwarfen Mountain Holds", "King"),          # Heavy Infantry
-            ("Orcs", "Kiknik"),                          # Light Cavalry
+            ("Orc & Goblin Tribes", "Kiknik"),                          # Light Cavalry
             ("Empire of Man", "Grand Master"),           # Heavy Cavalry
         ):
             with self.subTest(profile=profile):

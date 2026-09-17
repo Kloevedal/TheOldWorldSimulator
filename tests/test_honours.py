@@ -125,10 +125,10 @@ class TestGrantedEquipment(unittest.TestCase):
     """Abilities that unlock weapons or armour make them selectable."""
 
     GRANTS = [
-        ("High Elves", "Noble", "Warden of Saphery", "Sword of Hoeth"),
-        ("High Elves", "Prince", "Loremaster", "Sword of Hoeth"),
-        ("High Elves", "Noble", "Anointed of Asuryan", "Ceremonial Halberd"),
-        ("High Elves", "Noble", "Chracian Hunter", "Chracian Great Blade"),
+        ("High Elf Realms", "Noble", "Warden of Saphery", "Sword of Hoeth"),
+        ("High Elf Realms", "Prince", "Loremaster", "Sword of Hoeth"),
+        ("High Elf Realms", "Noble", "Anointed of Asuryan", "Ceremonial Halberd"),
+        ("High Elf Realms", "Noble", "Chracian Hunter", "Chracian Great Blade"),
         ("Empire of Man", "Grand Master", "Order of the White Wolf", "Wolf Hammer"),
         ("Empire of Man", "Captain of the Empire", "Order of the Knights Panther", "Lance"),
         ("Realms of Men", "Renegade Captain", "The Wandering Diestro", "Two Hand Weapons"),
@@ -148,7 +148,7 @@ class TestGrantedEquipment(unittest.TestCase):
                 self.assertEqual(model.Weapon, weapon)
 
     def test_blood_of_caledor_allows_full_plate(self):
-        noble = build("High Elves", "Noble", Armor="Full Plate Armor", magic_items=["Blood of Caledor"])
+        noble = build("High Elf Realms", "Noble", Armor="Full Plate Armor", magic_items=["Blood of Caledor"])
         self.assertEqual(noble.Armor, "Full Plate Armor")
 
     def test_bows_are_recorded_but_not_offered(self):
@@ -156,8 +156,8 @@ class TestGrantedEquipment(unittest.TestCase):
         from magic_items import get_magic_item
 
         self.assertEqual(get_magic_item("Sea Guard")["grants"], {"ranged": ["warbow"]})
-        self.assertEqual(weapon_choices("High Elves", "Noble", ["Sea Guard"]),
-                         weapon_choices("High Elves", "Noble"))
+        self.assertEqual(weapon_choices("High Elf Realms", "Noble", ["Sea Guard"]),
+                         weapon_choices("High Elf Realms", "Noble"))
 
     def test_every_granted_weapon_has_a_profile(self):
         from magic_items import MagicItemDict
@@ -179,8 +179,8 @@ class TestStrengthLimitedWards(unittest.TestCase):
 
 class TestBoughtAbilities(StatisticalCase):
     def test_an_elven_honour_bought_as_an_ability_matches_the_legacy_option(self):
-        bought = build("High Elves", "Prince", magic_items=["Blood of Caledor"])
-        legacy = build("High Elves", "Prince", elven_honors=["BloodofCaledor"])
+        bought = build("High Elf Realms", "Prince", magic_items=["Blood of Caledor"])
+        legacy = build("High Elf Realms", "Prince", elven_honors=["BloodofCaledor"])
         self.assertEqual(bought.WeaponSkill, legacy.WeaponSkill)
         self.assertEqual(parse_ward(bought.SpecialRules), parse_ward(legacy.SpecialRules))
 

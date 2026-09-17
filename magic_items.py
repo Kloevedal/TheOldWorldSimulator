@@ -611,6 +611,7 @@ def items_for(faction):
     """
     from faction_profiles import resolve_faction
 
+    faction = resolve_faction(faction) or faction
     names = []
     for name, entry in MagicItemDict.items():
         armies = entry.get("armies")
@@ -664,8 +665,10 @@ def item_budget(name):
 
 def allowance_for(faction, profile):
     """{budget: points or None} for a character, or {} if it buys nothing."""
+    from faction_profiles import resolve_faction
     from item_allowances import ALLOWANCES
 
+    faction = resolve_faction(faction) or faction
     return dict(ALLOWANCES.get(faction, {}).get(profile, {}))
 
 

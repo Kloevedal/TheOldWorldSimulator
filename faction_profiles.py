@@ -76,7 +76,11 @@ def resolve_faction(name):
 
 
 def resolve_profile(faction, name):
-    """Return the profile key within `faction` for a name, alias or casing."""
+    """Return the profile key within `faction` for a name, alias or casing.
+
+    `faction` may itself be an alias ("High Elves" for "High Elf Realms").
+    """
+    faction = resolve_faction(faction) or faction
     profiles = FactionProfiles.get(faction, {})
     if name in profiles:
         return name

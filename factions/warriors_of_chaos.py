@@ -898,7 +898,7 @@ UNITS = {
         },
         "equipment_options": {
             "weapons": ["Hand Weapon", "Cavalry Spear", "Flail"],
-            "armor": ["Light Armor"],
+            "armor": ["Light Armor", "Heavy Armor"],
             "shield": True,
             "items": [],
         },

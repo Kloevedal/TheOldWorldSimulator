@@ -25,18 +25,18 @@ def duel(a, b, rounds=3, verbose=False):
 
 class TestMountedProfiles(unittest.TestCase):
     def test_cavalry_keeps_the_riders_toughness_and_armour(self):
-        prince = build("High Elves", "Prince", mount="Elven Steed")
-        on_foot = build("High Elves", "Prince")
+        prince = build("High Elf Realms", "Prince", mount="Elven Steed")
+        on_foot = build("High Elf Realms", "Prince")
         self.assertEqual((prince.Toughness, prince.Wounds), (on_foot.Toughness, on_foot.Wounds))
         self.assertEqual(prince.Armor, on_foot.Armor)
         self.assertEqual(prince.TroopType, "LightCavalry")
 
     def test_barding_improves_armour_by_one(self):
-        prince = build("High Elves", "Prince", mount="Barded Elven Steed")
+        prince = build("High Elf Realms", "Prince", mount="Barded Elven Steed")
         self.assertEqual(parse_armour_bonus(prince.SpecialRules), 1)
 
     def test_a_ridden_monster_raises_toughness_and_wounds(self):
-        prince = build("High Elves", "Prince", mount="Star Dragon")
+        prince = build("High Elf Realms", "Prince", mount="Star Dragon")
         # Star Dragon: T (+3), W (+6), counts as full plate armour.
         self.assertEqual((prince.Toughness, prince.Wounds), (6, 9))
         self.assertEqual(prince.Armor, "Full Plate Armor")
@@ -44,33 +44,33 @@ class TestMountedProfiles(unittest.TestCase):
 
     def test_the_better_armour_value_is_used(self):
         # A Griffon counts as heavy armour; a Prince in full plate keeps his.
-        plated = build("High Elves", "Prince", Armor="Plate Armor", mount="Griffon (High Elves)")
+        plated = build("High Elf Realms", "Prince", Armor="Plate Armor", mount="Griffon (High Elves)")
         self.assertEqual(plated.Armor, "Plate Armor")
-        light = build("High Elves", "Prince", mount="Griffon (High Elves)")
+        light = build("High Elf Realms", "Prince", mount="Griffon (High Elves)")
         self.assertEqual(light.Armor, "Heavy Armor")
 
     def test_a_chariot_adds_its_wounds_and_uses_the_higher_toughness(self):
-        warboss = build("Orcs", "Orc Warboss", mount="Orc Boar Chariot")
-        on_foot = build("Orcs", "Orc Warboss")
+        warboss = build("Orc & Goblin Tribes", "Orc Warboss", mount="Orc Boar Chariot")
+        on_foot = build("Orc & Goblin Tribes", "Orc Warboss")
         self.assertEqual(warboss.Wounds, on_foot.Wounds + 4)
         self.assertEqual(warboss.Toughness, max(on_foot.Toughness, 5))
         self.assertEqual(warboss.Armor, "Full Plate Armor")  # the chariot's printed 4+
 
     def test_chariot_crew_and_beasts_attack(self):
-        prince = build("High Elves", "Prince", mount="Tiranoc Chariot")
+        prince = build("High Elf Realms", "Prince", mount="Tiranoc Chariot")
         names = sorted(p.name for p in prince.mount_parts)
         self.assertEqual(len(names), 2)
         self.assertTrue(all(p.Attacks == 2 for p in prince.mount_parts))  # (x2) rows
 
     def test_rider_only_rules_stay_with_the_rider(self):
-        prince = build("High Elves", "Prince", mount="Elven Steed")
+        prince = build("High Elf Realms", "Prince", mount="Elven Steed")
         (steed,) = prince.mount_parts
         self.assertIn("Strike First", prince.SpecialRules)
         self.assertNotIn("Strike First", steed.SpecialRules)
         self.assertNotIn("Ithilmar Weapons", steed.SpecialRules)
 
     def test_other_rules_are_shared(self):
-        warboss = build("Orcs", "Orc Warboss", SpecialRules=["Frenzy"], mount="War Boar")
+        warboss = build("Orc & Goblin Tribes", "Orc Warboss", SpecialRules=["Frenzy"], mount="War Boar")
         (boar,) = warboss.mount_parts
         self.assertIn("Frenzy", boar.SpecialRules)
         self.assertIn("Armoured Hide (1)", warboss.SpecialRules)  # the boar's hide
@@ -82,7 +82,7 @@ class TestMountedProfiles(unittest.TestCase):
         self.assertNotIn("Ward5", horse.SpecialRules)
 
     def test_mount_damage_and_healing_go_to_the_rider(self):
-        prince = build("High Elves", "Prince", mount="Elven Steed")
+        prince = build("High Elf Realms", "Prince", mount="Elven Steed")
         (steed,) = prince.mount_parts
         steed.current_wounds = 1
         self.assertEqual(prince.current_wounds, 1)
@@ -91,27 +91,27 @@ class TestMountedProfiles(unittest.TestCase):
 class TestMountRules(unittest.TestCase):
     def test_only_offered_mounts(self):
         with self.assertRaisesRegex(ValueError, "cannot ride"):
-            build("High Elves", "Prince", mount="War Boar")
+            build("High Elf Realms", "Prince", mount="War Boar")
 
     def test_unknown_mount(self):
         with self.assertRaisesRegex(ValueError, "Unknown mount"):
-            build("High Elves", "Prince", mount="Hippo")
+            build("High Elf Realms", "Prince", mount="Hippo")
 
     def test_honour_mounts_need_their_honour(self):
         for mount, honour in HONOUR_MOUNTS.items():
             with self.subTest(mount=mount):
                 with self.assertRaisesRegex(ValueError, honour):
-                    build("High Elves", "Prince", mount=mount)
-                build("High Elves", "Prince", mount=mount, magic_items=[honour])
+                    build("High Elf Realms", "Prince", mount=mount)
+                build("High Elf Realms", "Prince", mount=mount, magic_items=[honour])
 
     def test_an_honour_limits_the_mounts(self):
         with self.assertRaisesRegex(ValueError, "may only ride"):
-            build("High Elves", "Prince", mount="Elven Steed", magic_items=["Chracian Hunter"])
+            build("High Elf Realms", "Prince", mount="Elven Steed", magic_items=["Chracian Hunter"])
         with self.assertRaisesRegex(ValueError, "no mount"):
-            build("High Elves", "Prince", mount="Elven Steed", magic_items=["Warden of Saphery"])
+            build("High Elf Realms", "Prince", mount="Elven Steed", magic_items=["Warden of Saphery"])
 
     def test_the_legacy_honour_option_counts(self):
-        build("High Elves", "Prince", mount="Sun Dragon", elven_honors=["BloodofCaledor"])
+        build("High Elf Realms", "Prince", mount="Sun Dragon", elven_honors=["BloodofCaledor"])
 
     def test_integral_mounts_are_always_ridden_without_double_counting(self):
         for (faction, profile), mount in INTEGRAL_MOUNTS.items():
@@ -124,10 +124,10 @@ class TestMountRules(unittest.TestCase):
 
     def test_an_integral_mount_cannot_be_swapped(self):
         with self.assertRaisesRegex(ValueError, "always rides"):
-            build("High Elves", "Dragon Mage", mount="Star Dragon")
+            build("High Elf Realms", "Dragon Mage", mount="Star Dragon")
 
     def test_a_mount_only_rule_arms_the_mount_not_the_rider(self):
-        kiknik = build("Orcs", "Kiknik Toofsnatcha")
+        kiknik = build("Orc & Goblin Tribes", "Kiknik Toofsnatcha")
         (chompa,) = kiknik.mount_parts
         self.assertIn("Armour Bane (1)", chompa.SpecialRules)
         self.assertNotIn("Armour Bane (1)", kiknik.SpecialRules)
@@ -135,7 +135,7 @@ class TestMountRules(unittest.TestCase):
     def test_scoped_impact_hits_still_belong_to_the_model(self):
         from special_rules import parse_impact_hits
 
-        korhil = build("High Elves", "Korhil Lionmane", mount="Chieftain's Chariot")
+        korhil = build("High Elf Realms", "Korhil Lionmane", mount="Chieftain's Chariot")
         self.assertEqual(parse_impact_hits(korhil.SpecialRules), ["D6"])
         self.assertEqual(korhil.mount_strength, 5)
 
@@ -150,14 +150,14 @@ class TestMountRules(unittest.TestCase):
 
 class TestMountedCombat(StatisticalCase):
     def test_a_mount_strikes_at_its_own_initiative(self):
-        prince = build("High Elves", "Prince", name="Prince", mount="Star Dragon")  # dragon I2
+        prince = build("High Elf Realms", "Prince", name="Prince", mount="Star Dragon")  # dragon I2
         foe = fighter("Foe", Initiative=4)
         steps = determine_strike_order(prince, foe, verbose=False, is_first_round=False)
         order = [[a.name for a, _d in step] for step in steps]
         self.assertEqual(order, [["Prince"], ["Foe"], ["Prince's Star Dragon"]])
 
     def test_the_mount_attacks_the_other_fighter(self):
-        prince = build("High Elves", "Prince", name="Prince", mount="Star Dragon")
+        prince = build("High Elf Realms", "Prince", name="Prince", mount="Star Dragon")
         foe = fighter("Foe")
         steps = determine_strike_order(prince, foe, verbose=False)
         for step in steps:
@@ -165,7 +165,7 @@ class TestMountedCombat(StatisticalCase):
                 self.assertIs(defender, foe if attacker is not foe else prince)
 
     def test_stomps_use_the_mounts_strength(self):
-        prince = build("High Elves", "Prince", name="Prince", mount="Star Dragon")
+        prince = build("High Elf Realms", "Prince", name="Prince", mount="Star Dragon")
         with dice.constant_dice(6):
             _, text = duel(prince, fighter("Wall", Toughness=10, Wounds=50, Attacks=0),
                            rounds=1, verbose=True)
@@ -176,8 +176,8 @@ class TestMountedCombat(StatisticalCase):
         dice.seed(4)
         wins = 0
         for _ in range(runs):
-            rider = build("High Elves", "Prince", name="Rider", mount="Griffon (High Elves)")
-            walker = build("High Elves", "Prince", name="Walker")
+            rider = build("High Elf Realms", "Prince", name="Rider", mount="Griffon (High Elves)")
+            walker = build("High Elf Realms", "Prince", name="Walker")
             winner, _ = duel(rider, walker)
             wins += winner is rider
         self.assertGreater(wins / runs, 0.7)
@@ -189,8 +189,8 @@ class TestMountedCombat(StatisticalCase):
         dice.seed(8)
         left = right = 0
         for _ in range(runs):
-            a = build("Orcs", "Orc Warboss", name="Left", mount="Orc Boar Chariot")
-            b = build("Orcs", "Orc Warboss", name="Right", mount="Orc Boar Chariot")
+            a = build("Orc & Goblin Tribes", "Orc Warboss", name="Left", mount="Orc Boar Chariot")
+            b = build("Orc & Goblin Tribes", "Orc Warboss", name="Right", mount="Orc Boar Chariot")
             winner, _ = duel(a, b)
             left += winner is a
             right += winner is b

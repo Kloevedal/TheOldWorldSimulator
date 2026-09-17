@@ -46,7 +46,7 @@ RIDER_ONLY = {
 }
 # Per army, where the profiles say so ("Strike First does not apply to this
 # model's mount" on the High Elf characters).
-RIDER_ONLY_BY_FACTION = {"High Elves": {"Strike First"}}
+RIDER_ONLY_BY_FACTION = {"High Elf Realms": {"Strike First"}}
 
 # Impact Hits and Stomp Attacks belong to the model but use the mount's
 # Strength; the engine reads them from the model, not from each attacker.
@@ -67,8 +67,8 @@ HONOUR_MOUNT_LIMITS = {
 # Characters whose own page includes their mount: they always ride it, and
 # their printed Toughness and Wounds already include its bonuses.
 INTEGRAL_MOUNTS = {
-    ("High Elves", "Dragon Mage"): "Sun Dragon",
-    ("Orcs", "Kiknik Toofsnatcha"): "Chompa",
+    ("High Elf Realms", "Dragon Mage"): "Sun Dragon",
+    ("Orc & Goblin Tribes", "Kiknik Toofsnatcha"): "Chompa",
     ("Empire of Man", "Harald Gemunsen"): "Barded Warhorse",
     ("Grand Cathay", "Shugengan Lord"): "Great Spirit Longma",
     ("Grand Cathay", "Shugengan General"): "Great Spirit Longma",

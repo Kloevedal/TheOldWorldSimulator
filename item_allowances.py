@@ -77,7 +77,7 @@ ALLOWANCES = {
         'Strategist': {'Magic Items': 50},
         'Supreme Astromancer': {'Magic Items': 100},
     },
-    'High Elves': {
+    'High Elf Realms': {
         'Archmage': {'Magic Items': 100, 'Elven Honours': None},
         'Chracian Chieftain': {'Magic Items': 75},
         'Dragon Mage': {'Magic Items': 50},
@@ -112,7 +112,7 @@ ALLOWANCES = {
         'Slaughtermaster': {'Magic Items': 100, 'Big Names': None},
         'Tyrant': {'Magic Items': 100, 'Big Names': None},
     },
-    'Orcs': {
+    'Orc & Goblin Tribes': {
         'Black Orc Bigboss': {'Magic Items': 50},
         'Black Orc Warboss': {'Magic Items': 100},
         'Goblin Bigboss': {'Magic Items': 50},

@@ -79,8 +79,8 @@ class TestItemData(unittest.TestCase):
 
     def test_items_are_sold_to_their_own_army_only(self):
         self.assertIn("Runefang", items_for("Empire of Man"))
-        self.assertNotIn("Runefang", items_for("Orcs"))
-        self.assertIn("Sword of Might", items_for("Orcs"))  # common
+        self.assertNotIn("Runefang", items_for("Orc & Goblin Tribes"))
+        self.assertIn("Sword of Might", items_for("Orc & Goblin Tribes"))  # common
 
     def test_named_characters_personal_items_are_not_for_sale(self):
         for faction in FactionProfiles:
@@ -153,7 +153,7 @@ class TestBuying(unittest.TestCase):
 
     def test_another_armys_item_is_refused(self):
         with self.assertRaisesRegex(ValueError, "not available"):
-            build("Orcs", "Orc Warboss", magic_items=["Runefang"])
+            build("Orc & Goblin Tribes", "Orc Warboss", magic_items=["Runefang"])
 
     def test_two_items_of_one_type_are_refused(self):
         with self.assertRaisesRegex(ValueError, "cannot carry both"):
@@ -161,7 +161,7 @@ class TestBuying(unittest.TestCase):
                            ["Sword of Might", "Burning Blade"])
 
     def test_armour_worn_with_other_armour_does_not_take_the_slot(self):
-        check_purchase("High Elves", "Prince", ["Dragon Helm", "Armour of Caledor"])
+        check_purchase("High Elf Realms", "Prince", ["Dragon Helm", "Armour of Caledor"])
 
     def test_runes_may_be_stacked(self):
         king = build("Dwarfen Mountain Holds", "King",
@@ -184,16 +184,16 @@ class TestBuying(unittest.TestCase):
         check_purchase("Warriors of Chaos", "Chaos Lord", ["Brazen Will", "Unnatural Fortitude"])
 
     def test_a_two_handed_magic_weapon_cannot_be_used_with_a_shield(self):
-        two_handed = next(n for n in items_for("Orcs")
+        two_handed = next(n for n in items_for("Orc & Goblin Tribes")
                           if get_magic_item(n).get("is_weapon")
                           and "Requires Two Hands" in get_weapon_stats(get_magic_item(n)["weapon"])[2]
                           and (get_magic_item(n).get("cost") or 0) <= 100)
         with self.assertRaisesRegex(ValueError, "requires two hands"):
-            build("Orcs", "Orc Warboss", Shield=True, magic_items=[two_handed])
+            build("Orc & Goblin Tribes", "Orc Warboss", Shield=True, magic_items=[two_handed])
 
     def test_an_unknown_item_is_an_error(self):
         with self.assertRaisesRegex(ValueError, "Unknown magic item"):
-            build("Orcs", "Orc Warboss", magic_items=["Sword of Mighty"])
+            build("Orc & Goblin Tribes", "Orc Warboss", magic_items=["Sword of Mighty"])
 
     def test_a_custom_fighter_may_take_anything(self):
         custom = fighter(magic_items=["Runefang", "Armour of Destiny"])
@@ -201,9 +201,9 @@ class TestBuying(unittest.TestCase):
         self.assertEqual(custom.Armor, "Heavy Armor")
 
     def test_allowance_lookup(self):
-        self.assertEqual(allowance_for("High Elves", "Prince"),
+        self.assertEqual(allowance_for("High Elf Realms", "Prince"),
                          {"Magic Items": 100, "Elven Honours": None})
-        self.assertEqual(allowance_for("High Elves", "Korhil Lionmane"), {})
+        self.assertEqual(allowance_for("High Elf Realms", "Korhil Lionmane"), {})
 
 
 class TestItemEffects(unittest.TestCase):

@@ -522,21 +522,21 @@ class TestUnits(unittest.TestCase):
             # (T, W, A): a war machine fights with its crew's T and W.
             ("Empire of Man", "Great Cannon", (3, 3, 3)),
             # A chariot's crew borrows the chariot's T and W.
-            ("Orcs", "Orc Boar Chariot", (5, 4, 1)),
-            ("High Elves", "White Lions of Chrace", (3, 1, 1)),
+            ("Orc & Goblin Tribes", "Orc Boar Chariot", (5, 4, 1)),
+            ("High Elf Realms", "White Lions of Chrace", (3, 1, 1)),
         ]:
             with self.subTest(unit=name):
                 p = self.unit(faction, name)["base_profile"]
                 self.assertEqual((p["Toughness"], p["Wounds"], p["Attacks"]), expected)
 
     def test_units_fight_with_their_special_weapon(self):
-        self.assertEqual(self.unit("High Elves", "White Lions of Chrace")["base_profile"]["Weapon"],
+        self.assertEqual(self.unit("High Elf Realms", "White Lions of Chrace")["base_profile"]["Weapon"],
                          "Chracian Great Blade")
         self.assertEqual(self.unit("Empire of Man", "Empire Greatswords")["base_profile"]["Weapon"],
                          "Great Weapon")
 
     def test_a_secondary_attack_is_never_the_default_weapon(self):
-        trolls = self.unit("Orcs", "Common Troll Mob")
+        trolls = self.unit("Orc & Goblin Tribes", "Common Troll Mob")
         self.assertEqual(trolls["base_profile"]["Weapon"], "Hand Weapon")
         self.assertIn("Troll Vomit", trolls["equipment_options"]["weapons"])
 
@@ -554,7 +554,7 @@ class TestUnits(unittest.TestCase):
                          (11, "model", "5+"))
 
     def test_a_printed_armour_value_is_used(self):
-        self.assertEqual(self.unit("Orcs", "Orc Boar Chariot")["base_profile"]["Armor"],
+        self.assertEqual(self.unit("Orc & Goblin Tribes", "Orc Boar Chariot")["base_profile"]["Armor"],
                          "Full Plate Armor")  # 4+
         self.assertEqual(self.unit("Warriors of Chaos", "Chaos Chariot")["base_profile"]["Armor"],
                          "Armour Value 3+")
@@ -568,7 +568,7 @@ class TestUnits(unittest.TestCase):
 
     def test_mount_only_monsters_are_not_units(self):
         self.assertNotIn("Carnosaur", FactionProfiles["Lizardmen"])
-        self.assertNotIn("Star Dragon", FactionProfiles["High Elves"])
+        self.assertNotIn("Star Dragon", FactionProfiles["High Elf Realms"])
 
     def test_units_are_filed_as_units(self):
         self.assertEqual(self.unit("Skaven", "Clanrats")["base_profile"]["UnitCategory"], "Unit")

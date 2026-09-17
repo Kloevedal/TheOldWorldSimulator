@@ -156,8 +156,8 @@ class TestUnusualKit(unittest.TestCase):
         self.assertFalse(fighter("A", Shield=None).Shield)
 
     def test_honours_are_ignored_for_a_model_that_is_not_a_high_elf(self):
-        orc = build("Orcs", "Orc Warboss", elven_honors=["BloodofCaledor"])
-        self.assertEqual(orc.WeaponSkill, build("Orcs", "Orc Warboss").WeaponSkill)
+        orc = build("Orc & Goblin Tribes", "Orc Warboss", elven_honors=["BloodofCaledor"])
+        self.assertEqual(orc.WeaponSkill, build("Orc & Goblin Tribes", "Orc Warboss").WeaponSkill)
         self.assertNotIn("Dragon Armour (6+ Ward)", orc.SpecialRules)
 
     def test_a_ward_with_an_unknown_condition_is_an_error(self):
@@ -175,24 +175,24 @@ class TestUnusualKit(unittest.TestCase):
         self.assertEqual(len(determine_strike_order(a, b, verbose=False)), 1)
 
     def test_a_profile_built_twice_does_not_share_rule_lists(self):
-        first = build("Orcs", "Orc Warboss", SpecialRules=["Frenzy"])
-        second = build("Orcs", "Orc Warboss")
+        first = build("Orc & Goblin Tribes", "Orc Warboss", SpecialRules=["Frenzy"])
+        second = build("Orc & Goblin Tribes", "Orc Warboss")
         self.assertIn("Frenzy", first.SpecialRules)
         self.assertNotIn("Frenzy", second.SpecialRules)
 
     def test_building_a_profile_does_not_modify_the_registry(self):
         from faction_profiles import FactionProfiles
 
-        base = FactionProfiles["High Elves"]["Prince"]["base_profile"]
+        base = FactionProfiles["High Elf Realms"]["Prince"]["base_profile"]
         before = list(base["SpecialRules"]), base["WeaponSkill"]
-        build("High Elves", "Prince", elven_honors=["BloodofCaledor", "AnointedofAsuryan"])
+        build("High Elf Realms", "Prince", elven_honors=["BloodofCaledor", "AnointedofAsuryan"])
         self.assertEqual((list(base["SpecialRules"]), base["WeaponSkill"]), before)
 
     def test_an_unknown_faction_or_profile_raises(self):
         with self.assertRaises(ValueError):
             Character(name="X", faction_type="Atlantis", profile_name="King")
         with self.assertRaises(ValueError):
-            Character(name="X", faction_type="High Elves", profile_name="Emperor")
+            Character(name="X", faction_type="High Elf Realms", profile_name="Emperor")
 
 
 if __name__ == "__main__":

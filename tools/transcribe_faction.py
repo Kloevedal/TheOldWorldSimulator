@@ -260,9 +260,9 @@ FACTIONS = {
     ),
     # The factions whose characters were hand-transcribed. Only their UNITS
     # (and any FACTION_RULES entries those units add) are generated.
-    "high_elves": dict(module="high_elves", faction="High Elves",
+    "high_elves": dict(module="high_elves", faction="High Elf Realms",
                        army="high-elf-realms", race="High Elf", legacy=True),
-    "orcs": dict(module="orc_and_goblin_tribes", faction="Orcs",
+    "orcs": dict(module="orc_and_goblin_tribes", faction="Orc & Goblin Tribes",
                  army="orc-and-goblin-tribes", race="Orc", legacy=True,
                  unit_races=[("night goblin|fanatic", "Night Goblin"),
                              ("snotling", "Snotling"), ("squig", "Squig"),

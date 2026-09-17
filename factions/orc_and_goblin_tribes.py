@@ -6,11 +6,11 @@ Profiles from https://tow.whfb.app/army/orc-and-goblin-tribes
 from __future__ import annotations
 
 # The key this faction is filed under in FactionProfiles.
-FACTION = "Orcs"
+FACTION = "Orc & Goblin Tribes"
 
 # Other names that should resolve to this faction.
 ALIASES = [
-    "Orc & Goblin Tribes",
+    "Orcs",
     "Orcs & Goblins",
     "Orc and Goblin",
     "O&G",

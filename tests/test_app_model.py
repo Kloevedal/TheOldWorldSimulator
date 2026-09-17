@@ -25,18 +25,22 @@ from app_model import (  # noqa: E402
     profile_entry,
     profile_names,
     run_statistics,
+    DEATH_ROUND_CAP,
+    DEFAULT_NARRATION_ROUNDS,
+    DEFAULT_RUNS,
+    TO_THE_DEATH,
 )
 
 
 def prince(**overrides):
-    fields = dict(name="Aenarion", faction="High Elves", profile="Prince",
+    fields = dict(name="Aenarion", faction="High Elf Realms", profile="Prince",
                   weapon="Great Weapon", armour="Plate Armor")
     fields.update(overrides)
     return FighterSpec(**fields)
 
 
 def warboss(**overrides):
-    fields = dict(name="Grimgor", faction="Orcs", profile="Orc Warboss",
+    fields = dict(name="Grimgor", faction="Orc & Goblin Tribes", profile="Orc Warboss",
                   weapon="Great Weapon", armour="Light Armor")
     fields.update(overrides)
     return FighterSpec(**fields)
@@ -83,7 +87,7 @@ class TestGearOptions(unittest.TestCase):
                                     defaults["armour"], defaults["shield"], kind=kind).build()
 
     def test_two_handed_weapons_are_flagged(self):
-        opts = gear_options("High Elves", "Prince")
+        opts = gear_options("High Elf Realms", "Prince")
         self.assertIn("Great Weapon", opts["two_handed"])
         self.assertNotIn("Hand Weapon", opts["two_handed"])
 
@@ -108,13 +112,13 @@ class TestGearOptions(unittest.TestCase):
         self.assertGreaterEqual(minimum_unit_size(profile_entry(faction, name)), 1)
 
     def test_armour_is_led_by_none(self):
-        self.assertEqual(gear_options("High Elves", "Prince")["armour"][0], NO_ARMOUR_LABEL)
+        self.assertEqual(gear_options("High Elf Realms", "Prince")["armour"][0], NO_ARMOUR_LABEL)
 
     def test_upgrades_and_honours_are_offered_where_the_profile_allows(self):
-        self.assertEqual(gear_options("Orcs", "Orc Warboss")["optional_rules"],
+        self.assertEqual(gear_options("Orc & Goblin Tribes", "Orc Warboss")["optional_rules"],
                          ["Frenzy", "Warpaint"])
-        self.assertIn("BloodofCaledor", gear_options("High Elves", "Prince")["honours"])
-        self.assertEqual(gear_options("Orcs", "Orc Warboss")["honours"], [])
+        self.assertIn("BloodofCaledor", gear_options("High Elf Realms", "Prince")["honours"])
+        self.assertEqual(gear_options("Orc & Goblin Tribes", "Orc Warboss")["honours"], [])
 
 
 class TestFighterSpec(unittest.TestCase):
@@ -155,19 +159,19 @@ class TestExtras(unittest.TestCase):
 
     def test_ability_group_labels_are_not_offered_as_upgrades(self):
         self.assertNotIn("Knightly Virtue", gear_options("Kingdom of Bretonnia", "Baron")["optional_rules"])
-        self.assertEqual(gear_options("Orcs", "Orc Warboss")["optional_rules"], ["Frenzy", "Warpaint"])
+        self.assertEqual(gear_options("Orc & Goblin Tribes", "Orc Warboss")["optional_rules"], ["Frenzy", "Warpaint"])
 
     def test_the_shop_lists_only_what_the_character_may_buy(self):
-        items = {i["name"]: i for i in purchasable_items("High Elves", "Prince")}
+        items = {i["name"]: i for i in purchasable_items("High Elf Realms", "Prince")}
         self.assertIn("Sword of Might", items)
         self.assertIn("Blood of Caledor", items)
         self.assertNotIn("Runefang", items)
         self.assertNotIn("Chayal", items)
-        self.assertEqual(purchasable_items("High Elves", "Korhil Lionmane"), [])
+        self.assertEqual(purchasable_items("High Elf Realms", "Korhil Lionmane"), [])
 
     def test_purchase_problems_are_reported_not_raised(self):
-        self.assertIsNone(purchase_problem("High Elves", "Prince", ["Sword of Might"]))
-        self.assertIn("not available", purchase_problem("High Elves", "Prince", ["Runefang"]))
+        self.assertIsNone(purchase_problem("High Elf Realms", "Prince", ["Sword of Might"]))
+        self.assertIn("not available", purchase_problem("High Elf Realms", "Prince", ["Runefang"]))
 
     def test_spending_is_totalled_per_budget(self):
         self.assertEqual(spent(["Sword of Might", "Blood of Caledor"]),
@@ -206,10 +210,42 @@ class TestGuiModules(unittest.TestCase):
         root = tk.Tk()
         try:
             app = simulator_app.SimulatorApp(root)
+            self.assertEqual((app.runs_var.get(), app.death_var.get()), (100, True))
+            self.assertIn("disabled", app.rounds_box.state())
             app.run_mode.set("narrate")
+            app._run_mode_changed()
+            self.assertEqual((app.rounds_var.get(), app.death_var.get()), (6, False))
+            app.rounds_var.set(2)
+            app.run_mode.set("odds")
+            app._run_mode_changed()
+            self.assertTrue(app.death_var.get())
+            app.run_mode.set("narrate")
+            app._run_mode_changed()
+            self.assertEqual(app.rounds_var.get(), 2)  # each mode keeps its own
             app.seed_var.set("1")
             app.run()
             self.assertIn("Round 1", app.log.text.get("1.0", "end"))
+
+            card = app.screens["character"].cards[0]
+            card.army_var.set("High Elf Realms")
+            card._army_changed()
+            card.model_var.set("Prince")
+            card._model_changed()
+            card.weapon_var.set("Great Weapon")
+            card._weapon_changed()
+            self.assertEqual(card.spec().weapon, "Great Weapon")
+            self.assertIn("+4 pts", card.weapon_box.get())
+            self.assertIn("S+2", card.weapon_label.cget("text"))
+            self.assertTrue(card.points_label.cget("text").endswith("points"))
+            self.assertEqual(card.stats.values["S"], (6, 4))
+
+            shop = simulator_app.ExtrasDialog(card)
+            shop.search.set("killing blow")
+            shop._refresh_shop()
+            listed = {name for _f, tree in shop.trees.values() for name in tree.get_children()}
+            self.assertIn("Headsman's Axe", listed)
+            self.assertNotIn("Sword of Might", listed)
+            shop.destroy()
         finally:
             root.destroy()
 
@@ -271,6 +307,28 @@ class TestRuns(unittest.TestCase):
         self.assertEqual(text, narrate_duel(prince(), warboss(), rounds=4, seed=3))
         self.assertIn("=== Round 1 ===", text)
         self.assertIn("Result:", text)
+
+    def test_the_defaults_are_100_fights_to_the_death_and_six_narrated_rounds(self):
+        self.assertEqual((DEFAULT_RUNS, DEFAULT_NARRATION_ROUNDS), (100, 6))
+        stats = run_statistics(prince(), warboss(), seed=2)
+        self.assertEqual((stats.runs, stats.rounds), (100, TO_THE_DEATH))
+        # Nobody wins on wounds when the fight goes on until someone falls.
+        self.assertEqual((stats.kills_a, stats.kills_b), (stats.wins_a, stats.wins_b))
+        self.assertIn("to the death", stats.summary())
+
+    def test_to_the_death_is_capped_and_a_round_limit_is_passed_through(self):
+        import app_model
+
+        seen = []
+        real = app_model.combat_simulation
+        app_model.combat_simulation = lambda a, b, rounds, verbose: seen.append(rounds)
+        try:
+            run_statistics(prince(), warboss(), runs=1)
+            run_statistics(prince(), warboss(), runs=1, rounds=3)
+            narrate_duel(prince(), warboss())
+        finally:
+            app_model.combat_simulation = real
+        self.assertEqual(seen, [DEATH_ROUND_CAP, 3, DEFAULT_NARRATION_ROUNDS])
 
     def test_identically_named_fighters_are_told_apart(self):
         text = narrate_duel(warboss(), warboss(), rounds=1, seed=1)

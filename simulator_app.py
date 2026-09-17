@@ -10,9 +10,13 @@ One screen: pick two fighters, press Fight.
 * Each fighter card has the essentials: army, model, name, weapon, armour,
   mount and shield. "Extras…" opens upgrades, Marks of Chaos and Vows, and the
   magic item and ability shop, sorted into tabs, with a switch to show or hide
-  the common (rulebook) items.
-* Odds fights many times; Play-by-play fights once (one round by default) and
-  shows every roll.
+  the common (rulebook) items. Search matches item names and the rules they
+  grant, so "killing blow" finds the Headsman's Axe.
+* Each card shows the fighter's points: the model plus priced weapons,
+  armour, shield, mount, upgrades and items.
+* Odds fights 100 times to the death by default; Play-by-play fights once
+  (six rounds by default) and shows every roll. Untick "To the death" to set
+  a round limit; each mode remembers its own.
 * Save… keeps a fighter under a name; saved fighters are listed under
   "★ Saved" in the army picker.
 """
@@ -27,29 +31,39 @@ from tkinter import simpledialog, ttk
 import ui_kit as ui
 from app_model import (
     CHARACTER,
+    DEFAULT_NARRATION_ROUNDS,
+    DEFAULT_RUNS,
+    TO_THE_DEATH,
     UNIT,
     UNIT_COMBAT_NOTE,
     CharacterStore,
     FighterSpec,
     armour_choices,
+    choice_label,
     faction_names,
     gear_options,
+    compare_stats,
     is_two_handed,
+    item_matches,
     narrate_duel,
+    option_price,
+    points_breakdown,
     profile_names,
     purchasable_items,
     purchase_problem,
+    rounds_text,
     run_statistics,
     spent,
     weapon_choices,
+    weapon_summary,
 )
 
 SAVED = "★ Saved"
 ON_FOOT = "On foot"
 NOUN = {CHARACTER: "Character", UNIT: "Unit"}
 DEFAULTS = {
-    CHARACTER: [("High Elves", "Prince"), ("Orcs", "Black Orc Warboss")],
-    UNIT: [("Empire of Man", "State Troops"), ("Orcs", "Orc Mob")],
+    CHARACTER: [("High Elf Realms", "Prince"), ("Orc & Goblin Tribes", "Black Orc Warboss")],
+    UNIT: [("Empire of Man", "State Troops"), ("Orc & Goblin Tribes", "Orc Mob")],
 }
 STATUS_MARKS = {"partial": "partly simulated", "not modelled": "not simulated",
                 "no duel effect": "no effect in a duel"}
@@ -73,6 +87,31 @@ def _combo(master, variable, command, width=26):
     return box
 
 
+class LabelledChoice:
+    """A read-only combobox whose entries carry extra text (price, profile)
+    while get() and set() deal in the plain names."""
+
+    def __init__(self, master, command, width=34):
+        self.var = tk.StringVar()
+        self.box = _combo(master, self.var, command, width=width)
+        self._names, self._labels = {}, {}
+
+    def set_choices(self, names, label=str):
+        self._labels = {name: label(name) for name in names}
+        self._names = {text: name for name, text in self._labels.items()}
+        self.box["values"] = [self._labels[n] for n in names]
+
+    def choices(self):
+        return list(self._labels)
+
+    def get(self):
+        text = self.var.get()
+        return self._names.get(text, text)
+
+    def set(self, name):
+        self.var.set(self._labels.get(name, name))
+
+
 class FighterCard(ttk.LabelFrame):
     """One side of the fight."""
 
@@ -84,7 +123,6 @@ class FighterCard(ttk.LabelFrame):
         self.optional_rules, self.exclusive, self.magic_items = [], {}, []
 
         self.army_var, self.model_var, self.name_var = tk.StringVar(), tk.StringVar(), tk.StringVar()
-        self.weapon_var, self.armour_var, self.mount_var = tk.StringVar(), tk.StringVar(), tk.StringVar()
         self.shield_var = tk.BooleanVar()
         self.models_var, self.frontage_var = tk.IntVar(value=20), tk.IntVar(value=5)
 
@@ -93,9 +131,11 @@ class FighterCard(ttk.LabelFrame):
         form.columnconfigure(1, weight=1)
         self.army_box = _combo(form, self.army_var, self._army_changed)
         self.model_box = _combo(form, self.model_var, self._model_changed)
-        self.weapon_box = _combo(form, self.weapon_var, self._weapon_changed)
-        self.armour_box = _combo(form, self.armour_var, self.refresh)
-        self.mount_box = _combo(form, self.mount_var, self.refresh)
+        self.weapon_var = LabelledChoice(form, self._weapon_changed)
+        self.armour_var = LabelledChoice(form, self.refresh)
+        self.mount_var = LabelledChoice(form, self.refresh)
+        self.weapon_box, self.armour_box, self.mount_box = (
+            self.weapon_var.box, self.armour_var.box, self.mount_var.box)
         rows = [("Army", self.army_box), (NOUN[kind], self.model_box),
                 ("Name", ttk.Entry(form, textvariable=self.name_var)),
                 ("Weapon", self.weapon_box), ("Armour", self.armour_box)]
@@ -121,7 +161,15 @@ class FighterCard(ttk.LabelFrame):
             self.ranks_label.pack(side="left", padx=6)
 
         self.stats = ui.StatTiles(self, app.fonts, ui.SIDE_COLOURS[side])
-        self.stats.pack(fill="x", pady=(12, 6))
+        self.stats.pack(fill="x", pady=(12, 0))
+        ttk.Label(self, text="With gear (bare profile) · first-round values",
+                  style="Muted.TLabel").pack(anchor="e")
+        self.weapon_label = ttk.Label(self, style="Muted.TLabel", justify="left", wraplength=430)
+        self.weapon_label.pack(fill="x", pady=(2, 4))
+        self.points_label = ttk.Label(self, style="Heading.TLabel")
+        self.points_label.pack(fill="x")
+        self.points_detail = ttk.Label(self, style="Muted.TLabel", justify="left", wraplength=430)
+        self.points_detail.pack(fill="x", pady=(0, 4))
         self.rules_label = ttk.Label(self, style="Muted.TLabel", justify="left", wraplength=430)
         self.rules_label.pack(fill="x")
         self.extras_label = ttk.Label(self, style="Accent.TLabel", justify="left", wraplength=430)
@@ -180,9 +228,8 @@ class FighterCard(ttk.LabelFrame):
         """Reset the card to a profile, then apply a saved spec if given."""
         self.delete_button.state(["!disabled" if spec else "disabled"])
         if self.profile is None:
-            for box, var in ((self.weapon_box, self.weapon_var), (self.armour_box, self.armour_var),
-                             (self.mount_box, self.mount_var)):
-                box["values"] = []
+            for var in (self.weapon_var, self.armour_var, self.mount_var):
+                var.set_choices([])
                 var.set("")
             self.name_var.set("")
             self.opts, self.optional_rules, self.exclusive, self.magic_items = {}, [], {}, []
@@ -212,12 +259,13 @@ class FighterCard(ttk.LabelFrame):
     def _set_mounts(self, chosen):
         fixed = self.opts.get("fixed_mount")
         if fixed:
-            self.mount_box["values"] = [fixed]
+            self.mount_var.set_choices([fixed])
             self.mount_var.set(fixed)
             self.mount_box.state(["disabled"])
             return
         mounts = self.opts.get("mounts", [])
-        self.mount_box["values"] = [ON_FOOT] + mounts
+        self.mount_var.set_choices([ON_FOOT] + mounts, lambda m: m if m == ON_FOOT else
+                                   choice_label(self.faction, self.profile, "mounts", m))
         self.mount_var.set(chosen if chosen in mounts else ON_FOOT)
         self.mount_box.state(["!disabled" if mounts else "disabled"])
 
@@ -225,8 +273,12 @@ class FighterCard(ttk.LabelFrame):
         """Weapons and armour, including any the bought abilities unlock."""
         weapons = weapon_choices(self.faction, self.profile, self.magic_items)
         armour = armour_choices(self.faction, self.profile, self.magic_items)
-        self.weapon_box["values"] = weapons
-        self.armour_box["values"] = armour
+        self.weapon_var.set_choices(
+            weapons, lambda w: choice_label(self.faction, self.profile, "weapons", w))
+        self.armour_var.set_choices(
+            armour, lambda a: choice_label(self.faction, self.profile, "armour", a))
+        shield_cost = option_price(self.faction, self.profile, "shield", "Shield")
+        self.shield_check.configure(text=f"Shield · +{shield_cost} pts" if shield_cost else "Shield")
         defaults = self.opts["defaults"]
         if self.weapon_var.get() not in weapons:
             self.weapon_var.set(defaults["weapon"])
@@ -273,6 +325,8 @@ class FighterCard(ttk.LabelFrame):
     def refresh(self):
         if self.profile is None:
             self.stats.show(message=f"No saved {NOUN[self.kind].lower()}s yet")
+            self._show_points(None)
+            self.weapon_label.configure(text="")
             self.rules_label.configure(text="")
             self.extras_label.configure(text="")
             return
@@ -281,12 +335,15 @@ class FighterCard(ttk.LabelFrame):
             built = spec.build()
         except ValueError as exc:
             self.stats.show(message="Not a legal loadout")
+            self._show_points(None)
+            self.weapon_label.configure(text="")
             self.rules_label.configure(text=str(exc))
             self.extras_label.configure(text="")
             return
-        self.stats.show({"WS": built.WeaponSkill, "S": built.Strength, "T": built.Toughness,
-                         "W": built.Wounds, "I": built.Initiative, "A": built.Attacks,
-                         "Ld": built.Leadership})
+        self.stats.show(compare_stats(spec))
+        profile = weapon_summary(spec.weapon)
+        self.weapon_label.configure(text=f"{spec.weapon}: {profile}" if profile else "")
+        self._show_points(spec)
         self.rules_label.configure(text=", ".join(built.SpecialRules) or "No special rules")
         lines = []
         extras = [*self.chosen_rules(), *self.magic_items]
@@ -299,6 +356,16 @@ class FighterCard(ttk.LabelFrame):
         self.extras_label.configure(text="\n".join(lines))
         if self.kind == UNIT:
             self.ranks_label.configure(text=f"{spec.ranks} ranks")
+
+    def _show_points(self, spec):
+        if spec is None:
+            self.points_label.configure(text="")
+            self.points_detail.configure(text="")
+            return
+        lines = points_breakdown(spec)
+        self.points_label.configure(text=f"{sum(c for _l, c in lines)} points")
+        self.points_detail.configure(
+            text=" + ".join(f"{label} {cost}" for label, cost in lines) if len(lines) > 1 else "")
 
     # -- extras, saving -------------------------------------------------------
 
@@ -396,7 +463,7 @@ class ExtrasDialog(tk.Toplevel):
         shop.pack(fill="both", expand=True, pady=(10, 0))
         top = ttk.Frame(shop)
         top.pack(fill="x")
-        ttk.Label(top, text="Search").pack(side="left")
+        ttk.Label(top, text="Search names & rules").pack(side="left")
         self.search = tk.StringVar()
         entry = ttk.Entry(top, textvariable=self.search, width=28)
         entry.pack(side="left", padx=6)
@@ -415,7 +482,8 @@ class ExtrasDialog(tk.Toplevel):
         self.trees = {}
         for pane in sorted({i["pane"] for i in self.catalogue.values()}):
             frame = ttk.Frame(self.notebook)
-            tree = self._tree(frame, ("cost", "notes"), ("Points", "Notes"), (60, 150))
+            tree = self._tree(frame, ("cost", "profile", "notes"), ("Points", "Profile", "Notes"),
+                              (60, 300, 130), width=220)
             tree.bind("<Double-1>", lambda _e, t=tree: self._add(t))
             tree.bind("<<TreeviewSelect>>", lambda _e, t=tree: self._describe(t))
             self.notebook.add(frame, text=pane)
@@ -453,21 +521,29 @@ class ExtrasDialog(tk.Toplevel):
             return
         needle = self.search.get().strip().lower()
         show_common = self.show_common.get()
+        first_hit = None
         for pane, (frame, tree) in self.trees.items():
             tree.delete(*tree.get_children())
             shown = 0
             for item in self.catalogue.values():
                 if item["pane"] != pane or (item["common"] and not show_common):
                     continue
-                if needle and needle not in item["name"].lower():
+                if needle and not item_matches(item, needle):
                     continue
                 notes = STATUS_MARKS.get(item["status"], "")
                 if item["common"]:
                     notes = ("common · " + notes) if notes else "common"
                 tree.insert("", "end", iid=item["name"], text=item["name"],
-                            values=(item["cost"], notes))
+                            values=(item["cost"], item["summary"] or "–", notes))
                 shown += 1
             self.notebook.tab(frame, text=f"{pane} ({shown})")
+            if shown and first_hit is None:
+                first_hit = frame
+        # Searching jumps to a tab with results if the current one has none.
+        current = self.notebook.select()
+        if needle and first_hit is not None and not any(
+                str(f) == current and t.get_children() for f, t in self.trees.values()):
+            self.notebook.select(first_hit)
         self.chosen.delete(*self.chosen.get_children())
         for index, name in enumerate(self.items):
             self.chosen.insert("", "end", iid=str(index), text=name,
@@ -489,7 +565,9 @@ class ExtrasDialog(tk.Toplevel):
         name = tree.item(selection[0], "text")
         item = self.catalogue.get(name, {"text": ""})
         status = STATUS_MARKS.get(item.get("status"), "simulated")
-        self.description.configure(text=f"{name} ({status}): {item.get('text', '')}")
+        summary = item.get("summary")
+        profile = f"\n{summary}" if summary else ""
+        self.description.configure(text=f"{name} ({status}){profile}\n{item.get('text', '')}")
 
     def _add_selected(self):
         current = self.notebook.select()
@@ -596,16 +674,23 @@ class SimulatorApp(ttk.Frame):
         for value, text in (("odds", "Odds"), ("narrate", "Play-by-play")):
             ttk.Radiobutton(bar, text=text, value=value, variable=self.run_mode, style="Toolbutton",
                             command=self._run_mode_changed).pack(side="left")
-        self.runs_var = tk.IntVar(value=1000)
-        self.rounds_var = tk.IntVar(value=4)
-        self.odds_rounds = 4
+        self.runs_var = tk.IntVar(value=DEFAULT_RUNS)
+        self.rounds_var = tk.IntVar(value=DEFAULT_NARRATION_ROUNDS)
+        self.death_var = tk.BooleanVar(value=True)
+        # Each run mode keeps its own round settings.
+        self.mode_rounds = {"odds": (DEFAULT_NARRATION_ROUNDS, True),
+                            "narrate": (DEFAULT_NARRATION_ROUNDS, False)}
         self.seed_var = tk.StringVar()
         ttk.Label(bar, text="Fights").pack(side="left", padx=(16, 4))
-        self.runs_box = ttk.Spinbox(bar, from_=1, to=100000, increment=500, width=7,
+        self.runs_box = ttk.Spinbox(bar, from_=1, to=100000, increment=100, width=7,
                                     textvariable=self.runs_var)
         self.runs_box.pack(side="left")
         ttk.Label(bar, text="Rounds").pack(side="left", padx=(16, 4))
-        ttk.Spinbox(bar, from_=1, to=50, width=4, textvariable=self.rounds_var).pack(side="left")
+        self.rounds_box = ttk.Spinbox(bar, from_=1, to=50, width=4, textvariable=self.rounds_var)
+        self.rounds_box.pack(side="left")
+        ttk.Checkbutton(bar, text="To the death", variable=self.death_var,
+                        command=self._death_changed).pack(side="left", padx=(8, 0))
+        self._death_changed()
         ttk.Label(bar, text="Seed").pack(side="left", padx=(16, 4))
         ttk.Entry(bar, textvariable=self.seed_var, width=8).pack(side="left")
         self.fight_button = ttk.Button(bar, text="Fight", command=self.run, default="active")
@@ -635,19 +720,25 @@ class SimulatorApp(ttk.Frame):
         self.screen.pack(fill="x", before=self.controls)
         self._show_only(self.placeholder)
 
+    def _death_changed(self):
+        self.rounds_box.state(["disabled" if self.death_var.get() else "!disabled"])
+
     def _run_mode_changed(self):
-        """Play-by-play defaults to a single round; Odds gets its own value back."""
-        narrate = self.run_mode.get() == "narrate"
-        self.runs_box.state(["disabled" if narrate else "!disabled"])
+        """Odds defaults to fighting to the death, Play-by-play to six rounds;
+        each mode gets its own settings back when switched to."""
+        mode = self.run_mode.get()
+        narrate = mode == "narrate"
+        left = "odds" if narrate else "narrate"
         try:
             current = int(self.rounds_var.get())
         except (tk.TclError, ValueError):
-            current = self.odds_rounds
-        if narrate:
-            self.odds_rounds = current
-            self.rounds_var.set(1)
-        else:
-            self.rounds_var.set(self.odds_rounds)
+            current = self.mode_rounds[left][0]
+        self.mode_rounds[left] = (current, self.death_var.get())
+        rounds, death = self.mode_rounds[mode]
+        self.rounds_var.set(rounds)
+        self.death_var.set(death)
+        self.runs_box.state(["disabled" if narrate else "!disabled"])
+        self._death_changed()
 
     def saved_changed(self):
         for screen in self.screens.values():
@@ -676,7 +767,8 @@ class SimulatorApp(ttk.Frame):
             return
         try:
             spec_a, spec_b = (card.spec() for card in self.cards)
-            rounds = self._number(self.rounds_var, "Rounds", 1, 50)
+            rounds = (TO_THE_DEATH if self.death_var.get()
+                      else self._number(self.rounds_var, "Rounds", 1, 50))
             seed_text = self.seed_var.get().strip()
             seed = int(seed_text) if seed_text else None
             if self.run_mode.get() == "narrate":
@@ -739,7 +831,7 @@ class SimulatorApp(ttk.Frame):
                     f"{average:.2f} wounds left on average when winning")
 
         text = "\n".join([
-            f"{stats.runs} fights, up to {stats.rounds} rounds each",
+            f"{stats.runs} fights, {rounds_text(stats.rounds)}",
             line(stats.name_a, stats.wins_a, stats.kills_a, stats.wounds_left_a),
             line(stats.name_b, stats.wins_b, stats.kills_b, stats.wounds_left_b),
             f"Draws: {stats.draws}",

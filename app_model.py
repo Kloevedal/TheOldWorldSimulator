@@ -30,7 +30,7 @@ from character_model import EXCLUSIVE_OPTIONS, Character, offered_options
 from combat_simulations import combat_simulation
 from elven_honors import ElvenHonors
 from factions import FACTION_MODULES
-from faction_profiles import FactionProfiles
+from faction_profiles import FactionProfiles, resolve_faction
 from magic_items import (
     ENGINEER_ONLY,
     allowance_for,
@@ -42,8 +42,9 @@ from magic_items import (
 )
 from mounted import integral_mount
 from mounts import HONOUR_MOUNTS, Mounts
+from option_costs import OPTION_COSTS
 from special_rules import RequiresTwoHands
-from weapons import get_weapon_special_rules
+from weapons import find_weapon_key, get_weapon_special_rules, get_weapon_stats
 
 NO_ARMOUR_LABEL = "None"
 
@@ -72,6 +73,7 @@ def faction_names(kind=CHARACTER):
 
 
 def profile_names(faction, kind=CHARACTER):
+    faction = resolve_faction(faction) or faction
     for module in FACTION_MODULES:
         if module.FACTION == faction:
             return sorted(_roster(module, kind))
@@ -79,7 +81,7 @@ def profile_names(faction, kind=CHARACTER):
 
 
 def profile_entry(faction, profile):
-    return FactionProfiles[faction][profile]
+    return FactionProfiles[resolve_faction(faction) or faction][profile]
 
 
 def is_two_handed(weapon):
@@ -123,6 +125,7 @@ def gear_options(faction, profile):
     option), `allowance` (what the character may buy), the profile `defaults`,
     and `unit` (size and points details, or None for a character).
     """
+    faction = resolve_faction(faction) or faction
     entry = profile_entry(faction, profile)
     base = entry["base_profile"]
     options = entry["equipment_options"]
@@ -230,6 +233,11 @@ class FighterSpec:
     def rules(self):
         return list(self.build().SpecialRules)
 
+    def __post_init__(self):
+        # Specs saved under an older army name ("High Elves") load under the
+        # official one ("High Elf Realms").
+        self.faction = resolve_faction(self.faction) or self.faction
+
     def to_dict(self):
         return asdict(self)
 
@@ -304,8 +312,155 @@ def purchasable_items(faction, profile):
             "common": not entry.get("armies"),
             "status": entry.get("status"),
             "text": entry.get("text", ""),
+            "summary": item_summary(name),
         })
     return sorted(found, key=lambda i: (i["pane"], i["name"]))
+
+
+def item_matches(item, query):
+    """True if a shop item's name, type or rules text mentions every word of
+    `query`, so "killing blow" finds items that grant Killing Blow as well as
+    items named after it."""
+    words = query.lower().split()
+    if not words:
+        return True
+    haystack = " ".join([item["name"], item.get("type") or "", item.get("text") or "",
+                         *item_rule_terms(item["name"])]).lower()
+    return all(word in haystack for word in words)
+
+
+_RULE_SHORTHAND = [
+    (re.compile(r"^Ward(\d)"), r"Ward save (\1+)"),
+    (re.compile(r"^Regen(\d)"), r"Regeneration save (\1+)"),
+    (re.compile(r"^AB(\d)"), r"Armour Bane (\1)"),
+    (re.compile(r"^([+-]\d)A$"), r"Extra Attacks (\1)"),
+]
+
+
+def item_rule_terms(name):
+    """The rules an item grants, spelled out for searching."""
+    entry = get_magic_item(name) or {}
+    rules = list(entry.get("rules") or [])
+    if entry.get("is_weapon"):
+        rules += get_weapon_special_rules(name)
+    if entry.get("armour"):
+        rules.append(entry["armour"])
+    terms = []
+    for rule in map(str, rules):
+        for pattern, spelled in _RULE_SHORTHAND:
+            rule = pattern.sub(spelled, rule)
+        terms.append(rule)
+    return terms
+
+
+_READABLE_RULES = {"1st round strength only": "Strength bonus in the first round only",
+                   "Magic": None, "Magical Attacks": "Magical Attacks"}
+_STAT_SHORT = {"WeaponSkill": "WS", "BallisticSkill": "BS", "Strength": "S", "Toughness": "T",
+               "Wounds": "W", "Initiative": "I", "Attacks": "A", "Leadership": "Ld",
+               "Movement": "M"}
+
+
+def _readable(rules):
+    out = []
+    for rule in map(str, rules):
+        for pattern, spelled in _RULE_SHORTHAND:
+            rule = pattern.sub(spelled, rule)
+        rule = _READABLE_RULES.get(rule, rule)
+        if rule and rule not in out:
+            out.append(rule)
+    return out
+
+
+def weapon_summary(weapon):
+    """A weapon's profile in one line: "S+2, AP -2; Strike Last, Armour Bane (1)"."""
+    if not weapon or find_weapon_key(weapon) is None:
+        return ""
+    strength, ap, rules = get_weapon_stats(weapon)
+    parts = [f"S+{strength}" if strength else "S"]
+    if ap:
+        parts.append(f"AP -{abs(ap)}")
+    readable = _readable(rules)
+    return ", ".join(parts) + (("; " + ", ".join(readable)) if readable else "")
+
+
+def item_summary(name):
+    """What an item does in game terms: its weapon profile, armour, stat
+    changes and rules. Empty for items with no modelled effect."""
+    from armor import get_armour_save
+
+    entry = get_magic_item(name) or {}
+    parts = []
+    if entry.get("is_weapon") or entry.get("weapon"):
+        profile = weapon_summary(name) or weapon_summary(entry.get("weapon"))
+        if profile:
+            parts.append(profile)
+    if entry.get("armour"):
+        save = get_armour_save(entry["armour"])
+        parts.append(f"{entry['armour']}" + (f" ({save}+)" if save else ""))
+    if entry.get("shield"):
+        parts.append("Shield (-1 save)")
+    mods = entry.get("stat_mods") or {}
+    if mods:
+        parts.append(" ".join(f"{_STAT_SHORT.get(k, k)}{v:+d}" for k, v in mods.items()))
+    rules = _readable(entry.get("rules") or [])
+    if rules:
+        parts.append(", ".join(rules))
+    grants = entry.get("grants") or {}
+    for kind in ("weapons", "armour"):
+        if grants.get(kind):
+            parts.append("unlocks " + ", ".join(grants[kind]))
+    return " | ".join(parts)
+
+
+STAT_ORDER = (("WS", "WeaponSkill"), ("S", "Strength"), ("T", "Toughness"), ("W", "Wounds"),
+              ("I", "Initiative"), ("A", "Attacks"), ("Ld", "Leadership"))
+
+
+def _bare_spec(spec):
+    """The same model with nothing added: hand weapon, no armour, shield,
+    upgrades, honours, items or optional mount."""
+    return FighterSpec(name=spec.name, faction=spec.faction, profile=spec.profile,
+                       weapon="Hand Weapon", armour=NO_ARMOUR_LABEL, kind=spec.kind,
+                       models=spec.models, frontage=spec.frontage)
+
+
+def fighting_stats(character):
+    """{short name: value} as the fighter strikes in the first round: weapon
+    Strength and extra attacks included. Dice attacks read like "3+D3"."""
+    from combat_simulations import apply_weapon_stats, reset_weapon_stats
+    from special_rules import FuriousCharge, Frenzy, MarkOfKhorne, parse_extra_attacks
+
+    apply_weapon_stats(character, is_first_round=True, verbose=False)
+    values = {short: getattr(character, attr, None) for short, attr in STAT_ORDER}
+    reset_weapon_stats(character)
+    weapon_rules = get_weapon_special_rules(character.Weapon)
+    rules = character.SpecialRules or []
+    fixed, dice_parts = 0, []
+    for amount in parse_extra_attacks(rules, weapon_rules):
+        if isinstance(amount, int) or str(amount).lstrip("+-").isdigit():
+            fixed += int(amount)
+        else:
+            dice_parts.append(str(amount))
+    for rule in map(str, weapon_rules):
+        if re.fullmatch(r"\+\d+A", rule):
+            fixed += int(rule[1:-1])
+    if Frenzy in rules or MarkOfKhorne in rules:
+        fixed += 1
+    if FuriousCharge in rules:
+        fixed += 1
+    attacks = (values["A"] or 0) + fixed
+    values["A"] = "+".join([str(attacks), *dice_parts]) if dice_parts else attacks
+    return values
+
+
+def compare_stats(spec):
+    """{short name: (with everything, bare profile)} for the X (y) statline."""
+    current = fighting_stats(spec.build())
+    try:
+        bare = fighting_stats(_bare_spec(spec).build())
+    except ValueError:
+        bare = {}
+    return {short: (current[short], bare.get(short)) for short, _attr in STAT_ORDER}
 
 
 def purchase_problem(faction, profile, items):
@@ -328,6 +483,90 @@ def spent(items):
     return totals
 
 
+def _same_armour(a, b):
+    from armor import get_armour_save
+
+    return a == b or get_armour_save(a) == get_armour_save(b)
+
+
+def points_breakdown(spec):
+    """[(label, points)] for everything the fighter costs, base profile first.
+
+    Weapon, armour, shield, mount and rule prices come from the profile's
+    options (option_costs.py); anything the profile carries for free costs
+    nothing. A unit priced per model pays its base cost and its per-model
+    upgrades once for each model.
+    """
+    entry = profile_entry(spec.faction, spec.profile)
+    prices = OPTION_COSTS.get(resolve_faction(spec.faction) or spec.faction, {}).get(spec.profile, {})
+    per_model = spec.kind == UNIT and entry.get("points_per") == "model"
+    models = max(1, spec.models) if per_model else 1
+    upgrade_times = models if prices.get("per_model") and per_model else 1
+    lines = []
+    base = entry.get("points") or 0
+    lines.append((f"{spec.profile} ({models} x {base})" if models > 1 else spec.profile, base * models))
+
+    def add(label, cost, times=upgrade_times):
+        if cost:
+            lines.append((label if times == 1 else f"{label} ({times} x {cost})", cost * times))
+
+    add(spec.weapon, prices.get("weapons", {}).get(spec.weapon, 0))
+    if spec.armour not in NO_ARMOUR:
+        armour = prices.get("armour", {})
+        add(spec.armour, next((c for a, c in armour.items() if _same_armour(a, spec.armour)), 0))
+    if spec.shield:
+        add("Shield", prices.get("shield", 0))
+    if spec.mount and spec.mount != integral_mount(spec.faction, spec.profile):
+        cost = prices.get("mounts", {}).get(spec.mount)
+        if cost is None:
+            cost = (Mounts.get(spec.mount) or {}).get("points") or 0
+        add(spec.mount, cost, 1)
+    rule_prices = prices.get("rules", {})
+    for rule in spec.optional_rules:
+        add(rule, rule_prices.get(rule, 0))
+    for name in spec.magic_items:
+        add(name, (get_magic_item(name) or {}).get("cost") or 0, 1)
+    return lines
+
+
+def option_price(faction, profile, kind, name):
+    """Points for one weapon, armour, mount or rule on this profile (0 if free)."""
+    prices = OPTION_COSTS.get(resolve_faction(faction) or faction, {}).get(profile, {})
+    if kind == "armour":
+        return next((c for a, c in prices.get("armour", {}).items() if _same_armour(a, name)), 0)
+    if kind == "shield":
+        return prices.get("shield", 0)
+    cost = prices.get(kind, {}).get(name)
+    if cost is None and kind == "mounts":
+        cost = (Mounts.get(name) or {}).get("points")
+    return cost or 0
+
+
+def choice_label(faction, profile, kind, name):
+    """A picker entry with its price and short profile:
+    "Great Weapon · +4 pts · S+2, AP -2"."""
+    from armor import get_armour_save
+
+    parts = [name]
+    cost = option_price(faction, profile, kind, name)
+    per = OPTION_COSTS.get(resolve_faction(faction) or faction, {}).get(profile, {}).get("per_model")
+    if cost:
+        parts.append(f"+{cost} pts" + ("/model" if per and kind != "mounts" else ""))
+    if kind == "weapons":
+        short = weapon_summary(name).split(";")[0]
+        if short and short != "S":
+            parts.append(short)
+    elif kind == "armour" and name not in NO_ARMOUR:
+        save = get_armour_save(name)
+        if save:
+            parts.append(f"{save}+ save")
+    return " · ".join(parts)
+
+
+def total_points(spec):
+    return sum(cost for _label, cost in points_breakdown(spec))
+
+
 def _fighter_names(spec_a, spec_b):
     """Distinct display names, so the narration never reads 'Orc hits Orc'."""
     a, b = spec_a.name.strip() or spec_a.profile, spec_b.name.strip() or spec_b.profile
@@ -346,13 +585,30 @@ def _check_same_kind(spec_a, spec_b):
 
 # -- runs ---------------------------------------------------------------------
 
+# App defaults: Odds fights 100 times to the death; Play-by-play shows six
+# rounds. rounds=TO_THE_DEATH fights until a fighter falls, capped so that two
+# fighters who cannot hurt each other still finish (as a draw).
+TO_THE_DEATH = None
+DEATH_ROUND_CAP = 100
+DEFAULT_RUNS = 100
+DEFAULT_NARRATION_ROUNDS = 6
+
+
+def round_limit(rounds):
+    return DEATH_ROUND_CAP if rounds is TO_THE_DEATH else rounds
+
+
+def rounds_text(rounds):
+    return "to the death" if rounds is TO_THE_DEATH else f"up to {rounds} round(s) each"
+
+
 
 @dataclass
 class DuelStats:
     name_a: str
     name_b: str
     runs: int
-    rounds: int
+    rounds: int | None  # TO_THE_DEATH or a round limit
     wins_a: int = 0
     wins_b: int = 0
     kills_a: int = 0  # wins where the opponent was slain, not out-lasted
@@ -377,7 +633,7 @@ class DuelStats:
             )
 
         noun = "duels" if self.kind == CHARACTER else "model-vs-model fights"
-        header = f"{self.runs} {noun}, up to {self.rounds} round(s) each\n\n"
+        header = f"{self.runs} {noun}, {rounds_text(self.rounds)}\n\n"
         if self.kind == UNIT:
             header = f"Note: {UNIT_COMBAT_NOTE}\n\n" + header
         return (
@@ -389,7 +645,7 @@ class DuelStats:
         )
 
 
-def run_statistics(spec_a, spec_b, runs, rounds, seed=None, progress=None):
+def run_statistics(spec_a, spec_b, runs=DEFAULT_RUNS, rounds=TO_THE_DEATH, seed=None, progress=None):
     """Fight `runs` duels and tally them. `progress(done)` is called periodically."""
     _check_same_kind(spec_a, spec_b)
     name_a, name_b = _fighter_names(spec_a, spec_b)
@@ -402,7 +658,7 @@ def run_statistics(spec_a, spec_b, runs, rounds, seed=None, progress=None):
     step = max(1, runs // 100)
     for i in range(runs):
         a, b = spec_a.build(name_a), spec_b.build(name_b)
-        winner = combat_simulation(a, b, rounds=rounds, verbose=False)
+        winner = combat_simulation(a, b, rounds=round_limit(rounds), verbose=False)
         if winner is None:
             stats.draws += 1
         elif winner is a:
@@ -418,7 +674,7 @@ def run_statistics(spec_a, spec_b, runs, rounds, seed=None, progress=None):
     return stats
 
 
-def narrate_duel(spec_a, spec_b, rounds, seed=None):
+def narrate_duel(spec_a, spec_b, rounds=DEFAULT_NARRATION_ROUNDS, seed=None):
     """Fight one duel and return the engine's round-by-round narration."""
     _check_same_kind(spec_a, spec_b)
     name_a, name_b = _fighter_names(spec_a, spec_b)
@@ -432,7 +688,7 @@ def narrate_duel(spec_a, spec_b, rounds, seed=None):
             formation = f", {spec.formation()}" if spec.kind == UNIT else ""
             mount = f", riding {model.mount}" if model.mount else ""
             print(f"{name}: {spec.profile} ({spec.faction}) with {spec.weapon}{mount}{formation}")
-        winner = combat_simulation(a, b, rounds=rounds, verbose=True)
+        winner = combat_simulation(a, b, rounds=round_limit(rounds), verbose=True)
         print(
             f"\nResult: {winner.name if winner else 'Draw'}  "
             f"({name_a} {a.current_wounds}/{a.Wounds} W, "
