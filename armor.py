@@ -6,6 +6,10 @@ ArmourDict = {
     ("Light Armor", "LA", "Light"): 6,
     ("Heavy Armor", "HA", "Heavy"): 5,
     ("Plate Armor", "PA", "Plate", "Full Plate Armor", "Full Plate"): 4,
+    # A model's own armour value where the site gives one directly (chariots,
+    # monsters, war engines) rather than as a suit of armour.
+    ("Armour Value 3+",): 3,
+    ("Armour Value 2+",): 2,
 }
 
 # The armour value of a model wearing no armour, for rules that improve it

@@ -1,354 +1,668 @@
-"""Desktop front end for the duel simulator (Tkinter, no extra dependencies).
+"""Desktop front end for the simulator (Tkinter, native look).
 
     ./run_app.command                 # or: python3 simulator_app.py
 
-Pick a faction, unit and gear for each fighter, then either run N duels for
-statistics or fight one duel with round-by-round narration. Loadouts can be
-saved as named custom characters; they appear under "Saved characters".
+One screen: pick two fighters, press Fight.
+
+* Duel / Units at the top switches between character duels and unit fights.
+  Rank-and-file combat is not simulated yet, so units fight as single models;
+  the Units screen says so.
+* Each fighter card has the essentials: army, model, name, weapon, armour,
+  mount and shield. "Extras…" opens upgrades, Marks of Chaos and Vows, and the
+  magic item and ability shop, sorted into tabs, with a switch to show or hide
+  the common (rulebook) items.
+* Odds fights many times; Play-by-play fights once (one round by default) and
+  shows every roll.
+* Save… keeps a fighter under a name; saved fighters are listed under
+  "★ Saved" in the army picker.
 """
 
 from __future__ import annotations
 
 import queue
-import sys
 import threading
 import tkinter as tk
-from tkinter import messagebox, simpledialog, ttk
+from tkinter import simpledialog, ttk
 
+import ui_kit as ui
 from app_model import (
+    CHARACTER,
+    UNIT,
+    UNIT_COMBAT_NOTE,
     CharacterStore,
     FighterSpec,
+    armour_choices,
     faction_names,
     gear_options,
+    is_two_handed,
     narrate_duel,
     profile_names,
+    purchasable_items,
+    purchase_problem,
     run_statistics,
+    spent,
+    weapon_choices,
 )
 
-SAVED = "★ Saved characters"
-MONO = ("Menlo", 12) if sys.platform == "darwin" else ("Courier", 11)
+SAVED = "★ Saved"
+ON_FOOT = "On foot"
+NOUN = {CHARACTER: "Character", UNIT: "Unit"}
+DEFAULTS = {
+    CHARACTER: [("High Elves", "Prince"), ("Orcs", "Black Orc Warboss")],
+    UNIT: [("Empire of Man", "State Troops"), ("Orcs", "Orc Mob")],
+}
+STATUS_MARKS = {"partial": "partly simulated", "not modelled": "not simulated",
+                "no duel effect": "no effect in a duel"}
 
 
-class FighterPanel(ttk.LabelFrame):
-    """Faction → unit → gear selectors for one fighter."""
+def _default_pick(kind, index):
+    faction, profile = DEFAULTS[kind][index]
+    if profile in profile_names(faction, kind):
+        return faction, profile
+    factions = faction_names(kind)
+    if not factions:
+        return None, None
+    faction = factions[min(index, len(factions) - 1)]
+    names = profile_names(faction, kind)
+    return faction, (names[0] if names else None)
 
-    def __init__(self, master, title, store, on_saved, default_faction, default_profile):
-        super().__init__(master, text=title, padding=10)
-        self.store = store
-        self.on_saved = on_saved
-        self.faction = None  # the real faction/profile behind the selection,
-        self.profile = None  # also when a saved character is selected
 
-        self.faction_var = tk.StringVar()
-        self.unit_var = tk.StringVar()
-        self.name_var = tk.StringVar()
-        self.weapon_var = tk.StringVar()
-        self.armour_var = tk.StringVar()
+def _combo(master, variable, command, width=26):
+    box = ttk.Combobox(master, textvariable=variable, state="readonly", width=width)
+    box.bind("<<ComboboxSelected>>", lambda _e: command())
+    return box
+
+
+class FighterCard(ttk.LabelFrame):
+    """One side of the fight."""
+
+    def __init__(self, master, app, kind, side, default):
+        super().__init__(master, text=f"Fighter {'AB'[side]}", padding=12, style="Card.TLabelframe")
+        self.app, self.kind, self.side = app, kind, side
+        self.faction = self.profile = None
+        self.opts = {}
+        self.optional_rules, self.exclusive, self.magic_items = [], {}, []
+
+        self.army_var, self.model_var, self.name_var = tk.StringVar(), tk.StringVar(), tk.StringVar()
+        self.weapon_var, self.armour_var, self.mount_var = tk.StringVar(), tk.StringVar(), tk.StringVar()
         self.shield_var = tk.BooleanVar()
-        self.rule_vars = {}
-        self.honour_vars = {}
+        self.models_var, self.frontage_var = tk.IntVar(value=20), tk.IntVar(value=5)
 
-        self.columnconfigure(1, weight=1)
-        self.faction_box = self._combo(self.faction_var, self._faction_changed)
-        self.unit_box = self._combo(self.unit_var, self._unit_changed)
-        self.weapon_box = self._combo(self.weapon_var, self._refresh_info)
-        self.armour_box = self._combo(self.armour_var, self._refresh_info)
-        row = 0
-        for label, widget in (
-            ("Faction", self.faction_box),
-            ("Unit", self.unit_box),
-            ("Name", ttk.Entry(self, textvariable=self.name_var)),
-            ("Weapon", self.weapon_box),
-            ("Armour", self.armour_box),
-        ):
-            ttk.Label(self, text=label).grid(row=row, column=0, sticky="w", pady=2)
-            widget.grid(row=row, column=1, sticky="ew", pady=2)
-            row += 1
+        form = ttk.Frame(self)
+        form.pack(fill="x")
+        form.columnconfigure(1, weight=1)
+        self.army_box = _combo(form, self.army_var, self._army_changed)
+        self.model_box = _combo(form, self.model_var, self._model_changed)
+        self.weapon_box = _combo(form, self.weapon_var, self._weapon_changed)
+        self.armour_box = _combo(form, self.armour_var, self.refresh)
+        self.mount_box = _combo(form, self.mount_var, self.refresh)
+        rows = [("Army", self.army_box), (NOUN[kind], self.model_box),
+                ("Name", ttk.Entry(form, textvariable=self.name_var)),
+                ("Weapon", self.weapon_box), ("Armour", self.armour_box)]
+        if kind == CHARACTER:
+            rows.append(("Mount", self.mount_box))
+        for row, (text, widget) in enumerate(rows):
+            ttk.Label(form, text=text).grid(row=row, column=0, sticky="w", pady=3, padx=(0, 10))
+            widget.grid(row=row, column=1, sticky="ew", pady=3)
+        row = len(rows)
+        self.shield_check = ttk.Checkbutton(form, text="Shield", variable=self.shield_var,
+                                            command=self.refresh)
+        self.shield_check.grid(row=row, column=1, sticky="w", pady=(4, 0))
+        if kind == UNIT:
+            size = ttk.Frame(form)
+            size.grid(row=row + 1, column=0, columnspan=2, sticky="w", pady=(6, 0))
+            ttk.Label(size, text="Models").pack(side="left")
+            ttk.Spinbox(size, from_=1, to=200, width=5, textvariable=self.models_var,
+                        command=self.refresh).pack(side="left", padx=(6, 14))
+            ttk.Label(size, text="Width").pack(side="left")
+            ttk.Spinbox(size, from_=1, to=40, width=4, textvariable=self.frontage_var,
+                        command=self.refresh).pack(side="left", padx=6)
+            self.ranks_label = ttk.Label(size, style="Muted.TLabel")
+            self.ranks_label.pack(side="left", padx=6)
 
-        self.shield_check = ttk.Checkbutton(
-            self, text="Shield", variable=self.shield_var, command=self._refresh_info
-        )
-        self.shield_check.grid(row=row, column=1, sticky="w", pady=2)
-        row += 1
-
-        self.rules_frame = ttk.Frame(self)
-        self.rules_frame.grid(row=row, column=0, columnspan=2, sticky="ew")
-        row += 1
-
-        self.stat_label = ttk.Label(self, font=MONO)
-        self.stat_label.grid(row=row, column=0, columnspan=2, sticky="w", pady=(8, 2))
-        row += 1
-        self.rules_label = ttk.Label(self, wraplength=360, foreground="gray")
-        self.rules_label.grid(row=row, column=0, columnspan=2, sticky="w")
-        row += 1
+        self.stats = ui.StatTiles(self, app.fonts, ui.SIDE_COLOURS[side])
+        self.stats.pack(fill="x", pady=(12, 6))
+        self.rules_label = ttk.Label(self, style="Muted.TLabel", justify="left", wraplength=430)
+        self.rules_label.pack(fill="x")
+        self.extras_label = ttk.Label(self, style="Accent.TLabel", justify="left", wraplength=430)
+        self.extras_label.pack(fill="x", pady=(4, 0))
 
         buttons = ttk.Frame(self)
-        buttons.grid(row=row, column=0, columnspan=2, sticky="e", pady=(8, 0))
+        buttons.pack(fill="x", pady=(10, 0))
+        self.extras_button = ttk.Button(buttons, text="Extras…", command=self._open_extras)
+        self.extras_button.pack(side="left")
+        ttk.Button(buttons, text="Save…", command=self._save).pack(side="left", padx=6)
         self.delete_button = ttk.Button(buttons, text="Delete", command=self._delete)
-        self.delete_button.pack(side="right")
-        ttk.Button(buttons, text="Save character…", command=self._save).pack(
-            side="right", padx=(0, 6)
-        )
+        self.delete_button.pack(side="left")
 
-        self.faction_box["values"] = faction_names() + [SAVED]
-        self.faction_var.set(default_faction)
-        self._faction_changed()
-        self.unit_var.set(default_profile)
-        self._unit_changed()
+        self.army_box["values"] = faction_names(kind) + [SAVED]
+        faction, profile = default
+        self.army_var.set(faction or SAVED)
+        self._army_changed()
+        if profile:
+            self.model_var.set(profile)
+            self._model_changed()
 
-    def _combo(self, var, callback):
-        box = ttk.Combobox(self, textvariable=var, state="readonly", width=30)
-        box.bind("<<ComboboxSelected>>", lambda _e: callback())
-        return box
+    # -- choices ----------------------------------------------------------------
 
-    # -- selection ------------------------------------------------------------
-
-    def is_saved_selection(self):
-        return self.faction_var.get() == SAVED
+    def is_saved(self):
+        return self.army_var.get() == SAVED
 
     def refresh_saved(self):
-        """Called after any save/delete so both panels list the same characters."""
-        if not self.is_saved_selection():
+        if not self.is_saved():
             return
-        names = self.store.names()
-        self.unit_box["values"] = names
-        if self.unit_var.get() not in names:
-            self.unit_var.set(names[0] if names else "")
-            self._unit_changed()
+        names = self.app.store.names(self.kind)
+        self.model_box["values"] = names
+        if self.model_var.get() not in names:
+            self.model_var.set(names[0] if names else "")
+            self._model_changed()
 
-    def _faction_changed(self):
-        if self.is_saved_selection():
-            units = self.store.names()
-        else:
-            units = profile_names(self.faction_var.get())
-        self.unit_box["values"] = units
-        self.unit_var.set(units[0] if units else "")
-        self._unit_changed()
+    def _army_changed(self):
+        names = (self.app.store.names(self.kind) if self.is_saved()
+                 else profile_names(self.army_var.get(), self.kind))
+        self.model_box["values"] = names
+        self.model_var.set(names[0] if names else "")
+        self._model_changed()
 
-    def _unit_changed(self):
-        unit = self.unit_var.get()
-        if not unit:
+    def _model_changed(self):
+        chosen = self.model_var.get()
+        spec = None
+        if not chosen:
             self.faction = self.profile = None
-            self._set_gear(None)
-            return
-        if self.is_saved_selection():
-            spec = self.store.get(unit)
+        elif self.is_saved():
+            spec = self.app.store.get(chosen, self.kind)
             self.faction, self.profile = spec.faction, spec.profile
-            self._set_gear(spec)
         else:
-            self.faction, self.profile = self.faction_var.get(), unit
-            self._set_gear(None)
-            self.name_var.set(unit)
+            self.faction, self.profile = self.army_var.get(), chosen
+        self._load(spec)
 
-    def _set_gear(self, spec):
-        """Populate gear widgets from the profile, then apply a saved spec."""
-        for child in self.rules_frame.winfo_children():
-            child.destroy()
-        self.rule_vars, self.honour_vars = {}, {}
+    def _load(self, spec):
+        """Reset the card to a profile, then apply a saved spec if given."""
         self.delete_button.state(["!disabled" if spec else "disabled"])
-
         if self.profile is None:
-            for box in (self.weapon_box, self.armour_box):
+            for box, var in ((self.weapon_box, self.weapon_var), (self.armour_box, self.armour_var),
+                             (self.mount_box, self.mount_var)):
                 box["values"] = []
-            self.weapon_var.set("")
-            self.armour_var.set("")
+                var.set("")
             self.name_var.set("")
-            self._refresh_info()
+            self.opts, self.optional_rules, self.exclusive, self.magic_items = {}, [], {}, []
+            self.refresh()
             return
-
-        opts = gear_options(self.faction, self.profile)
+        opts = self.opts = gear_options(self.faction, self.profile)
         defaults = opts["defaults"]
-        self.weapon_box["values"] = opts["weapons"]
-        self.armour_box["values"] = opts["armour"]
+        self.magic_items = list(spec.magic_items) if spec else []
+        chosen_rules = list(spec.optional_rules) if spec else []
+        self.exclusive = {group: next((r for r in chosen_rules if r in choices), default)
+                          for group, choices, default in opts["exclusive"]}
+        self.optional_rules = [r for r in chosen_rules if r in opts["optional_rules"]]
+        self._update_equipment_lists()
         self.weapon_var.set(spec.weapon if spec else defaults["weapon"])
         self.armour_var.set(spec.armour if spec else defaults["armour"])
         self.shield_var.set(spec.shield if spec else defaults["shield"])
-        self.shield_check.state(["!disabled" if opts["shield"] else "disabled"])
-        if not opts["shield"]:
-            self.shield_var.set(False)
+        self.name_var.set(spec.name if spec else self.profile)
+        self._set_mounts(spec.mount if spec else None)
+        if self.kind == UNIT:
+            minimum = (opts["unit"] or {}).get("minimum_size", 1)
+            self.models_var.set(spec.models if spec else max(minimum, 10))
+            self.frontage_var.set(spec.frontage if spec else min(self.models_var.get(), 5))
+        has_extras = bool(opts["optional_rules"] or opts["exclusive"] or opts["allowance"])
+        self.extras_button.state(["!disabled" if has_extras else "disabled"])
+        self._weapon_changed()
 
-        chosen = set(spec.optional_rules + spec.honours) if spec else set()
-        for heading, names, store in (
-            ("Upgrades", opts["optional_rules"], self.rule_vars),
-            ("Elven Honours", opts["honours"], self.honour_vars),
-        ):
-            if not names:
-                continue
-            group = ttk.LabelFrame(self.rules_frame, text=heading, padding=4)
-            group.pack(fill="x", pady=(4, 0))
-            for i, name in enumerate(names):
-                var = tk.BooleanVar(value=name in chosen)
-                store[name] = var
-                ttk.Checkbutton(
-                    group, text=name, variable=var, command=self._refresh_info
-                ).grid(row=i // 2, column=i % 2, sticky="w", padx=(0, 12))
-
-        if spec:
-            self.name_var.set(spec.name)
-        self._refresh_info()
-
-    def _refresh_info(self):
-        if self.profile is None:
-            self.stat_label["text"] = "No saved characters yet."
-            self.rules_label["text"] = ""
+    def _set_mounts(self, chosen):
+        fixed = self.opts.get("fixed_mount")
+        if fixed:
+            self.mount_box["values"] = [fixed]
+            self.mount_var.set(fixed)
+            self.mount_box.state(["disabled"])
             return
-        try:
-            spec = self.spec()
-            self.stat_label["text"] = spec.statline()
-            self.rules_label["text"] = ", ".join(spec.rules()) or "No special rules"
-        except ValueError as exc:
-            self.stat_label["text"] = "Illegal loadout"
-            self.rules_label["text"] = str(exc)
+        mounts = self.opts.get("mounts", [])
+        self.mount_box["values"] = [ON_FOOT] + mounts
+        self.mount_var.set(chosen if chosen in mounts else ON_FOOT)
+        self.mount_box.state(["!disabled" if mounts else "disabled"])
+
+    def _update_equipment_lists(self):
+        """Weapons and armour, including any the bought abilities unlock."""
+        weapons = weapon_choices(self.faction, self.profile, self.magic_items)
+        armour = armour_choices(self.faction, self.profile, self.magic_items)
+        self.weapon_box["values"] = weapons
+        self.armour_box["values"] = armour
+        defaults = self.opts["defaults"]
+        if self.weapon_var.get() not in weapons:
+            self.weapon_var.set(defaults["weapon"])
+        if self.armour_var.get() not in armour:
+            self.armour_var.set(defaults["armour"])
+
+    def _weapon_changed(self):
+        usable = self.opts.get("shield") and not is_two_handed(self.weapon_var.get())
+        self.shield_check.state(["!disabled" if usable else "disabled"])
+        if not usable:
+            self.shield_var.set(False)
+        self.refresh()
+
+    def chosen_rules(self):
+        """Upgrades plus any Mark or Vow that differs from the profile default."""
+        rules = list(self.optional_rules)
+        for group, _choices, default in self.opts.get("exclusive", []):
+            picked = self.exclusive.get(group, default)
+            if picked != default:
+                rules.append(picked)
+        return rules
 
     def spec(self):
         if self.profile is None:
-            raise ValueError(f"{self['text']}: choose a unit first")
+            raise ValueError(f"Fighter {'AB'[self.side]}: choose a {NOUN[self.kind].lower()} first")
+        models = frontage = 1
+        if self.kind == UNIT:
+            try:
+                models, frontage = int(self.models_var.get()), int(self.frontage_var.get())
+            except (tk.TclError, ValueError):
+                raise ValueError("Models and width must be whole numbers")
+        mount = self.mount_var.get()
+        if mount in (ON_FOOT, "") or mount == self.opts.get("fixed_mount"):
+            mount = None
         return FighterSpec(
             name=self.name_var.get().strip() or self.profile,
-            faction=self.faction,
-            profile=self.profile,
-            weapon=self.weapon_var.get(),
-            armour=self.armour_var.get(),
-            shield=self.shield_var.get(),
-            optional_rules=[n for n, v in self.rule_vars.items() if v.get()],
-            honours=[n for n, v in self.honour_vars.items() if v.get()],
+            faction=self.faction, profile=self.profile,
+            weapon=self.weapon_var.get(), armour=self.armour_var.get(),
+            shield=self.shield_var.get(), optional_rules=self.chosen_rules(),
+            magic_items=list(self.magic_items), mount=mount,
+            kind=self.kind, models=models, frontage=frontage,
         )
 
-    # -- saving ---------------------------------------------------------------
+    def refresh(self):
+        if self.profile is None:
+            self.stats.show(message=f"No saved {NOUN[self.kind].lower()}s yet")
+            self.rules_label.configure(text="")
+            self.extras_label.configure(text="")
+            return
+        try:
+            spec = self.spec()
+            built = spec.build()
+        except ValueError as exc:
+            self.stats.show(message="Not a legal loadout")
+            self.rules_label.configure(text=str(exc))
+            self.extras_label.configure(text="")
+            return
+        self.stats.show({"WS": built.WeaponSkill, "S": built.Strength, "T": built.Toughness,
+                         "W": built.Wounds, "I": built.Initiative, "A": built.Attacks,
+                         "Ld": built.Leadership})
+        self.rules_label.configure(text=", ".join(built.SpecialRules) or "No special rules")
+        lines = []
+        extras = [*self.chosen_rules(), *self.magic_items]
+        if extras:
+            lines.append("Extras: " + ", ".join(extras))
+        for part in built.mount_parts:
+            label = part.name.split("'s ", 1)[-1]
+            lines.append(f"{label}: WS{part.WeaponSkill} S{part.Strength} "
+                         f"I{part.Initiative} A{part.Attacks}")
+        self.extras_label.configure(text="\n".join(lines))
+        if self.kind == UNIT:
+            self.ranks_label.configure(text=f"{spec.ranks} ranks")
+
+    # -- extras, saving -------------------------------------------------------
+
+    def _open_extras(self):
+        if self.profile is not None:
+            ExtrasDialog(self)
+
+    def extras_changed(self):
+        self._update_equipment_lists()
+        self._weapon_changed()
 
     def _save(self):
         try:
             spec = self.spec()
             spec.build()
         except ValueError as exc:
-            messagebox.showerror("Cannot save", str(exc), parent=self)
+            self.app.status(str(exc), error=True)
             return
-        name = simpledialog.askstring(
-            "Save character", "Name:", initialvalue=spec.name, parent=self
-        )
-        if name is None or not name.strip():
+        name = simpledialog.askstring("Save fighter", "Name:", initialvalue=spec.name, parent=self)
+        if not name or not name.strip():
             return
         spec.name = name.strip()
-        if spec.name in self.store and not messagebox.askyesno(
-            "Replace character", f"Replace the saved “{spec.name}”?", parent=self
-        ):
-            return
         try:
-            self.store.save(spec)
+            self.app.store.save(spec)
         except (OSError, ValueError) as exc:
-            messagebox.showerror("Cannot save", str(exc), parent=self)
+            self.app.status(str(exc), error=True)
             return
-        self.faction_var.set(SAVED)
-        self.unit_box["values"] = self.store.names()
-        self.unit_var.set(spec.name)
-        self._unit_changed()
-        self.on_saved()
+        self.army_var.set(SAVED)
+        self.model_box["values"] = self.app.store.names(self.kind)
+        self.model_var.set(spec.name)
+        self._model_changed()
+        self.app.saved_changed()
+        self.app.status(f"Saved {spec.name}")
 
     def _delete(self):
-        name = self.unit_var.get()
-        if not self.is_saved_selection() or name not in self.store:
+        name = self.model_var.get()
+        if not self.is_saved() or not self.app.store.contains(name, self.kind):
             return
-        if not messagebox.askyesno("Delete character", f"Delete “{name}”?", parent=self):
+        self.app.store.delete(name, self.kind)
+        self.model_var.set("")
+        self.app.saved_changed()
+        self.app.status(f"Deleted {name}")
+
+
+class ExtrasDialog(tk.Toplevel):
+    """Upgrades, Marks/Vows and the item shop for one fighter."""
+
+    def __init__(self, card):
+        super().__init__(card)
+        self.card = card
+        self.title(f"Extras — {card.profile}")
+        self.configure(bg=ui.BACKGROUND)
+        self.transient(card.winfo_toplevel())
+        body = ttk.Frame(self, padding=14)
+        body.pack(fill="both", expand=True)
+
+        self.optional = {r: tk.BooleanVar(value=r in card.optional_rules)
+                         for r in card.opts["optional_rules"]}
+        self.exclusive = {g: tk.StringVar(value=card.exclusive.get(g, d))
+                          for g, _c, d in card.opts["exclusive"]}
+        self.items = list(card.magic_items)
+        self.catalogue = {i["name"]: i for i in purchasable_items(card.faction, card.profile)}
+
+        options = ttk.Frame(body)
+        options.pack(fill="x")
+        if self.optional:
+            box = ttk.LabelFrame(options, text="Upgrades", padding=8)
+            box.pack(side="left", fill="y", padx=(0, 10))
+            for rule, var in self.optional.items():
+                ttk.Checkbutton(box, text=rule, variable=var).pack(anchor="w")
+        for group, choices, _default in card.opts["exclusive"]:
+            box = ttk.LabelFrame(options, text=group, padding=8)
+            box.pack(side="left", fill="y", padx=(0, 10))
+            for choice in choices:
+                ttk.Radiobutton(box, text=choice, value=choice,
+                                variable=self.exclusive[group]).pack(anchor="w")
+
+        if self.catalogue:
+            self._build_shop(body)
+        self.message = ttk.Label(body, style="Error.TLabel")
+        self.message.pack(fill="x", pady=(8, 0))
+        buttons = ttk.Frame(body)
+        buttons.pack(fill="x", pady=(6, 0))
+        ttk.Button(buttons, text="Done", command=self._done, default="active").pack(side="right")
+        ttk.Button(buttons, text="Cancel", command=self.destroy).pack(side="right", padx=8)
+        self.bind("<Return>", lambda _e: self._done())
+        self.bind("<Escape>", lambda _e: self.destroy())
+        self._refresh_shop()
+        self.grab_set()
+
+    # -- the shop -------------------------------------------------------------
+
+    def _build_shop(self, body):
+        shop = ttk.LabelFrame(body, text="Magic items & abilities", padding=10)
+        shop.pack(fill="both", expand=True, pady=(10, 0))
+        top = ttk.Frame(shop)
+        top.pack(fill="x")
+        ttk.Label(top, text="Search").pack(side="left")
+        self.search = tk.StringVar()
+        entry = ttk.Entry(top, textvariable=self.search, width=28)
+        entry.pack(side="left", padx=6)
+        entry.bind("<KeyRelease>", lambda _e: self._refresh_shop())
+        self.show_common = tk.BooleanVar(value=True)
+        common_count = sum(1 for i in self.catalogue.values() if i["common"])
+        ttk.Checkbutton(top, text=f"Common items ({common_count})", variable=self.show_common,
+                        command=self._refresh_shop).pack(side="left", padx=12)
+        self.budget_label = ttk.Label(top, style="Muted.TLabel")
+        self.budget_label.pack(side="right")
+
+        panes = ttk.Frame(shop)
+        panes.pack(fill="both", expand=True, pady=(8, 0))
+        self.notebook = ttk.Notebook(panes)
+        self.notebook.pack(side="left", fill="both", expand=True)
+        self.trees = {}
+        for pane in sorted({i["pane"] for i in self.catalogue.values()}):
+            frame = ttk.Frame(self.notebook)
+            tree = self._tree(frame, ("cost", "notes"), ("Points", "Notes"), (60, 150))
+            tree.bind("<Double-1>", lambda _e, t=tree: self._add(t))
+            tree.bind("<<TreeviewSelect>>", lambda _e, t=tree: self._describe(t))
+            self.notebook.add(frame, text=pane)
+            self.trees[pane] = (frame, tree)
+
+        side = ttk.Frame(panes)
+        side.pack(side="left", fill="y", padx=(10, 0))
+        ttk.Button(side, text="Add →", command=self._add_selected).pack(fill="x")
+        ttk.Button(side, text="← Remove", command=self._remove).pack(fill="x", pady=6)
+        ttk.Label(side, text="Chosen", style="Heading.TLabel").pack(anchor="w", pady=(8, 2))
+        chosen_frame = ttk.Frame(side)
+        chosen_frame.pack(fill="both", expand=True)
+        self.chosen = self._tree(chosen_frame, ("cost",), ("Points",), (60,), width=200)
+        self.chosen.bind("<Double-1>", lambda _e: self._remove())
+        self.chosen.bind("<<TreeviewSelect>>", lambda _e: self._describe(self.chosen))
+
+        self.description = ttk.Label(shop, style="Muted.TLabel", justify="left", wraplength=820)
+        self.description.pack(fill="x", pady=(8, 0))
+
+    def _tree(self, master, columns, headings, widths, width=300):
+        tree = ttk.Treeview(master, columns=columns, height=12, selectmode="browse")
+        tree.heading("#0", text="Name")
+        tree.column("#0", width=width, stretch=True)
+        for column, heading, w in zip(columns, headings, widths):
+            tree.heading(column, text=heading)
+            tree.column(column, width=w, stretch=False, anchor="w")
+        scroll = ttk.Scrollbar(master, command=tree.yview)
+        tree.configure(yscrollcommand=scroll.set)
+        tree.pack(side="left", fill="both", expand=True)
+        scroll.pack(side="right", fill="y")
+        return tree
+
+    def _refresh_shop(self):
+        if not self.catalogue:
             return
+        needle = self.search.get().strip().lower()
+        show_common = self.show_common.get()
+        for pane, (frame, tree) in self.trees.items():
+            tree.delete(*tree.get_children())
+            shown = 0
+            for item in self.catalogue.values():
+                if item["pane"] != pane or (item["common"] and not show_common):
+                    continue
+                if needle and needle not in item["name"].lower():
+                    continue
+                notes = STATUS_MARKS.get(item["status"], "")
+                if item["common"]:
+                    notes = ("common · " + notes) if notes else "common"
+                tree.insert("", "end", iid=item["name"], text=item["name"],
+                            values=(item["cost"], notes))
+                shown += 1
+            self.notebook.tab(frame, text=f"{pane} ({shown})")
+        self.chosen.delete(*self.chosen.get_children())
+        for index, name in enumerate(self.items):
+            self.chosen.insert("", "end", iid=str(index), text=name,
+                               values=(self.catalogue.get(name, {}).get("cost", ""),))
+        used = spent(self.items)
+        parts = []
+        for budget, limit in self.card.opts["allowance"].items():
+            if limit is None:
+                count = sum(1 for n in self.items if self.catalogue.get(n, {}).get("budget") == budget)
+                parts.append(f"{budget}: {count} chosen")
+            else:
+                parts.append(f"{budget}: {used.get(budget, 0)}/{limit} pts")
+        self.budget_label.configure(text="   ".join(parts))
+
+    def _describe(self, tree):
+        selection = tree.selection()
+        if not selection:
+            return
+        name = tree.item(selection[0], "text")
+        item = self.catalogue.get(name, {"text": ""})
+        status = STATUS_MARKS.get(item.get("status"), "simulated")
+        self.description.configure(text=f"{name} ({status}): {item.get('text', '')}")
+
+    def _add_selected(self):
+        current = self.notebook.select()
+        for frame, tree in self.trees.values():
+            if str(frame) == current:
+                self._add(tree)
+
+    def _add(self, tree):
+        selection = tree.selection()
+        if not selection:
+            return
+        name = tree.item(selection[0], "text")
+        problem = purchase_problem(self.card.faction, self.card.profile, self.items + [name])
+        if problem:
+            self.message.configure(text=problem)
+            return
+        self.items.append(name)
+        self.message.configure(text="")
+        self._refresh_shop()
+
+    def _remove(self):
+        selection = self.chosen.selection()
+        if selection:
+            del self.items[int(selection[0])]
+            self._refresh_shop()
+
+    def _done(self):
+        card = self.card
+        previous = (list(card.optional_rules), dict(card.exclusive), list(card.magic_items))
+        card.optional_rules = [r for r, v in self.optional.items() if v.get()]
+        card.exclusive = {g: v.get() for g, v in self.exclusive.items()}
+        card.magic_items = list(self.items)
+        card.extras_changed()
         try:
-            self.store.delete(name)
-        except OSError as exc:
-            messagebox.showerror("Cannot delete", str(exc), parent=self)
+            card.spec().build()
+        except ValueError as exc:
+            card.optional_rules, card.exclusive, card.magic_items = previous
+            card.extras_changed()
+            self.message.configure(text=str(exc))
             return
-        self.unit_var.set("")
-        self.on_saved()
+        self.destroy()
+
+
+class BattleScreen(ttk.Frame):
+    """Both fighters for one mode, side by side."""
+
+    def __init__(self, master, app, kind):
+        super().__init__(master)
+        self.kind = kind
+        if kind == UNIT:
+            ttk.Label(self, text=UNIT_COMBAT_NOTE, style="Warning.TLabel", wraplength=1000,
+                      justify="left").pack(fill="x", pady=(0, 8))
+        row = ttk.Frame(self)
+        row.pack(fill="both", expand=True)
+        row.columnconfigure((0, 2), weight=1, uniform="cards")
+        self.cards = [FighterCard(row, app, kind, i, _default_pick(kind, i)) for i in (0, 1)]
+        self.cards[0].grid(row=0, column=0, sticky="nsew")
+        ttk.Label(row, text="vs", style="Heading.TLabel").grid(row=0, column=1, padx=14)
+        self.cards[1].grid(row=0, column=2, sticky="nsew")
 
 
 class SimulatorApp(ttk.Frame):
     def __init__(self, root):
-        super().__init__(root, padding=12)
+        super().__init__(root, padding=16)
         self.root = root
+        self.fonts = ui.Fonts(root)
+        ui.apply_style(root, self.fonts)
         self.store = CharacterStore()
         self.events = queue.Queue()
         self.worker = None
+        root.title("Old World Simulator")
+        root.minsize(980, 700)
+        self.pack(fill="both", expand=True)
 
-        root.title("The Old World Simulator")
-        root.minsize(820, 640)
-        self.grid(sticky="nsew")
-        root.columnconfigure(0, weight=1)
-        root.rowconfigure(0, weight=1)
-        self.columnconfigure((0, 1), weight=1, uniform="fighters")
-        self.rowconfigure(2, weight=1)
+        header = ttk.Frame(self)
+        header.pack(fill="x", pady=(0, 12))
+        ttk.Label(header, text="Old World Simulator", style="Title.TLabel").pack(side="left")
+        self.mode_var = tk.StringVar(value=CHARACTER)
+        modes = ttk.Frame(header)
+        modes.pack(side="right")
+        for value, text in ((CHARACTER, "Duel"), (UNIT, "Units")):
+            ttk.Radiobutton(modes, text=text, value=value, variable=self.mode_var,
+                            style="Toolbutton", command=self._mode_changed).pack(side="left")
 
-        self.panels = [
-            FighterPanel(self, "Fighter A", self.store, self._saved_changed,
-                         "High Elves", "Prince"),
-            FighterPanel(self, "Fighter B", self.store, self._saved_changed,
-                         "Orcs", "Black Orc Warboss"),
-        ]
-        for col, panel in enumerate(self.panels):
-            panel.grid(row=0, column=col, sticky="nsew", padx=(0, 6) if col == 0 else (6, 0))
+        self.screens = {kind: BattleScreen(self, self, kind) for kind in (CHARACTER, UNIT)}
+        self.screen = self.screens[CHARACTER]
+        self.screen.pack(fill="x")
+        self._build_controls()
+        self._build_results()
+        self.status_label = ttk.Label(self, style="Muted.TLabel")
+        self.status_label.pack(fill="x", pady=(6, 0))
+        for key in ("<Command-Return>", "<Control-Return>"):
+            root.bind(key, lambda _e: self.run())
 
-        self._build_controls().grid(row=1, column=0, columnspan=2, sticky="ew", pady=10)
-        self._build_output().grid(row=2, column=0, columnspan=2, sticky="nsew")
-
-        root.bind("<Command-Return>", lambda _e: self.run())
-        root.bind("<Control-Return>", lambda _e: self.run())
+    @property
+    def cards(self):
+        return self.screens[self.mode_var.get()].cards
 
     def _build_controls(self):
         bar = ttk.Frame(self)
-        self.mode_var = tk.StringVar(value="stats")
+        bar.pack(fill="x", pady=12)
+        self.controls = bar
+        self.run_mode = tk.StringVar(value="odds")
+        for value, text in (("odds", "Odds"), ("narrate", "Play-by-play")):
+            ttk.Radiobutton(bar, text=text, value=value, variable=self.run_mode, style="Toolbutton",
+                            command=self._run_mode_changed).pack(side="left")
         self.runs_var = tk.IntVar(value=1000)
         self.rounds_var = tk.IntVar(value=4)
+        self.odds_rounds = 4
         self.seed_var = tk.StringVar()
+        ttk.Label(bar, text="Fights").pack(side="left", padx=(16, 4))
+        self.runs_box = ttk.Spinbox(bar, from_=1, to=100000, increment=500, width=7,
+                                    textvariable=self.runs_var)
+        self.runs_box.pack(side="left")
+        ttk.Label(bar, text="Rounds").pack(side="left", padx=(16, 4))
+        ttk.Spinbox(bar, from_=1, to=50, width=4, textvariable=self.rounds_var).pack(side="left")
+        ttk.Label(bar, text="Seed").pack(side="left", padx=(16, 4))
+        ttk.Entry(bar, textvariable=self.seed_var, width=8).pack(side="left")
+        self.fight_button = ttk.Button(bar, text="Fight", command=self.run, default="active")
+        self.fight_button.pack(side="right")
+        self.progress = ttk.Progressbar(bar, length=160, maximum=1.0)
+        self.progress.pack(side="right", padx=12)
 
-        ttk.Radiobutton(bar, text="Statistics", value="stats",
-                        variable=self.mode_var, command=self._mode_changed).pack(side="left")
-        ttk.Radiobutton(bar, text="Narrated duel", value="narrate",
-                        variable=self.mode_var, command=self._mode_changed).pack(side="left", padx=(8, 16))
-        ttk.Label(bar, text="Runs").pack(side="left")
-        self.runs_box = ttk.Spinbox(bar, from_=1, to=1_000_000, increment=100,
-                                    textvariable=self.runs_var, width=8)
-        self.runs_box.pack(side="left", padx=(4, 12))
-        ttk.Label(bar, text="Rounds").pack(side="left")
-        ttk.Spinbox(bar, from_=1, to=50, textvariable=self.rounds_var, width=4).pack(
-            side="left", padx=(4, 12))
-        ttk.Label(bar, text="Seed").pack(side="left")
-        ttk.Entry(bar, textvariable=self.seed_var, width=8).pack(side="left", padx=(4, 12))
+    def _build_results(self):
+        self.results = ttk.LabelFrame(self, text="Result", padding=12, style="Card.TLabelframe")
+        self.results.pack(fill="both", expand=True)
+        self.winbar = ui.WinBar(self.results, self.fonts)
+        self.details = ttk.Label(self.results, style="Muted.TLabel", justify="left")
+        self.log = ui.LogView(self.results, self.fonts)
+        self.placeholder = ttk.Label(self.results, text="Pick two fighters and press Fight.",
+                                     style="Muted.TLabel")
+        self._show_only(self.placeholder)
 
-        self.run_button = ttk.Button(bar, text="Fight!  ⌘↩", command=self.run)
-        self.run_button.pack(side="right")
-        self.progress = ttk.Progressbar(bar, length=140, maximum=100)
-        self.progress.pack(side="right", padx=8)
-        return bar
-
-    def _build_output(self):
-        frame = ttk.Frame(self)
-        frame.columnconfigure(0, weight=1)
-        frame.rowconfigure(0, weight=1)
-        self.output = tk.Text(frame, font=MONO, wrap="word", height=16,
-                              borderwidth=0, highlightthickness=0, padx=8, pady=8)
-        if self.root.tk.call("tk", "windowingsystem") == "aqua":
-            self.output.configure(background="systemTextBackgroundColor",
-                                  foreground="systemTextColor")
-        scroll = ttk.Scrollbar(frame, command=self.output.yview)
-        self.output["yscrollcommand"] = scroll.set
-        self.output.grid(row=0, column=0, sticky="nsew")
-        scroll.grid(row=0, column=1, sticky="ns")
-        self._show("Choose two fighters and press Fight!")
-        return frame
+    def _show_only(self, *widgets):
+        for child in (self.winbar, self.details, self.log, self.placeholder):
+            child.pack_forget()
+        for widget in widgets:
+            widget.pack(fill="both" if widget is self.log else "x", expand=widget is self.log)
 
     def _mode_changed(self):
-        self.runs_box.state(["!disabled" if self.mode_var.get() == "stats" else "disabled"])
+        self.screen.pack_forget()
+        self.screen = self.screens[self.mode_var.get()]
+        self.screen.pack(fill="x", before=self.controls)
+        self._show_only(self.placeholder)
 
-    def _saved_changed(self):
-        for panel in self.panels:
-            panel.refresh_saved()
+    def _run_mode_changed(self):
+        """Play-by-play defaults to a single round; Odds gets its own value back."""
+        narrate = self.run_mode.get() == "narrate"
+        self.runs_box.state(["disabled" if narrate else "!disabled"])
+        try:
+            current = int(self.rounds_var.get())
+        except (tk.TclError, ValueError):
+            current = self.odds_rounds
+        if narrate:
+            self.odds_rounds = current
+            self.rounds_var.set(1)
+        else:
+            self.rounds_var.set(self.odds_rounds)
 
-    def _show(self, text):
-        self.output.configure(state="normal")
-        self.output.delete("1.0", "end")
-        self.output.insert("1.0", text)
-        self.output.configure(state="disabled")
+    def saved_changed(self):
+        for screen in self.screens.values():
+            for card in screen.cards:
+                card.refresh_saved()
 
-    # -- running --------------------------------------------------------------
+    def status(self, text, error=False):
+        self.status_label.configure(text=text, style="Error.TLabel" if error else "Muted.TLabel")
 
-    def _read_int(self, var, label, low, high):
+    # -- running ------------------------------------------------------------------
+
+    def busy(self):
+        return bool(self.worker and self.worker.is_alive())
+
+    def _number(self, var, label, low, high):
         try:
             value = int(var.get())
         except (tk.TclError, ValueError):
@@ -358,36 +672,36 @@ class SimulatorApp(ttk.Frame):
         return value
 
     def run(self):
-        if self.worker and self.worker.is_alive():
+        if self.busy():
             return
         try:
-            spec_a, spec_b = (p.spec() for p in self.panels)
-            rounds = self._read_int(self.rounds_var, "Rounds", 1, 50)
+            spec_a, spec_b = (card.spec() for card in self.cards)
+            rounds = self._number(self.rounds_var, "Rounds", 1, 50)
             seed_text = self.seed_var.get().strip()
             seed = int(seed_text) if seed_text else None
-            if self.mode_var.get() == "narrate":
-                self._show(narrate_duel(spec_a, spec_b, rounds, seed))
-                self.output.see("end")
+            if self.run_mode.get() == "narrate":
+                self.log.show(narrate_duel(spec_a, spec_b, rounds, seed))
+                self._show_only(self.log)
+                self.status("")
                 return
-            runs = self._read_int(self.runs_var, "Runs", 1, 1_000_000)
+            runs = self._number(self.runs_var, "Fights", 1, 100000)
             spec_a.build()
             spec_b.build()
         except ValueError as exc:
-            messagebox.showerror("Cannot fight", str(exc), parent=self.root)
+            self.status(str(exc), error=True)
             return
 
-        self.run_button.state(["disabled"])
+        self.fight_button.state(["disabled"])
         self.progress["value"] = 0
-        self._show(f"Fighting {runs} duels…")
+        self.status(f"Fighting {runs} times…")
 
         def work():
             try:
                 stats = run_statistics(
                     spec_a, spec_b, runs, rounds, seed,
-                    progress=lambda done: self.events.put(("progress", 100 * done / runs)),
-                )
-                self.events.put(("done", stats.summary()))
-            except Exception as exc:  # surfaced in the UI, not lost in a thread
+                    progress=lambda done: self.events.put(("progress", done / runs)))
+                self.events.put(("done", stats))
+            except Exception as exc:  # shown in the window, not lost in a thread
                 self.events.put(("error", f"{type(exc).__name__}: {exc}"))
 
         self.worker = threading.Thread(target=work, daemon=True)
@@ -403,14 +717,39 @@ class SimulatorApp(ttk.Frame):
                 break
             if kind == "progress":
                 self.progress["value"] = payload
+            elif kind == "done":
+                finished = True
+                self._show_stats(payload)
             else:
                 finished = True
-                self.progress["value"] = 100 if kind == "done" else 0
-                self._show(payload if kind == "done" else f"Simulation failed:\n{payload}")
+                self.status(payload, error=True)
         if finished:
-            self.run_button.state(["!disabled"])
+            self.fight_button.state(["!disabled"])
         else:
             self.after(50, self._poll)
+
+    def _show_stats(self, stats):
+        runs = stats.runs or 1
+        self.winbar.show(stats.name_a, stats.wins_a / runs, stats.draws / runs,
+                         stats.name_b, stats.wins_b / runs)
+
+        def line(name, wins, kills, left):
+            average = left / wins if wins else 0
+            return (f"{name}: {wins} wins ({kills} by slaying, {wins - kills} on wounds), "
+                    f"{average:.2f} wounds left on average when winning")
+
+        text = "\n".join([
+            f"{stats.runs} fights, up to {stats.rounds} rounds each",
+            line(stats.name_a, stats.wins_a, stats.kills_a, stats.wounds_left_a),
+            line(stats.name_b, stats.wins_b, stats.kills_b, stats.wounds_left_b),
+            f"Draws: {stats.draws}",
+        ])
+        if stats.kind == UNIT:
+            text = "Units fight as single models for now.\n" + text
+        self.details.configure(text=text)
+        self._show_only(self.winbar, self.details)
+        self.progress["value"] = 1
+        self.status("")
 
 
 def main():

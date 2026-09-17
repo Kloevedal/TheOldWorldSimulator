@@ -174,6 +174,9 @@ def mount_entries(mapping):
             troop = [t for t in unit["troop_type"] if t not in ("Character", "Named Character")]
             entry = {"url": slug, "points": points,
                      "troop_type": troop[0].replace(" ", "") if troop else None}
+            printed = str(unit["raw"].get("armourValue") or "").strip()
+            if printed:
+                entry["armour_value"] = printed
             for key, col in _STATS:
                 entry[key] = _stat(main[col])
             entry["SpecialRules"] = unit["special_rules"]

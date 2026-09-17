@@ -136,7 +136,9 @@ def linked(node):
             target = n.get("data", {}).get("target", {})
             fields = target.get("fields") or {}
             kind = target.get("sys", {}).get("contentType", {}).get("sys", {}).get("id")
-            shown = text(n.get("content")).strip() or fields.get("name", "")
+            # Link text sometimes carries the sentence's punctuation
+            # ("Dispersed Formation,"); that is not part of the name.
+            shown = text(n.get("content")).strip().rstrip(",;").strip() or fields.get("name", "")
             if shown:
                 names.append((shown, fields.get("slug"), kind))
             return

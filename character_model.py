@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 from elven_honors import apply_elven_honors
-from magic_items import apply_magic_items
+from elven_honors import ElvenHonors
+from magic_items import apply_magic_items, check_purchase, get_magic_item, granted_equipment
 from faction_profiles import (
     RACE_NAMES,
     FactionProfiles,
@@ -30,6 +31,19 @@ _PROFILE_STATS = (
 )
 
 _DEFAULT_WEAPON = "HW"
+
+# Options that replace one another: choosing one removes whichever the profile
+# carries by default (a Chaos Lord's Mark of Chaos Undivided, a Knight's Vow).
+EXCLUSIVE_OPTIONS = (
+    ("Mark of Chaos Undivided", "Mark of Khorne", "Mark of Nurgle",
+     "Mark of Slaanesh", "Mark of Tzeentch"),
+    ("The Knight's Vow", "The Questing Vow", "The Grail Vow"),
+)
+
+
+def offered_options(profile):
+    """Rules a profile may add: its OptionalRules and any Marks of Chaos."""
+    return list(profile.get("OptionalRules") or []) + list(profile.get("MarksOfChaos") or [])
 
 
 class Character:
@@ -61,6 +75,8 @@ class Character:
         faction_type=None,
         profile_name=None,
         elven_honors=None,
+        magic_items=None,
+        mount=None,
     ):
         supplied = {
             "Movement": Movement,
@@ -97,7 +113,21 @@ class Character:
         self.Shield = bool(self.Shield)
 
         if options is not None:
-            self._validate_equipment(self.profile_name, options)
+            granted = granted_equipment(magic_items)
+            for honour in elven_honors or []:
+                # The original Elven Honour option names its weapons too.
+                granted["weapons"] += ElvenHonors.get(honour, {}).get(
+                    "equipment_options", {}).get("weapons", [])
+            self._validate_equipment(self.profile_name, options, granted)
+
+        # Bought magic items, runes and abilities. A profile-based character is
+        # held to its army's list and its points allowance; a custom fighter
+        # may take anything that exists.
+        self.magic_items = list(magic_items or [])
+        if self.magic_items:
+            if options is not None:
+                check_purchase(self.faction, self.profile_name, self.magic_items)
+            self._equip_magic_items(self.magic_items)
         self._validate_two_handed()
 
         # Named characters carry fixed wargear, so their magic items are applied
@@ -114,6 +144,26 @@ class Character:
         # which modifies a stat is not wiped by the first reset_weapon_stats.
         if self.Race in RACE_NAMES["HIGH_ELVES"] and elven_honors:
             apply_elven_honors(self, elven_honors)
+
+        # A mount comes last: it reads the rider's finished rules and armour.
+        self.mount = None
+        self.mount_parts = []
+        self.mount_strength = None
+        from mounted import apply_mount, check_mount, integral_mount
+
+        fixed = integral_mount(getattr(self, "faction", None), getattr(self, "profile_name", None))
+        if fixed and mount and mount != fixed:
+            raise ValueError(f"{self.profile_name} always rides {fixed}")
+        if mount or fixed:
+            from magic_items import get_magic_item
+
+            if not fixed:
+                check_mount(self, mount, list(self.magic_items) + list(elven_honors or []),
+                            self._mount_options if options is not None else None)
+            item_rules = [r for name in self.magic_items
+                          for r in (get_magic_item(name) or {}).get("rules", [])]
+            apply_mount(self, fixed or mount, item_rules, getattr(self, "faction", None),
+                        integral=bool(fixed))
 
         self.original_Strength = self.Strength
         self.original_Initiative = self.Initiative
@@ -158,8 +208,23 @@ class Character:
             value = supplied[stat]
             setattr(self, stat, value if value is not None else profile.get(stat))
 
-        self.SpecialRules = _as_rule_list(profile.get("SpecialRules")) + self.SpecialRules
+        chosen = self.SpecialRules
+        base_rules = _as_rule_list(profile.get("SpecialRules"))
+        offered = set(offered_options(profile))
+        for group in EXCLUSIVE_OPTIONS:
+            picks = [rule for rule in chosen if rule in group]
+            if not picks:
+                continue
+            if len(picks) > 1:
+                raise ValueError(f"{resolved} can only have one of {picks}")
+            if picks[0] not in offered and picks[0] not in base_rules:
+                raise ValueError(
+                    f"{resolved} cannot take {picks[0]}. Offered: {sorted(offered) or 'nothing'}"
+                )
+            base_rules = [rule for rule in base_rules if rule not in group]
+        self.SpecialRules = base_rules + chosen
         self.UnitCategory = profile.get("UnitCategory")
+        self._mount_options = list(entry.get("mount_options", {}).get("mounts", []))
         self.TroopType = profile.get("TroopType")
 
         if weapon != _DEFAULT_WEAPON:
@@ -175,19 +240,42 @@ class Character:
             )
         return options
 
-    def _validate_equipment(self, profile_name, options):
-        if self.Weapon not in options["weapons"]:
+    def _validate_equipment(self, profile_name, options, granted=None):
+        """The weapon, armour and shield must be offered by the profile, or
+        unlocked by a bought ability (`granted`, e.g. an Elven Honour's sword of
+        Hoeth). Names are compared through their synonyms."""
+        from armor import ArmourDict
+        from weapons import find_weapon_key
+
+        granted = granted or {}
+        weapons = list(options["weapons"]) + list(granted.get("weapons", []))
+        wanted = find_weapon_key(self.Weapon) or self.Weapon
+        if self.Weapon not in weapons and wanted not in {find_weapon_key(w) for w in weapons}:
             raise ValueError(
                 f"Invalid weapon choice for {profile_name}: {self.Weapon}. "
-                f"Legal options: {options['weapons']}"
+                f"Legal options: {weapons}"
             )
-        if self.Armor and self.Armor not in options["armor"]:
+
+        def armour_key(name):
+            return next((key for key in ArmourDict if name in key), name)
+
+        armours = list(options["armor"]) + list(granted.get("armour", []))
+        if self.Armor and armour_key(self.Armor) not in {armour_key(a) for a in armours}:
             raise ValueError(
                 f"Invalid armor choice for {profile_name}: {self.Armor}. "
-                f"Legal options: {options['armor']}"
+                f"Legal options: {armours}"
             )
         if self.Shield and not options["shield"]:
             raise ValueError(f"{profile_name} cannot use a shield")
+
+    def _equip_magic_items(self, items):
+        for name in items:
+            entry = get_magic_item(name)
+            if entry is None:
+                raise ValueError(f"Unknown magic item: {name!r}")
+            if entry.get("is_weapon"):
+                self.Weapon = entry.get("weapon", name)
+        apply_magic_items(self, items)
 
     def _validate_two_handed(self):
         weapon_rules = get_weapon_special_rules(self.Weapon)

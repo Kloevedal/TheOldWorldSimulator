@@ -47,7 +47,10 @@ class RosterCase(unittest.TestCase):
     def test_the_whole_roster_is_present(self):
         if self.FACTION is None:
             return
-        self.assertEqual(set(FactionProfiles[self.FACTION]), set(self.EXPECTED))
+        from factions import FACTION_MODULES
+
+        characters = next(m.CHARACTERS for m in FACTION_MODULES if m.FACTION == self.FACTION)
+        self.assertEqual(set(characters), set(self.EXPECTED))
 
     def test_statlines_match_the_source(self):
         if self.FACTION is None:

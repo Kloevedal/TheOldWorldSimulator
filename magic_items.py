@@ -62,13 +62,15 @@ MagicItemDict = {
     "Storm's Wrath": {"type": "Magic Weapon", "is_weapon": True},
     "Mansmasher": {"type": "Magic Weapon", "is_weapon": True},
     "Grisly Totem": {
-        "type": "Magic Weapon", "is_weapon": True, "verified": False,
-        "text": ("Kralmaw's Braystaff. Its profile has not been transcribed, so "
-                 "it currently behaves as a plain staff."),
+        "type": "Braystaff", "is_weapon": True,
+        "text": ("Kralmaw's Braystaff; enemy units within 6\" also suffer -1 "
+                 "Leadership. Not a magic item on the site - it is a rule."),
     },
     "Skull of the Unicorn Lord": {
-        "type": "Enchanted Item", "rules": [], "verified": False,
-        "text": "Page did not load; rules not transcribed.",
+        "type": "Talisman",
+        "rules": ["Ward6 (non-magical)", "Ward5 (magical)"],
+        "text": ("Ghorros has a 6+ Ward save against non-magical attacks and a "
+                 "5+ Ward save against magical ones."),
     },
     "Judgement": {"type": "Magic Weapon", "is_weapon": True},
     "Beast Reaver": {"type": "Magic Weapon", "is_weapon": True},
@@ -80,7 +82,7 @@ MagicItemDict = {
     },
     "Furnace Hammer": {"type": "Magic Weapon", "is_weapon": True},
     "Rivet Gun": {
-        "type": "Magic Weapon", "is_weapon": True,
+        "type": "Magic Weapon", "is_weapon": True, "ranged": True,
         "text": ("Range 10\", S3, AP -2, Armour Bane (1), and causes D3 hits on a "
                  "successful roll To Hit. Shooting is not simulated."),
     },
@@ -134,7 +136,7 @@ MagicItemDict = {
                  "bolt thrower); shooting is not simulated."),
     },
     "Hawk's Talon": {
-        "type": "Magic Weapon", "is_weapon": True,
+        "type": "Magic Weapon", "is_weapon": True, "ranged": True,
         "text": ("Orion's bow: 30\", S, AP -1, Magical Attacks, Multiple Shots "
                  "(D3+1). Shooting is not simulated."),
     },
@@ -417,11 +419,102 @@ def _normalise(name):
     """Item names appear with and without a leading 'The'."""
     if not isinstance(name, str):
         return ""
-    text = name.strip().lower()
+    text = name.strip().lower().replace("\u2019", "'")
     return text[4:] if text.startswith("the ") else text
 
 
+# Hand-reviewed entries above were checked against the rules text by hand.
+for _entry in MagicItemDict.values():
+    _entry.setdefault("status", "reviewed")
+
+
+# Abilities whose duel effect needed reading by hand. They replace the
+# generated effects; `status` and `note` say what is and is not modelled.
+# Flags limit when the effects apply:
+#   mundane_weapon_only  - only while not wielding a magic weapon
+#   hand_weapon_only     - only while wielding a single plain hand weapon
+#   no_heavy_armour      - only while not wearing heavy or full plate armour
+CURATED_ABILITIES = {
+    "A Resplendence of Luminescents": dict(rules=["Magical Attacks"], status="reviewed"),
+    "Aspect of the Hound": dict(rules=["Reroll Hits 1"], status="reviewed"),
+    "Eternal Kindred": dict(
+        rules=["Reroll Hits 1"], status="partial",
+        note="Re-rolling failed wounds near a special feature is not modelled."),
+    "Wild Rider Kindred": dict(
+        rules=["Frenzy", "Furious Charge", "Ward6"], status="reviewed",
+        note="Talismanic Tattoos give the 6+ Ward save."),
+    "Chracian Hunter": dict(status="no duel effect",
+                            note="Lion Cloak, Move Through Cover and Stubborn; a great blade option."),
+    "Sea Guard": dict(status="no duel effect"),
+    "Shadow Stalker": dict(status="no duel effect"),
+    "Æther Blade": dict(rules=["No Armour Saves"], hand_weapon_only=True, status="reviewed"),
+    "Virtue of Heroism": dict(rules=["Killing Blow", "Monster Slayer"],
+                              mundane_weapon_only=True, status="reviewed"),
+    "Virtue of Audacity": dict(rules=["Reroll Failed Hits (against higher Weapon Skill)"],
+                               status="reviewed"),
+    "Virtue of Knightly Temper": dict(
+        rules=["Hatred (all enemies)"], status="partial",
+        note=("On the charge it gains Hatred (the engine applies Hatred in the first "
+              "round only) and Extra Attacks (+D3), which is not modelled.")),
+    "Unnatural Fortitude": dict(stat_mods={"Toughness": 1}, no_heavy_armour=True,
+                                status="reviewed"),
+    "Enhanced Reflexes": dict(stat_mods={"Initiative": 2}, hand_weapon_only=True,
+                              status="reviewed"),
+    "Gouge-tusks": dict(rules=["Improve Armour Piercing (1)"], status="reviewed"),
+    "Aspect of the Boar": dict(
+        rules=["Impact Hits (1)"], status="partial",
+        note="The +1 Armour Piercing on the charge is not modelled."),
+    "Beguile": dict(rules=["Enemy Must Pass Leadership To Hit"], status="reviewed"),
+    "Allure of Slaanesh": dict(rules=["Enemy Must Pass Leadership To Hit"], status="reviewed"),
+    "Order of the Fiery Heart": dict(
+        rules=["Hatred (Orcs & Goblins)", "+1 Initiative in the First Round"], status="partial",
+        note="Hatred of enemy Wizards is not modelled; nor are the Grand Master's extras."),
+    "Order of the Knights Panther": dict(
+        rules=["Hatred (Warriors of Chaos, Beastmen Brayherds & Daemonic models)"],
+        status="partial", note="The lance requirement and charge re-roll are not modelled."),
+}
+
+
+def _merge_site_items():
+    """Add every item on the site; a hand-reviewed entry keeps its effects.
+
+    The site record still fills in what the hand entry lacks (slug, cost,
+    armies, rules text), so every item carries the same metadata.
+    """
+    from magic_items_data import SITE_ITEMS
+
+    reviewed = {_normalise(k): k for k in MagicItemDict}
+    for name, record in SITE_ITEMS.items():
+        key = reviewed.get(_normalise(name))
+        if key is None:
+            entry = dict(record)
+            if name in CURATED_ABILITIES:
+                for field in ("rules", "stat_mods", "not_modelled"):  # grants are kept
+                    entry.pop(field, None)
+                entry.update(CURATED_ABILITIES[name])
+            MagicItemDict[name] = entry
+            continue
+        entry = MagicItemDict[key]
+        for field in ("slug", "cost", "armies", "books", "category", "extremely_common", "text",
+                      "restriction", "grants"):
+            if field in record:
+                entry.setdefault(field, record[field])
+        if entry.get("is_weapon") and "weapon" not in entry:
+            from weapons import find_weapon_key
+
+            for candidate in (key, record.get("weapon")):
+                if candidate and find_weapon_key(candidate):
+                    entry["weapon"] = candidate
+                    break
+
+
+_merge_site_items()
+
 _LOOKUP = {_normalise(k): k for k in MagicItemDict}
+
+# Item statuses, from most to least complete. "reviewed" entries were
+# transcribed by hand; the rest come from tools/transcribe_items.py.
+ITEM_STATUSES = ("reviewed", "applied", "partial", "not modelled", "no duel effect")
 
 
 def get_magic_item(name):
@@ -456,14 +549,185 @@ def apply_magic_items(character, items, verbose: bool = False) -> list[str]:
             unknown.append(name)
             continue
         if entry.get("is_weapon"):
+            # A magic weapon's wielder bonuses apply only while it is wielded.
+            from weapons import find_weapon_key
+
+            wielded = find_weapon_key(character.Weapon)
+            if wielded and find_weapon_key(entry.get("weapon", name)) == wielded:
+                _apply_stat_mods(character, entry.get("stat_mods"))
+                _add_rules(character, entry.get("rules"))
             continue
+        if not _conditions_hold(character, entry):
+            continue
+        _apply_stat_mods(character, entry.get("stat_mods"))
         if entry.get("armour"):
             character.Armor = entry["armour"]
         if entry.get("shield"):
             character.Shield = True
-        for rule in entry.get("rules", []):
-            if rule not in character.SpecialRules:
-                character.SpecialRules.append(rule)
+        _add_rules(character, entry.get("rules"))
         if verbose and entry.get("rules"):
             print(f"{character.name} gains {name}: {', '.join(entry['rules'])}")
     return unknown
+
+
+_HEAVY_ARMOUR = {"Heavy Armor", "Heavy Armour", "Full Plate Armor", "Full Plate Armour",
+                 "Plate Armor", "Plate Armour", "HA", "PA"}
+
+
+def _conditions_hold(character, entry):
+    """Whether a conditional ability applies to this character as equipped."""
+    from weapons import get_weapon_special_rules
+
+    weapon_rules = get_weapon_special_rules(character.Weapon)
+    magic_weapon = "Magic" in weapon_rules or "Magical Attacks" in weapon_rules
+    if entry.get("mundane_weapon_only") and magic_weapon:
+        return False
+    if entry.get("hand_weapon_only") and character.Weapon not in ("Hand Weapon", "HW", "HandWeapon"):
+        return False
+    if entry.get("no_heavy_armour") and character.Armor in _HEAVY_ARMOUR:
+        return False
+    return True
+
+
+def _add_rules(character, rules):
+    for rule in rules or []:
+        if rule not in character.SpecialRules:
+            character.SpecialRules.append(rule)
+
+
+def _apply_stat_mods(character, mods):
+    """Add characteristic modifiers, keeping every characteristic between 1 and 10."""
+    for stat, change in (mods or {}).items():
+        value = getattr(character, stat, None)
+        if isinstance(value, int):
+            setattr(character, stat, max(1, min(10, value + change)))
+
+
+def items_for(faction):
+    """Names of the items a faction's characters may choose from.
+
+    Common items (the rulebook's) plus that faction's own. `faction` is a
+    FactionProfiles key; item pages name armies by their full title.
+    """
+    from faction_profiles import resolve_faction
+
+    names = []
+    for name, entry in MagicItemDict.items():
+        armies = entry.get("armies")
+        if armies is None or not entry.get("category"):
+            continue  # a named character's personal item
+        if not armies or any(resolve_faction(a) == faction for a in armies):
+            names.append(name)
+    return sorted(names)
+
+
+# Item category (the site's "magic item type") -> the budget it is bought from.
+_BUDGET_BY_CATEGORY = {
+    "Weapon Runes": "Runes", "Armour Runes": "Runes", "Talismanic Runes": "Runes",
+    "Standard Runes": "Runes", "Engineers' Weapon Runes": "Runes",
+    "Engineering Runes": "Runes",
+    "Chaotic Gifts": "Daemonic Gifts", "Gifts of Khorne": "Daemonic Gifts",
+    "Gifts of Nurgle": "Daemonic Gifts", "Gifts of Slaanesh": "Daemonic Gifts",
+    "Gifts of Tzeentch": "Daemonic Gifts",
+    "Knightly Orders of the Empire": "Knightly Orders",
+}
+
+# Groups picked by count rather than points, and how many may be taken.
+PICK_LIMITS = {
+    "Elven Honours": 1, "Knightly Virtues": 1, "Noble Kindreds": 1, "Alter Kindreds": 1,
+    "Chaotic Traits": 2, "Big Names": 1, "Runic Tattoos": 2,
+    "Disciplines of the Old Ones": 3, "Infamous Origins": 1, "Knightly Orders": 1,
+}
+
+# One of each of these per character (TOW: a character may not carry two magic
+# items of the same type). Runes and abilities are exempt.
+SINGLE_SLOT_TYPES = ("Magic Weapon", "Magic Armour", "Talisman", "Enchanted Item",
+                     "Arcane Item", "Magic Standard")
+
+
+# Rune categories only an Engineer may inscribe.
+ENGINEER_ONLY = {"Engineers' Weapon Runes", "Engineering Runes"}
+
+
+def item_budget(name):
+    """The allowance an item is bought from: "Magic Items", "Runes", ..."""
+    entry = get_magic_item(name)
+    if entry is None:
+        return None
+    category = entry.get("category") or ""
+    if category in _BUDGET_BY_CATEGORY:
+        return _BUDGET_BY_CATEGORY[category]
+    if entry.get("type") == "Ability":
+        return category or None
+    return "Magic Items"
+
+
+def allowance_for(faction, profile):
+    """{budget: points or None} for a character, or {} if it buys nothing."""
+    from item_allowances import ALLOWANCES
+
+    return dict(ALLOWANCES.get(faction, {}).get(profile, {}))
+
+
+def check_purchase(faction, profile, items):
+    """Raise ValueError if `profile` may not buy this set of items.
+
+    Checks: every item exists and belongs to the faction (or is common); the
+    character has an allowance for each item's budget and stays within its
+    points; groups picked by count stay within their limit; and no two items
+    share a single-item slot (two magic weapons, two talismans...), except
+    runes, which may be combined, and armour worn "with other armour".
+    """
+    items = list(items or [])
+    if not items:
+        return
+    allowed = set(items_for(faction))
+    allowance = allowance_for(faction, profile)
+    spent, picked, slots = {}, {}, {}
+    for name in items:
+        entry = get_magic_item(name)
+        if entry is None:
+            raise ValueError(f"Unknown magic item: {name!r}")
+        key = _LOOKUP[_normalise(name)]
+        if key not in allowed:
+            raise ValueError(f"{key} is not available to {faction}")
+        budget = item_budget(key)
+        if budget not in allowance:
+            raise ValueError(f"{profile} cannot take {budget} ({key})")
+        if entry.get("category") in ENGINEER_ONLY and "Engineer" not in profile:
+            raise ValueError(f"{key} is for Engineers only")
+        if allowance[budget] is None:
+            picked[budget] = picked.get(budget, 0) + 1
+            limit = PICK_LIMITS.get(budget, 1)
+            if picked[budget] > limit:
+                raise ValueError(f"{profile} may take at most {limit} of {budget}")
+        else:
+            spent[budget] = spent.get(budget, 0) + (entry.get("cost") or 0)
+            if spent[budget] > allowance[budget]:
+                raise ValueError(
+                    f"{profile} may spend {allowance[budget]} points on {budget}; "
+                    f"these cost {spent[budget]}"
+                )
+        kind = entry.get("type")
+        stacks = budget == "Runes" or "worn with other armour" in (entry.get("text") or "")
+        if kind in SINGLE_SLOT_TYPES and not stacks:
+            if kind in slots:
+                raise ValueError(f"{profile} cannot carry both {slots[kind]} and {key} ({kind})")
+            slots[kind] = key
+
+
+def granted_equipment(items):
+    """{"weapons": [...], "armour": [...]} that bought abilities let a model take.
+
+    An Elven Honour can unlock a sword of Hoeth, a Knightly Order wolf hammers,
+    and so on (the `grants` field read from the item's text). Ranged weapons are
+    recorded on the item but not offered: shooting is not simulated.
+    """
+    granted = {"weapons": [], "armour": []}
+    for name in items or []:
+        entry = get_magic_item(name) or {}
+        for kind in granted:
+            for thing in entry.get("grants", {}).get(kind, []):
+                if thing not in granted[kind]:
+                    granted[kind].append(thing)
+    return granted

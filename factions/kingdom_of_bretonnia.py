@@ -354,11 +354,619 @@ CHARACTERS = {
     },
 }
 
-# Regular (non-character) units go here.
-UNITS = {}
+# Regular (non-character) units. `points` is per model unless `points_per`
+# says "unit"; `unit_size` is the minimum ("10+") or fixed size. Each unit
+# fights with the row named in its comment; its champion's statline is under
+# `champion` and any mount, crew or beast rows under `other_profiles`.
+UNITS = {
+    "Battle Pilgrims": {
+        # https://tow.whfb.app/unit/battle-pilgrims - 6 pts per model, unit size 5-30
+        # Battle Pilgrims/0-1 Grail Reliquae
+        # Fights with the Battle Pilgrim row.
+        # Also has a profile for Grail Reliquae (M4 WS2 BS2 S3 T3 W6 I3 A6 Ld8); not
+        # simulated.
+        "points": 6,
+        "points_per": "model",
+        "unit_size": "5-30 Battle Pilgrims/0-1 Grail Reliquae",
+        "other_profiles": [
+            {'Name': 'Grail Reliquae', 'Movement': 4, 'WeaponSkill': 2, 'BallisticSkill': 2, 'Strength': 3, 'Toughness': 3, 'Initiative': 3, 'Wounds': 6, 'Attacks': 6, 'Leadership': 8},
+        ],
+        "base_profile": {
+            "Movement": 4,
+            "WeaponSkill": 2,
+            "BallisticSkill": 2,
+            "Strength": 3,
+            "Toughness": 3,
+            "Initiative": 3,
+            "Wounds": 1,
+            "Attacks": 1,
+            "Leadership": 8,
+            "Race": "Bretonnian",
+            "Armor": "Light Armor",
+            "Weapon": "Hand Weapon",
+            "Shield": True,
+            "SpecialRules": ["Blessings of the Lady (Grail Reliquae)", "Close Order", "Grail Reliquae", "Hatred (all enemies)", "Levies", "Peasantry", "Retinue of the Saints (Grail Reliquae)", "Stubborn"],
+            "TroopType": "HeavyInfantry",
+            "UnitCategory": "Unit",
+            "OptionalRules": ["Grail Reliquae"],
+        },
+        "equipment_options": {
+            "weapons": ["Hand Weapon"],
+            "armor": ["Light Armor"],
+            "shield": True,
+            "items": [],
+        },
+        "mount_options": {
+            "mounts": []
+        }
+    },
+    "Border Princes Brigands": {
+        # https://tow.whfb.app/unit/border-princes-brigands - 4 pts per model, unit
+        # size 10+
+        # Fights with the Brigand row.
+        # Shooting is not simulated, so these are left out of the options:
+        # Blunderbuss, Crossbow, Pistol.
+        "points": 4,
+        "points_per": "model",
+        "unit_size": "10+",
+        "champion": {'Name': 'Desperado', 'Movement': 4, 'WeaponSkill': 3, 'BallisticSkill': 3, 'Strength': 3, 'Toughness': 3, 'Initiative': 3, 'Wounds': 1, 'Attacks': 2, 'Leadership': 7},
+        "other_profiles": [],
+        "base_profile": {
+            "Movement": 4,
+            "WeaponSkill": 3,
+            "BallisticSkill": 3,
+            "Strength": 3,
+            "Toughness": 3,
+            "Initiative": 3,
+            "Wounds": 1,
+            "Attacks": 1,
+            "Leadership": 6,
+            "Race": "Bretonnian",
+            "Armor": "Light Armor",
+            "Weapon": "Hand Weapon",
+            "Shield": False,
+            "SpecialRules": ["Horde", "Impetuous", "Levies", "Motley Crew", "Open Order", "Warband"],
+            "TroopType": "RegularInfantry",
+            "UnitCategory": "Unit",
+            "OptionalRules": ["Open Order", "Close Order", "Skirmishers", "Ambushers", "Scouts"],
+        },
+        "equipment_options": {
+            "weapons": ["Hand Weapon", "Two Hand Weapons"],
+            "armor": ["Light Armor"],
+            "shield": True,
+            "items": [],
+        },
+        "mount_options": {
+            "mounts": []
+        }
+    },
+    "Knights of the Realm on Foot": {
+        # https://tow.whfb.app/unit/knights-of-the-realm-on-foot - 11 pts per model,
+        # unit size 5+
+        # Fights with the Knight of the Realm row.
+        "points": 11,
+        "points_per": "model",
+        "unit_size": "5+",
+        "champion": {'Name': 'First Knight', 'Movement': 4, 'WeaponSkill': 4, 'BallisticSkill': 2, 'Strength': 3, 'Toughness': 3, 'Initiative': 3, 'Wounds': 1, 'Attacks': 2, 'Leadership': 8},
+        "other_profiles": [],
+        "base_profile": {
+            "Movement": 4,
+            "WeaponSkill": 4,
+            "BallisticSkill": 2,
+            "Strength": 3,
+            "Toughness": 3,
+            "Initiative": 3,
+            "Wounds": 1,
+            "Attacks": 1,
+            "Leadership": 8,
+            "Race": "Bretonnian",
+            "Armor": "Heavy Armor",
+            "Weapon": "Hand Weapon",
+            "Shield": True,
+            "SpecialRules": ["Blessings of the Lady", "Close Order", "Furious Charge", "The Knight's Vow"],
+            "TroopType": "HeavyInfantry",
+            "UnitCategory": "Unit",
+        },
+        "equipment_options": {
+            "weapons": ["Hand Weapon", "Great Weapon"],
+            "armor": ["Heavy Armor"],
+            "shield": True,
+            "items": [],
+        },
+        "mount_options": {
+            "mounts": []
+        }
+    },
+    "Men-at-Arms": {
+        # https://tow.whfb.app/unit/men-at-arms - 4 pts per model, unit size 10+
+        # Fights with the Man-at-Arms row.
+        # Also has a profile for Grail Monk (M4 WS2 BS2 S3 T3 W1 I2 A2 Ld6); not
+        # simulated.
+        "points": 4,
+        "points_per": "model",
+        "unit_size": "10+",
+        "champion": {'Name': 'Yeoman', 'Movement': 4, 'WeaponSkill': 2, 'BallisticSkill': 2, 'Strength': 3, 'Toughness': 3, 'Initiative': 3, 'Wounds': 1, 'Attacks': 2, 'Leadership': 6},
+        "other_profiles": [
+            {'Name': 'Grail Monk', 'Movement': 4, 'WeaponSkill': 2, 'BallisticSkill': 2, 'Strength': 3, 'Toughness': 3, 'Initiative': 2, 'Wounds': 1, 'Attacks': 2, 'Leadership': 6},
+        ],
+        "base_profile": {
+            "Movement": 4,
+            "WeaponSkill": 2,
+            "BallisticSkill": 2,
+            "Strength": 3,
+            "Toughness": 3,
+            "Initiative": 3,
+            "Wounds": 1,
+            "Attacks": 1,
+            "Leadership": 5,
+            "Race": "Bretonnian",
+            "Armor": "Light Armor",
+            "Weapon": "Polearm Single-Handed",
+            "Shield": True,
+            "SpecialRules": ["Close Order", "Horde", "Levies", "Peasantry", "Shieldwall", "Warband"],
+            "TroopType": "RegularInfantry",
+            "UnitCategory": "Unit",
+            "OptionalRules": ["Grail Monk", "Blessed Triptych"],
+        },
+        "equipment_options": {
+            "weapons": ["Hand Weapon", "Polearm Single-Handed"],
+            "armor": ["Light Armor"],
+            "shield": True,
+            "items": [],
+        },
+        "mount_options": {
+            "mounts": []
+        }
+    },
+    "Peasant Bowmen": {
+        # https://tow.whfb.app/unit/peasant-bowmen - 5 pts per model, unit size 10+
+        # Fights with the Peasant Bowman row.
+        # Shooting is not simulated, so these are left out of the options: longbows.
+        "points": 5,
+        "points_per": "model",
+        "unit_size": "10+",
+        "champion": {'Name': 'Villein', 'Movement': 4, 'WeaponSkill': 2, 'BallisticSkill': 4, 'Strength': 3, 'Toughness': 3, 'Initiative': 3, 'Wounds': 1, 'Attacks': 1, 'Leadership': 7},
+        "other_profiles": [],
+        "base_profile": {
+            "Movement": 4,
+            "WeaponSkill": 2,
+            "BallisticSkill": 3,
+            "Strength": 3,
+            "Toughness": 3,
+            "Initiative": 3,
+            "Wounds": 1,
+            "Attacks": 1,
+            "Leadership": 7,
+            "Race": "Bretonnian",
+            "Armor": None,
+            "Weapon": "Hand Weapon",
+            "Shield": False,
+            "SpecialRules": ["Close Order", "Levies", "Peasantry"],
+            "TroopType": "RegularInfantry",
+            "UnitCategory": "Unit",
+            "OptionalRules": ["defensive stakes", "burning braziers", "Close Order"],
+        },
+        "equipment_options": {
+            "weapons": ["Hand Weapon"],
+            "armor": [],
+            "shield": False,
+            "items": [],
+        },
+        "mount_options": {
+            "mounts": []
+        }
+    },
+    "Squires": {
+        # https://tow.whfb.app/unit/squires - 7 pts per model, unit size 5+
+        # Fights with the Squire row.
+        # Shooting is not simulated, so these are left out of the options: longbows.
+        "points": 7,
+        "points_per": "model",
+        "unit_size": "5+",
+        "champion": {'Name': 'Esquire', 'Movement': 4, 'WeaponSkill': 3, 'BallisticSkill': 4, 'Strength': 3, 'Toughness': 3, 'Initiative': 3, 'Wounds': 1, 'Attacks': 2, 'Leadership': 7},
+        "other_profiles": [],
+        "base_profile": {
+            "Movement": 4,
+            "WeaponSkill": 3,
+            "BallisticSkill": 3,
+            "Strength": 3,
+            "Toughness": 3,
+            "Initiative": 3,
+            "Wounds": 1,
+            "Attacks": 1,
+            "Leadership": 7,
+            "Race": "Bretonnian",
+            "Armor": None,
+            "Weapon": "Hand Weapon",
+            "Shield": False,
+            "SpecialRules": ["Move Through Cover", "Open Order", "Peasantry", "Skirmishers", "Vanguard"],
+            "TroopType": "RegularInfantry",
+            "UnitCategory": "Unit",
+            "OptionalRules": ["Fire & Flee", "Scouts"],
+        },
+        "equipment_options": {
+            "weapons": ["Hand Weapon"],
+            "armor": [],
+            "shield": False,
+            "items": [],
+        },
+        "mount_options": {
+            "mounts": []
+        }
+    },
+    "Yeomen Guard": {
+        # https://tow.whfb.app/unit/yeomen-guard - 5 pts per model, unit size 10+
+        # Fights with the Yeoman Guard row.
+        # Also has a profile for Grail Monk (M4 WS3 BS2 S3 T3 W1 I2 A2 Ld6); not
+        # simulated.
+        "points": 5,
+        "points_per": "model",
+        "unit_size": "10+",
+        "champion": {'Name': 'Warden', 'Movement': 4, 'WeaponSkill': 3, 'BallisticSkill': 3, 'Strength': 3, 'Toughness': 3, 'Initiative': 3, 'Wounds': 1, 'Attacks': 2, 'Leadership': 6},
+        "other_profiles": [
+            {'Name': 'Grail Monk', 'Movement': 4, 'WeaponSkill': 3, 'BallisticSkill': 2, 'Strength': 3, 'Toughness': 3, 'Initiative': 2, 'Wounds': 1, 'Attacks': 2, 'Leadership': 6},
+        ],
+        "base_profile": {
+            "Movement": 4,
+            "WeaponSkill": 3,
+            "BallisticSkill": 3,
+            "Strength": 3,
+            "Toughness": 3,
+            "Initiative": 3,
+            "Wounds": 1,
+            "Attacks": 1,
+            "Leadership": 6,
+            "Race": "Bretonnian",
+            "Armor": "Light Armor",
+            "Weapon": "Hand Weapon",
+            "Shield": True,
+            "SpecialRules": ["Close Order", "Horde", "Peasantry", "Shieldwall", "Veteran", "Warband"],
+            "TroopType": "RegularInfantry",
+            "UnitCategory": "Unit",
+            "OptionalRules": ["Grail Monk", "Blessed Triptych"],
+        },
+        "equipment_options": {
+            "weapons": ["Hand Weapon", "Halberd", "Polearm Single-Handed", "Thrusting Spear"],
+            "armor": ["Light Armor"],
+            "shield": True,
+            "items": [],
+        },
+        "mount_options": {
+            "mounts": []
+        }
+    },
+    "Grail Knights": {
+        # https://tow.whfb.app/unit/grail-knights - 38 pts per model, unit size 3+
+        # Fights with the Grail Knight row.
+        # Also has a profile for Bretonnian Warhorse (M8 WS3 BS- S3 T- W- I3 A1 Ld-);
+        # not simulated.
+        "points": 38,
+        "points_per": "model",
+        "unit_size": "3+",
+        "champion": {'Name': 'Grail Guardian', 'Movement': None, 'WeaponSkill': 6, 'BallisticSkill': 2, 'Strength': 4, 'Toughness': 4, 'Initiative': 5, 'Wounds': 1, 'Attacks': 3, 'Leadership': 9},
+        "other_profiles": [
+            {'Name': 'Bretonnian Warhorse', 'Movement': 8, 'WeaponSkill': 3, 'BallisticSkill': None, 'Strength': 3, 'Toughness': None, 'Initiative': 3, 'Wounds': None, 'Attacks': 1, 'Leadership': None},
+        ],
+        "base_profile": {
+            "Movement": None,
+            "WeaponSkill": 6,
+            "BallisticSkill": 2,
+            "Strength": 4,
+            "Toughness": 4,
+            "Initiative": 5,
+            "Wounds": 1,
+            "Attacks": 2,
+            "Leadership": 9,
+            "Race": "Bretonnian",
+            "Armor": "Heavy Armor",
+            "Weapon": "Lance",
+            "Shield": True,
+            "SpecialRules": ["Blessings of the Lady", "Close Order", "Counter Charge", "Finest Warhorses", "First Charge", "Lance Formation", "Living Saints", "Swiftstride", "The Grail Vow"],
+            "TroopType": "HeavyCavalry",
+            "UnitCategory": "Unit",
+            "OptionalRules": ["Knightly Virtue"],
+        },
+        "equipment_options": {
+            "weapons": ["Hand Weapon", "Lance"],
+            "armor": ["Heavy Armor"],
+            "shield": True,
+            "items": [],
+        },
+        "mount_options": {
+            "mounts": []
+        }
+    },
+    "Knights Errant": {
+        # https://tow.whfb.app/unit/knights-errant - 19 pts per model, unit size 3+
+        # Fights with the Knight Errant row.
+        # Also has a profile for Bretonnian Warhorse (M8 WS3 BS- S3 T- W- I3 A1 Ld-);
+        # not simulated.
+        "points": 19,
+        "points_per": "model",
+        "unit_size": "3+",
+        "champion": {'Name': 'Gallant', 'Movement': None, 'WeaponSkill': 3, 'BallisticSkill': 2, 'Strength': 3, 'Toughness': 3, 'Initiative': 3, 'Wounds': 1, 'Attacks': 2, 'Leadership': 7},
+        "other_profiles": [
+            {'Name': 'Bretonnian Warhorse', 'Movement': 8, 'WeaponSkill': 3, 'BallisticSkill': None, 'Strength': 3, 'Toughness': None, 'Initiative': 3, 'Wounds': None, 'Attacks': 1, 'Leadership': None},
+        ],
+        "base_profile": {
+            "Movement": None,
+            "WeaponSkill": 3,
+            "BallisticSkill": 2,
+            "Strength": 3,
+            "Toughness": 3,
+            "Initiative": 3,
+            "Wounds": 1,
+            "Attacks": 1,
+            "Leadership": 7,
+            "Race": "Bretonnian",
+            "Armor": "Heavy Armor",
+            "Weapon": "Lance",
+            "Shield": True,
+            "SpecialRules": ["Blessings of the Lady", "Close Order", "Finest Warhorses", "First Charge", "Impetuous", "Lance Formation", "Swiftstride", "The Knight's Vow"],
+            "TroopType": "HeavyCavalry",
+            "UnitCategory": "Unit",
+        },
+        "equipment_options": {
+            "weapons": ["Hand Weapon", "Lance"],
+            "armor": ["Heavy Armor"],
+            "shield": True,
+            "items": [],
+        },
+        "mount_options": {
+            "mounts": []
+        }
+    },
+    "Mounted Knights of the Realm": {
+        # https://tow.whfb.app/unit/mounted-knights-of-the-realm - 24 pts per model,
+        # unit size 3+
+        # Fights with the Knight of the Realm row.
+        # Also has a profile for Bretonnian Warhorse (M8 WS3 BS- S3 T- W- I3 A1 Ld-);
+        # not simulated.
+        "points": 24,
+        "points_per": "model",
+        "unit_size": "3+",
+        "champion": {'Name': 'First Knight', 'Movement': None, 'WeaponSkill': 4, 'BallisticSkill': 2, 'Strength': 3, 'Toughness': 3, 'Initiative': 3, 'Wounds': 1, 'Attacks': 2, 'Leadership': 8},
+        "other_profiles": [
+            {'Name': 'Bretonnian Warhorse', 'Movement': 8, 'WeaponSkill': 3, 'BallisticSkill': None, 'Strength': 3, 'Toughness': None, 'Initiative': 3, 'Wounds': None, 'Attacks': 1, 'Leadership': None},
+        ],
+        "base_profile": {
+            "Movement": None,
+            "WeaponSkill": 4,
+            "BallisticSkill": 2,
+            "Strength": 3,
+            "Toughness": 3,
+            "Initiative": 3,
+            "Wounds": 1,
+            "Attacks": 1,
+            "Leadership": 8,
+            "Race": "Bretonnian",
+            "Armor": "Heavy Armor",
+            "Weapon": "Lance",
+            "Shield": True,
+            "SpecialRules": ["Blessings of the Lady", "Close Order", "Counter Charge", "Finest Warhorses", "First Charge", "Lance Formation", "Swiftstride", "The Knight's Vow"],
+            "TroopType": "HeavyCavalry",
+            "UnitCategory": "Unit",
+        },
+        "equipment_options": {
+            "weapons": ["Hand Weapon", "Lance"],
+            "armor": ["Heavy Armor"],
+            "shield": True,
+            "items": [],
+        },
+        "mount_options": {
+            "mounts": []
+        }
+    },
+    "Mounted Yeomen": {
+        # https://tow.whfb.app/unit/mounted-yeomen - 13 pts per model, unit size 5+
+        # Fights with the Mounted Yeoman row.
+        # Also has a profile for Warhorse (M8 WS3 BS- S3 T- W- I3 A1 Ld-); not
+        # simulated.
+        # Shooting is not simulated, so these are left out of the options: shortbows.
+        "points": 13,
+        "points_per": "model",
+        "unit_size": "5+",
+        "champion": {'Name': 'Warden', 'Movement': None, 'WeaponSkill': 3, 'BallisticSkill': 3, 'Strength': 3, 'Toughness': 3, 'Initiative': 3, 'Wounds': 1, 'Attacks': 2, 'Leadership': 6},
+        "other_profiles": [
+            {'Name': 'Warhorse', 'Movement': 8, 'WeaponSkill': 3, 'BallisticSkill': None, 'Strength': 3, 'Toughness': None, 'Initiative': 3, 'Wounds': None, 'Attacks': 1, 'Leadership': None},
+        ],
+        "base_profile": {
+            "Movement": None,
+            "WeaponSkill": 3,
+            "BallisticSkill": 3,
+            "Strength": 3,
+            "Toughness": 3,
+            "Initiative": 3,
+            "Wounds": 1,
+            "Attacks": 1,
+            "Leadership": 6,
+            "Race": "Bretonnian",
+            "Armor": None,
+            "Weapon": "Cavalry Spear",
+            "Shield": False,
+            "SpecialRules": ["Fast Cavalry", "Fire & Flee", "Levies", "Open Order", "Peasantry", "Reserve Move", "Skirmishers", "Swiftstride"],
+            "TroopType": "LightCavalry",
+            "UnitCategory": "Unit",
+            "OptionalRules": ["Feigned Flight"],
+        },
+        "equipment_options": {
+            "weapons": ["Hand Weapon", "Cavalry Spear"],
+            "armor": ["Light Armor"],
+            "shield": True,
+            "items": [],
+        },
+        "mount_options": {
+            "mounts": []
+        }
+    },
+    "Pegasus Knights": {
+        # https://tow.whfb.app/unit/pegasus-knights - 59 pts per model, unit size 3+
+        # Fights with the Pegasus Knight row.
+        # Also has a profile for Barded Pegasus (M7 WS3 BS- S4 T- W- I4 A2 Ld-); not
+        # simulated.
+        "points": 59,
+        "points_per": "model",
+        "unit_size": "3+",
+        "champion": {'Name': 'First Knight', 'Movement': None, 'WeaponSkill': 4, 'BallisticSkill': 2, 'Strength': 4, 'Toughness': 4, 'Initiative': 3, 'Wounds': 2, 'Attacks': 2, 'Leadership': 8},
+        "other_profiles": [
+            {'Name': 'Barded Pegasus', 'Movement': 7, 'WeaponSkill': 3, 'BallisticSkill': None, 'Strength': 4, 'Toughness': None, 'Initiative': 4, 'Wounds': None, 'Attacks': 2, 'Leadership': None},
+        ],
+        "base_profile": {
+            "Movement": None,
+            "WeaponSkill": 4,
+            "BallisticSkill": 2,
+            "Strength": 4,
+            "Toughness": 4,
+            "Initiative": 3,
+            "Wounds": 2,
+            "Attacks": 1,
+            "Leadership": 8,
+            "Race": "Bretonnian",
+            "Armor": "Heavy Armor",
+            "Weapon": "Lance",
+            "Shield": True,
+            "SpecialRules": ["Blessings of the Lady", "Counter Charge", "Dispersed Formation", "First Charge", "Fly (10)", "Furious Charge (Riders only)", "Skirmishers", "Swiftstride", "The Knight's Vow"],
+            "TroopType": "MonstrousCavalry",
+            "UnitCategory": "Unit",
+        },
+        "equipment_options": {
+            "weapons": ["Hand Weapon", "Lance"],
+            "armor": ["Heavy Armor"],
+            "shield": True,
+            "items": [],
+        },
+        "mount_options": {
+            "mounts": []
+        }
+    },
+    "Questing Knights": {
+        # https://tow.whfb.app/unit/questing-knights - 26 pts per model, unit size 3+
+        # Fights with the Questing Knight row.
+        # Also has a profile for Bretonnian Warhorse (M8 WS3 BS- S3 T- W- I3 A1 Ld-);
+        # not simulated.
+        # Carries a shield, which it cannot use with its Great Weapon; pass
+        # Shield=True with a one-handed weapon.
+        "points": 26,
+        "points_per": "model",
+        "unit_size": "3+",
+        "champion": {'Name': 'Paragon', 'Movement': None, 'WeaponSkill': 5, 'BallisticSkill': 2, 'Strength': 4, 'Toughness': 3, 'Initiative': 4, 'Wounds': 1, 'Attacks': 2, 'Leadership': 8},
+        "other_profiles": [
+            {'Name': 'Bretonnian Warhorse', 'Movement': 8, 'WeaponSkill': 3, 'BallisticSkill': None, 'Strength': 3, 'Toughness': None, 'Initiative': 3, 'Wounds': None, 'Attacks': 1, 'Leadership': None},
+        ],
+        "base_profile": {
+            "Movement": None,
+            "WeaponSkill": 5,
+            "BallisticSkill": 2,
+            "Strength": 4,
+            "Toughness": 3,
+            "Initiative": 4,
+            "Wounds": 1,
+            "Attacks": 1,
+            "Leadership": 8,
+            "Race": "Bretonnian",
+            "Armor": "Heavy Armor",
+            "Weapon": "Great Weapon",
+            "Shield": False,
+            "SpecialRules": ["Blessings of the Lady", "Close Order", "Finest Warhorses", "First Charge", "Lance Formation", "Swiftstride", "The Questing Vow"],
+            "TroopType": "HeavyCavalry",
+            "UnitCategory": "Unit",
+            "OptionalRules": ["Knightly Virtue"],
+        },
+        "equipment_options": {
+            "weapons": ["Hand Weapon", "Great Weapon"],
+            "armor": ["Heavy Armor"],
+            "shield": True,
+            "items": [],
+        },
+        "mount_options": {
+            "mounts": []
+        }
+    },
+    "Border Princes Bombard": {
+        # https://tow.whfb.app/unit/border-princes-bombard - 100 pts per unit
+        # Fights with the Crew row.
+        # Also has a profile for Bombard (M- WS- BS- S- T7 W3 I- A- Ld-); not
+        # simulated.
+        # Shooting is not simulated, so these are left out of the options: Bombard.
+        "points": 100,
+        "points_per": "unit",
+        "unit_size": "1",
+        "other_profiles": [
+            {'Name': 'Bombard', 'Movement': None, 'WeaponSkill': None, 'BallisticSkill': None, 'Strength': None, 'Toughness': 7, 'Initiative': None, 'Wounds': 3, 'Attacks': None, 'Leadership': None},
+        ],
+        "base_profile": {
+            "Movement": 4,
+            "WeaponSkill": 3,
+            "BallisticSkill": 3,
+            "Strength": 3,
+            "Toughness": 3,
+            "Initiative": 3,
+            "Wounds": 3,
+            "Attacks": 3,
+            "Leadership": 7,
+            "Race": "Bretonnian",
+            "Armor": "Light Armor",
+            "Weapon": "Hand Weapon",
+            "Shield": False,
+            "SpecialRules": ["Levies", "Skirmishers"],
+            "TroopType": "WarMachine",
+            "UnitCategory": "Unit",
+        },
+        "equipment_options": {
+            "weapons": ["Hand Weapon"],
+            "armor": ["Light Armor"],
+            "shield": False,
+            "items": [],
+        },
+        "mount_options": {
+            "mounts": []
+        }
+    },
+    "Field Trebuchet": {
+        # https://tow.whfb.app/unit/field-trebuchet - 100 pts per unit
+        # Fights with the Peasant Crew row.
+        # Also has a profile for Field Trebuchet (M- WS- BS- S- T7 W3 I- A- Ld-); not
+        # simulated.
+        # Shooting is not simulated, so these are left out of the options: Field
+        # trebuchet.
+        "points": 100,
+        "points_per": "unit",
+        "unit_size": "1",
+        "other_profiles": [
+            {'Name': 'Field Trebuchet', 'Movement': None, 'WeaponSkill': None, 'BallisticSkill': None, 'Strength': None, 'Toughness': 7, 'Initiative': None, 'Wounds': 3, 'Attacks': None, 'Leadership': None},
+        ],
+        "base_profile": {
+            "Movement": 4,
+            "WeaponSkill": 2,
+            "BallisticSkill": 2,
+            "Strength": 3,
+            "Toughness": 3,
+            "Initiative": 3,
+            "Wounds": 4,
+            "Attacks": 4,
+            "Leadership": 6,
+            "Race": "Bretonnian",
+            "Armor": None,
+            "Weapon": "Hand Weapon",
+            "Shield": False,
+            "SpecialRules": ["Levies", "Peasantry", "Skirmishers"],
+            "TroopType": "WarMachine",
+            "UnitCategory": "Unit",
+        },
+        "equipment_options": {
+            "weapons": ["Hand Weapon"],
+            "armor": [],
+            "shield": False,
+            "items": [],
+        },
+        "mount_options": {
+            "mounts": []
+        }
+    },
+}
 
 
-# Special rules carried by this faction's characters. `status` is how far the
+# Special rules carried by this faction's characters and units. `status` is how far the
 # engine goes with each: "implemented", "partial", or None for recorded only.
 # Texts longer than a paragraph are cut, marked "[...]"; `url` has the rest.
 FACTION_RULES = {
@@ -438,7 +1046,7 @@ FACTION_RULES = {
         ),
     },
     "Blessings of the Lady": {
-        "status": None,
+        "status": "implemented",
         "url": "https://tow.whfb.app/special-rules/blessings-of-the-lady",
         "text": (
             "Once deployment is complete, instead of rolling off to determine which "
@@ -452,6 +1060,14 @@ FACTION_RULES = {
             "determine which player takes the first turn, the Kingdom of Bretonnia "
             "army cannot kneel and pray for the Blessing. Note also that, should "
             "two Kingdom [...]"
+        ),
+    },
+    "Close Order": {
+        "status": None,
+        "url": "https://tow.whfb.app/special-rules/close-order",
+        "text": (
+            "A unit consisting of models with this special rule may adopt a Close "
+            "Order formation."
         ),
     },
     "Counter Charge": {
@@ -471,6 +1087,17 @@ FACTION_RULES = {
             "After [...]"
         ),
     },
+    "Dispersed Formation": {
+        "status": None,
+        "url": "https://tow.whfb.app/special-rules/dispersed-formation",
+        "text": (
+            "To maintain Skirmish formation, every model in this unit must be "
+            "within 3\" of another model belonging to the same unit, rather than the "
+            "usual 1\". However, unlike most Skirmishers, models with this special "
+            "rule do not have a 360° vision arc; they instead have a 90° vision "
+            "arc, corresponding to their front arc."
+        ),
+    },
     "Ethereal": {
         "status": "implemented",
         "url": "https://tow.whfb.app/special-rules/ethereal",
@@ -480,6 +1107,93 @@ FACTION_RULES = {
             "though they can pass through it. In addition, Ethereal creatures can "
             "only be wounded by Magical attacks. Characters that are not Ethereal "
             "cannot join units that are, and vice versa."
+        ),
+    },
+    "Fast Cavalry": {
+        "status": None,
+        "url": "https://tow.whfb.app/special-rules/fast-cavalry",
+        "text": (
+            "If all of the models (including characters) within a unit arrayed in "
+            "an Open Order formation have this special rule, the unit may perform "
+            "its Quick Turn even if it marched."
+        ),
+    },
+    "Finest Warhorses": {
+        "status": None,
+        "url": "https://tow.whfb.app/special-rules/finest-warhorses",
+        "text": (
+            "When a unit with this special rule makes a Charge, Flee or Pursuit "
+            "roll, it may re-roll any dice that roll a natural 1, before discarding "
+            "any dice that are required to be discarded."
+        ),
+    },
+    "Fire & Flee": {
+        "status": None,
+        "url": "https://tow.whfb.app/special-rules/fire-and-flee",
+        "text": (
+            "If the majority of the models in a unit armed with missile weapons "
+            "have this special rule, the unit may declare that it will 'Fire & "
+            "Flee' as a charge reaction: Fire & Flee The unit launches a volley of "
+            "weapons fire before turning to flee from the enemy. If a unit with "
+            "this special rule is armed with missile weapons and can draw a line of "
+            "sight to the charging unit, it may declare that it will Fire & Flee. "
+            "The unit will Stand & Shoot before turning tail and fleeing from the "
+            "charge. However, due to the time spent shooting at the charging foe, "
+            "when making its Flee roll the unit rolls two D6 and discards the "
+            "lowest result. If both dice roll the same result, discard either. Note "
+            "that, if the [...]"
+        ),
+    },
+    "First Charge": {
+        "status": None,
+        "url": "https://tow.whfb.app/special-rules/first-charge",
+        "text": (
+            "If this unit's first charge of the game is successful (i.e., if the "
+            "unit makes contact with the charge target), the charge target becomes "
+            "Disrupted until the end of the Combat phase of that turn."
+        ),
+    },
+    "Fly": {
+        "status": None,
+        "url": "https://tow.whfb.app/special-rules/fly",
+        "text": (
+            "Except when following up or pursuing, a model with this special rule "
+            "can choose to move by flying through the air, rather than moving "
+            "across the ground as normal. When a model flies it uses a special ‘Fly "
+            "Movement’ characteristic, shown in brackets after the name of this "
+            "special rule (shown here as ‘X’). Models that choose to move by "
+            "flying: - May move as normal (i.e., they may charge, march and "
+            "manoeuvre as if moving on the ground), except that they are able to "
+            "pass freely above other models, units and terrain features without any "
+            "penalty, and they can march whilst within 8\" of an enemy unit without "
+            "first having to make a Leadership test. - May end their movement in "
+            "terrain, but will [...]"
+        ),
+    },
+    "Furious Charge": {
+        "status": "implemented",
+        "url": "https://tow.whfb.app/special-rules/furious-charge",
+        "text": (
+            "During a turn in which it made a charge move of 3\" or more, a model "
+            "with this special rule gains a +1 modifier to its Attacks "
+            "characteristic."
+        ),
+    },
+    "Grail Reliquae": {
+        "status": None,
+        "url": "https://tow.whfb.app/special-rules/grail-reliquae",
+        "text": (
+            "The Grail Reliquae is placed in the centre of the front rank of its "
+            "unit (or as close to the centre as possible) and occupies the space "
+            "of, and counts as, six models; two in the front rank, two in the "
+            "second and two in the third. If the unit turns or reforms, the Grail "
+            "Reliquae must be repositioned into the new front rank. Casualties are "
+            "removed from the unit as normal, but the Grail Reliquae cannot lose "
+            "any Wounds whilst any Battle Pilgrims remain. Only once all of the "
+            "Battle Pilgrims have been removed from the unit can the Grail Reliquae "
+            "itself lose Wounds. The Grail Reliquae counts as both a standard "
+            "bearer and a musician for its unit. Whilst the Grail Reliquae model "
+            "itself is within 12\" [...]"
         ),
     },
     "Guardian of the Sacred Sites": {
@@ -499,6 +1213,25 @@ FACTION_RULES = {
             "within any 'natural' terrain [...]"
         ),
     },
+    "Hatred": {
+        "status": "implemented",
+        "url": "https://tow.whfb.app/special-rules/hatred",
+        "text": (
+            "A model with this special rule may re-roll any failed rolls To Hit "
+            "made against a hated enemy during the first round of combat. Which "
+            "enemies are hated varies from model to model and will be shown in "
+            "brackets after the name of this special rule (shown here as 'X'). Some "
+            "models hate 'all enemies', meaning they hate all enemy models equally."
+        ),
+    },
+    "Horde": {
+        "status": None,
+        "url": "https://tow.whfb.app/special-rules/horde",
+        "text": (
+            "A unit with this special rule may increase the maximum Rank Bonus it "
+            "can claim (as determined by its troop type) by one."
+        ),
+    },
     "Immune to Psychology": {
         "status": None,
         "url": "https://tow.whfb.app/special-rules/immune-to-psychology",
@@ -511,6 +1244,25 @@ FACTION_RULES = {
             "any test made against Leadership not stated here."
         ),
     },
+    "Impetuous": {
+        "status": None,
+        "url": "https://tow.whfb.app/special-rules/impetuous",
+        "text": (
+            "If during the Declare Charges & Charge Reactions sub-phase of its "
+            "turn, a unit that includes one or more Impetuous models is able to "
+            "declare a charge, it must make a Leadership test. If this test is "
+            "failed, the unit must declare a charge. If this test is passed, the "
+            "unit may act as normal."
+        ),
+    },
+    "Lance Formation": {
+        "status": None,
+        "url": "https://tow.whfb.app/special-rules/lance-formation",
+        "text": (
+            "A unit consisting of models with this special rule may adopt a Lance "
+            "formation."
+        ),
+    },
     "Levies": {
         "status": None,
         "url": "https://tow.whfb.app/special-rules/levies",
@@ -521,6 +1273,14 @@ FACTION_RULES = {
             "Therefore, units that do not have this special rule are not required "
             "to make a Panic test when a friendly unit of Levies Breaks and flees "
             "from combat."
+        ),
+    },
+    "Living Saints": {
+        "status": None,
+        "url": "https://tow.whfb.app/special-rules/living-saints",
+        "text": (
+            "Every model in a unit of Grail Knights can issue and accept challenges "
+            "in the same manner as a character."
         ),
     },
     "Loner": {
@@ -568,6 +1328,23 @@ FACTION_RULES = {
             "any hits caused by magic items."
         ),
     },
+    "Motley Crew": {
+        "status": None,
+        "url": "https://tow.whfb.app/special-rules/motley-crew",
+        "text": (
+            "Units with this special rule may include models of the same type that "
+            "are equipped differently to one another, and/or models of different "
+            "types that fight together in a single unit. If necessary, the army "
+            "list entry for such units will be accompanied by a brief explanation "
+            "of the unit's composition. Different Weapons The fighting rank of a "
+            "Motley Crew may contain models that are armed with different weapons. "
+            "In such cases, the controlling player must roll different batches of "
+            "dice for the different models, making it clear to their opponent which "
+            "model's attacks they represent and where they are being directed. "
+            "These attacks are made in the Initiative order of the individual "
+            "models, as [...]"
+        ),
+    },
     "Move Through Cover": {
         "status": None,
         "url": "https://tow.whfb.app/special-rules/move-through-cover",
@@ -576,6 +1353,23 @@ FACTION_RULES = {
             "Movement characteristic for moving through difficult or dangerous "
             "terrain. In addition, a model with this special rule may re-roll any "
             "rolls of 1 when making Dangerous Terrain tests."
+        ),
+    },
+    "Open Order": {
+        "status": None,
+        "url": "https://tow.whfb.app/unusual-formations/open-order-formation",
+        "text": (
+            "A unit arrayed in an Open Order formation closely resembles one in a "
+            "Close Order formation; the key differences lie in how the unit moves "
+            "and interacts with terrain. As with a unit in Close Order, a unit in "
+            "Open Order consists of two or more models that are arranged in base "
+            "contact with each other, edge-to-edge and front corner to front "
+            "corner, as shown in Fig 182.1. All models in such a unit must face the "
+            "same direction. In addition, all models in the unit must be arranged "
+            "in a formation that consists of one or more horizontal rows, called "
+            "ranks, and a number of vertical rows, called files. As far as "
+            "possible, there must be the same number of models in each rank. Where "
+            "this is not [...]"
         ),
     },
     "Peasant's Duty": {
@@ -614,6 +1408,26 @@ FACTION_RULES = {
             "rally again as normal during the Rally sub-phase."
         ),
     },
+    "Reserve Move": {
+        "status": None,
+        "url": "https://tow.whfb.app/special-rules/reserve-move",
+        "text": (
+            "Unless it charged, marched or fled during the Movement phase, a unit "
+            "in which the majority of the models have this special rule may make a "
+            "Reserve move at the end of the Shooting phase of its turn, after all "
+            "shooting has been resolved. A unit making a Reserve move moves as "
+            "described in the Basic Movement rules. It may manoeuvre normally, but "
+            "cannot march."
+        ),
+    },
+    "Retinue of the Saints": {
+        "status": None,
+        "url": "https://tow.whfb.app/special-rules/retinue-of-the-saints",
+        "text": (
+            "Your army may include up to one Grail Reliquae for every character or "
+            "unit with the Grail Vow it includes."
+        ),
+    },
     "Shield of the Lady": {
         "status": None,
         "url": "https://tow.whfb.app/special-rules/shield-of-the-lady",
@@ -628,8 +1442,29 @@ FACTION_RULES = {
             "may cast spells as if they were within the fighting rank."
         ),
     },
-    "Stomp Attacks": {
+    "Shieldwall": {
         "status": None,
+        "url": "https://tow.whfb.app/special-rules/shieldwall",
+        "text": (
+            "Once per game, during a turn in which it was charged, a unit with this "
+            "special rule that is arrayed in a Close Order formation, and that is "
+            "equipped with and chooses to use shields, may Give Ground rather than "
+            "Fall Back in Good Order."
+        ),
+    },
+    "Skirmishers": {
+        "status": None,
+        "url": "https://tow.whfb.app/unusual-formations/skirmish-formation",
+        "text": (
+            "A unit of models in Skirmish formation (often referred to as "
+            "'Skirmishers' in the rules that follow) never consists of rigid ranks "
+            "and files. Instead, it moves as a single loose group or rough line. "
+            "This enables Skirmishers to move quickly and take advantage of terrain "
+            "to shelter from the enemy."
+        ),
+    },
+    "Stomp Attacks": {
+        "status": "implemented",
         "url": "https://tow.whfb.app/special-rules/stomp-attacks",
         "text": (
             "The number of Stomp Attacks caused varies from model to model, and "
@@ -640,6 +1475,19 @@ FACTION_RULES = {
             "combat that must be made last, after all other attacks have been made, "
             "including attacks made at Initiative 1. They hit automatically and use "
             "the unmodified Strength of the model making them."
+        ),
+    },
+    "Stubborn": {
+        "status": None,
+        "url": "https://tow.whfb.app/special-rules/stubborn",
+        "text": (
+            "The first time this unit is required to make a Break test it may "
+            "choose not to and will automatically Falling Back in Good Order "
+            "instead, even if the Unit Strength of the winning side is more than "
+            "twice that of the losing side. A unit that is not Stubborn does not "
+            "become Stubborn when joined by a character that is. A Stubborn "
+            "character cannot use this special rule whilst part of a unit that is "
+            "not Stubborn."
         ),
     },
     "Swiftstride": {
@@ -682,7 +1530,7 @@ FACTION_RULES = {
         ),
     },
     "The Grail Vow": {
-        "status": None,
+        "status": "implemented",
         "url": "https://tow.whfb.app/special-rules/the-grail-vow",
         "text": (
             "A model with this Chivalrous Vow has the Immune to Psychology, Magical "
@@ -706,6 +1554,22 @@ FACTION_RULES = {
             "cannot be joined by a character that has the Peasantry special rule. A "
             "character with this Chivalrous Vow cannot join a unit with the "
             "Peasantry special rule."
+        ),
+    },
+    "The Questing Vow": {
+        "status": None,
+        "url": "https://tow.whfb.app/special-rules/the-questing-vow",
+        "text": (
+            "A model with this Chivalrous Vow has the Stubborn special rule and can "
+            "re-roll any failed Fear, Panic or Terror test. In addition, a model "
+            "with this Chivalrous Vow does not have to make a Panic test when a "
+            "friendly unit with the Peasantry special rule is destroyed whilst "
+            "within 6\" of it, or when it is fled through by a friendly unit with "
+            "the Peasantry special rule. However, a model with this Chivalrous Vow "
+            "cannot be equipped with a lance (be it magical or mundane). A unit "
+            "with this Chivalrous Vow cannot be joined by a character that has the "
+            "Knight's Vow or the Peasantry special rule. A character with this "
+            "Chivalrous Vow cannot join a unit with the Peasantry special rule."
         ),
     },
     "The Wyrm Slayer": {
@@ -748,6 +1612,28 @@ FACTION_RULES = {
         "text": (
             "When required to roll on the Miscast table, a Wizard with this special "
             "rule must roll an extra D6 and discard the highest result."
+        ),
+    },
+    "Vanguard": {
+        "status": None,
+        "url": "https://tow.whfb.app/special-rules/vanguard",
+        "text": (
+            "After deployment, units with this special rule may make a Vanguard "
+            "move. A unit making a Vanguard move moves as described in the Basic "
+            "Movement rules. It may manoeuvre normally but cannot march. If both "
+            "armies contain Vanguard units, a roll-off determines who moves first. "
+            "The players then alternate moving their Vanguard units one at a time, "
+            "starting with the player who won the roll-off. Units that make a "
+            "Vanguard move cannot declare a charge during their first turn."
+        ),
+    },
+    "Veteran": {
+        "status": None,
+        "url": "https://tow.whfb.app/special-rules/veteran",
+        "text": (
+            "If the majority of the models in a unit have this special rule, the "
+            "unit may re-roll any failed Leadership test. Note that a Break test is "
+            "not a Leadership test."
         ),
     },
     "Warband": {

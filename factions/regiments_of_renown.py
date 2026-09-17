@@ -61,11 +61,16 @@ CHARACTERS = {
     },
 }
 
-# Regular (non-character) units go here.
-UNITS = {}
+# Regular (non-character) units. `points` is per model unless `points_per`
+# says "unit"; `unit_size` is the minimum ("10+") or fixed size. Each unit
+# fights with the row named in its comment; its champion's statline is under
+# `champion` and any mount, crew or beast rows under `other_profiles`.
+UNITS = {
+
+}
 
 
-# Special rules carried by this faction's characters. `status` is how far the
+# Special rules carried by this faction's characters and units. `status` is how far the
 # engine goes with each: "implemented", "partial", or None for recorded only.
 # Texts longer than a paragraph are cut, marked "[...]"; `url` has the rest.
 FACTION_RULES = {

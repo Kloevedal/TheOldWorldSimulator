@@ -310,7 +310,8 @@ class TestNewWards(unittest.TestCase):
 
         cecil = build("Kingdom of Bretonnia", "Sir Cecil Gastonne")
         self.assertFalse(is_killing_blow_target(cecil))
-        self.assertIsNone(parse_ward(cecil.SpecialRules))
+        # Against ordinary attacks he has only the Blessings of the Lady.
+        self.assertEqual(parse_ward(cecil.SpecialRules), 6)
         self.assertEqual(parse_ward(cecil.SpecialRules, is_flaming=True), 3)
 
 
@@ -500,6 +501,155 @@ class TestCommonMagicItems(unittest.TestCase):
             result = OneRoundMeleeCombat(wielder, fighter("D"), verbose=False)
         self.assertEqual(result.multiple_wounds, "D3")
         self.assertTrue(result.is_magical)
+
+
+class TestUnits(unittest.TestCase):
+    """Regular units, read from the site's unit pages."""
+
+    def unit(self, faction, name):
+        return FactionProfiles[faction][name]
+
+    def test_every_faction_but_regiments_of_renown_has_units(self):
+        from factions import FACTION_MODULES
+
+        counts = {m.FACTION: len(m.UNITS) for m in FACTION_MODULES}
+        self.assertEqual(sum(counts.values()), 338)
+        self.assertEqual(counts["Regiments of Renown"], 0)
+        self.assertEqual(counts["Empire of Man"], 25)
+
+    def test_statlines_units_fight_with(self):
+        for faction, name, expected in [
+            # (T, W, A): a war machine fights with its crew's T and W.
+            ("Empire of Man", "Great Cannon", (3, 3, 3)),
+            # A chariot's crew borrows the chariot's T and W.
+            ("Orcs", "Orc Boar Chariot", (5, 4, 1)),
+            ("High Elves", "White Lions of Chrace", (3, 1, 1)),
+        ]:
+            with self.subTest(unit=name):
+                p = self.unit(faction, name)["base_profile"]
+                self.assertEqual((p["Toughness"], p["Wounds"], p["Attacks"]), expected)
+
+    def test_units_fight_with_their_special_weapon(self):
+        self.assertEqual(self.unit("High Elves", "White Lions of Chrace")["base_profile"]["Weapon"],
+                         "Chracian Great Blade")
+        self.assertEqual(self.unit("Empire of Man", "Empire Greatswords")["base_profile"]["Weapon"],
+                         "Great Weapon")
+
+    def test_a_secondary_attack_is_never_the_default_weapon(self):
+        trolls = self.unit("Orcs", "Common Troll Mob")
+        self.assertEqual(trolls["base_profile"]["Weapon"], "Hand Weapon")
+        self.assertIn("Troll Vomit", trolls["equipment_options"]["weapons"])
+
+    def test_a_two_handed_default_sets_the_shield_aside(self):
+        guard = self.unit("Lizardmen", "Temple Guard")
+        self.assertEqual(guard["base_profile"]["Weapon"], "Halberd")
+        self.assertFalse(guard["base_profile"]["Shield"])
+        self.assertTrue(guard["equipment_options"]["shield"])
+
+    def test_champions_and_sizes_are_recorded(self):
+        greatswords = self.unit("Empire of Man", "Empire Greatswords")
+        self.assertEqual(greatswords["champion"]["Name"], "Count's Champion")
+        self.assertEqual(greatswords["champion"]["Attacks"], 2)
+        self.assertEqual((greatswords["points"], greatswords["points_per"], greatswords["unit_size"]),
+                         (11, "model", "5+"))
+
+    def test_a_printed_armour_value_is_used(self):
+        self.assertEqual(self.unit("Orcs", "Orc Boar Chariot")["base_profile"]["Armor"],
+                         "Full Plate Armor")  # 4+
+        self.assertEqual(self.unit("Warriors of Chaos", "Chaos Chariot")["base_profile"]["Armor"],
+                         "Armour Value 3+")
+        # Settra's page prints 4+ too.
+        self.assertEqual(build("Tomb Kings of Khemri", "Settra").Armor, "Full Plate Armor")
+
+    def test_a_cost_given_as_text_keeps_the_text(self):
+        pack = self.unit("Lizardmen", "Razordon Pack")
+        self.assertEqual(pack["points"], 5)
+        self.assertIn("60 points per Razordon", pack["points_note"])
+
+    def test_mount_only_monsters_are_not_units(self):
+        self.assertNotIn("Carnosaur", FactionProfiles["Lizardmen"])
+        self.assertNotIn("Star Dragon", FactionProfiles["High Elves"])
+
+    def test_units_are_filed_as_units(self):
+        self.assertEqual(self.unit("Skaven", "Clanrats")["base_profile"]["UnitCategory"], "Unit")
+
+
+class TestKillingBlowRelatives(unittest.TestCase):
+    def test_monster_slayer_slays_a_monster(self):
+        slayer = fighter("Slayer", SpecialRules=["Monster Slayer"], Strength=5)
+        monster = fighter("Monster", Toughness=5, Wounds=6)
+        monster.TroopType = "Behemoth"
+        with dice.scripted_dice([6]):
+            wounds, _, _ = RollToWound(slayer, monster, 1, verbose=False)
+        self.assertTrue(wounds[0].killing_blow)
+        taken, slain = resolve_strike(monster, StrikeResult(unsaved=wounds), verbose=False)
+        self.assertTrue(slain)
+
+    def test_monster_slayer_does_nothing_to_infantry(self):
+        slayer = fighter("Slayer", SpecialRules=["Monster Slayer"])
+        with dice.scripted_dice([6]):
+            wounds, _, _ = RollToWound(slayer, fighter("Man"), 1, verbose=False)
+        self.assertFalse(wounds[0].killing_blow)
+
+    def test_cleaving_blow_denies_armour_and_regeneration_but_does_not_slay(self):
+        from combat_simulations import RollArmorSave
+
+        swordmaster = fighter("S", SpecialRules=["Cleaving Blow"])
+        knight = fighter("K", Armor="Full Plate Armor", Shield=True, Wounds=3,
+                         SpecialRules=["Regen5"])
+        with dice.scripted_dice([6]):
+            wounds, _, _ = RollToWound(swordmaster, knight, 1, verbose=False)
+        self.assertTrue(wounds[0].cleaving_blow)
+        with dice.scripted_dice([]):  # no armour save and no Regeneration roll
+            unsaved = RollArmorSave(swordmaster, knight, wounds, verbose=False)
+            taken, slain = resolve_strike(knight, StrikeResult(unsaved=unsaved), verbose=False)
+        self.assertEqual((taken, slain), (1, False))
+
+    def test_cleaving_blow_does_not_affect_a_monster(self):
+        monster = fighter("M")
+        monster.TroopType = "Behemoth"
+        with dice.scripted_dice([6]):
+            wounds, _, _ = RollToWound(fighter("S", SpecialRules=["Cleaving Blow"]),
+                                       monster, 1, verbose=False)
+        self.assertFalse(wounds[0].cleaving_blow)
+
+
+class TestUnitWeapons(unittest.TestCase):
+    def test_a_weapon_with_its_own_strength_replaces_the_wielders(self):
+        crew = fighter("Crew", Strength=3, Weapon="Warp Grinder")
+        apply_weapon_stats(crew, verbose=False)
+        try:
+            self.assertEqual(crew.Strength, 5)
+        finally:
+            reset_weapon_stats(crew)
+        self.assertEqual(crew.Strength, 3)
+
+    def test_a_plaguesword_denies_regeneration(self):
+        from combat_simulations import OneRoundMeleeCombat
+
+        bearer = fighter("P", Weapon="Plaguesword")
+        with dice.constant_dice(6):
+            result = OneRoundMeleeCombat(bearer, fighter("D", Armor=None), verbose=False)
+        self.assertTrue(result.denies_regeneration)
+        troll = fighter("T", Wounds=5, SpecialRules=["Regen5"])
+        with dice.scripted_dice([]):  # no Regeneration roll
+            taken, _ = resolve_strike(
+                troll, StrikeResult(unsaved=[Wound(4)], denies_regeneration=True), verbose=False
+            )
+        self.assertEqual(taken, 1)
+
+    def test_accursed_weapons_are_magical_with_ap(self):
+        from combat_simulations import has_ensorcelled_hand_weapon
+
+        knight = build("Vampire Counts", "Blood Knights", Weapon="Hand Weapon")
+        self.assertTrue(has_ensorcelled_hand_weapon(knight))
+
+    def test_new_unit_wards(self):
+        ironbreakers = build("Dwarfen Mountain Holds", "Ironbreakers")
+        self.assertEqual(parse_ward(ironbreakers.SpecialRules, is_magical=False), 6)
+        self.assertIsNone(parse_ward(ironbreakers.SpecialRules, is_magical=True))
+        sisters = build("Wood Elf Realms", "Sisters of the Thorn")
+        self.assertEqual(parse_ward(sisters.SpecialRules), 4)
 
 
 class TestNamedCharacters(unittest.TestCase):

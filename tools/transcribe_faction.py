@@ -35,6 +35,19 @@ import transcribe_mounts as mount_names  # noqa: E402
 # Site rule name -> extra rule strings the engine parses, appended after the
 # rule itself (the way Blackshard Armour carries "Ward5 (Flaming)").
 RULE_COMPANIONS = {
+    # Daemonic is a bundle; the Daemons of Chaos characters carry it expanded.
+    "Daemonic": ["Ward5 (non-magical)", "Daemonic Instability", "Fear",
+                 "Immune to Psychology", "Magical Attacks", "Unbreakable",
+                 "Warp-spawned"],
+    "Blackshard Armour": ["Ward5 (Flaming)"],
+    "Blessings of Ulric": ["Ward6 (Flaming)"],
+    "Blessings of the Horned Rat": ["Ward5 (non-magical)"],
+    "Dark Runes": ["Ward5 (non-magical)"],
+    "Daughters of Eternity": ["Ward4"],
+    "Relentless Warriors": ["Ward6 (non-magical)"],
+    "Runes of Protection": ["Ward6 (non-magical)"],
+    "Runes of Warding": ["Ward5 (Flaming)"],
+    "Inner Circle": ["Reroll Hits 1"],
     "Ancestral Shield": ["Ward5"],
     "Arcane Shield": ["Ward5"],
     "Blessed Knight": ["Ward5"],
@@ -48,6 +61,26 @@ RULE_COMPANIONS = {
 
 # Base rule name -> engine status. Anything else is recorded only (None).
 ENGINE_RULES = {
+    "Accursed Weapons": "implemented",
+    "Blessings of Ulric": "implemented",
+    "Blessings of the Horned Rat": "implemented",
+    "Dark Runes": "implemented",
+    "Daughters of Eternity": "implemented",
+    "Relentless Warriors": "implemented",
+    "Runes of Protection": "implemented",
+    "Runes of Warding": "implemented",
+    "Inner Circle": "implemented",
+    "Daemonic": "implemented",
+    "Blackshard Armour": "implemented",
+    "Blood Rage": "implemented",
+    "Primal Fury": "implemented",
+    "Ensorcelled Weapons": "implemented",
+    "Murderous": "implemented",
+    "Ithilmar Weapons": "implemented",
+    "Choppas": "implemented",
+    "Gromril Armour": "implemented",
+    "Monster Slayer": "implemented",
+    "Cleaving Blow": "implemented",
     "Ancestral Shield": "implemented",
     "Strike First": "implemented",
     "Strike Last": "implemented",
@@ -74,6 +107,25 @@ ENGINE_RULES = {
     "Warpstone Weapons": "implemented",
     "Settra's Champion": "partial",
     "Flammable": "implemented",
+    "Poisoned Attacks": "implemented",
+    "Impact Hits": "implemented",
+    "Stomp Attacks": "implemented",
+    "Extra Attacks": "implemented",
+    "Blessings of the Lady": "implemented",
+    "The Grail Vow": "implemented",
+    "Mark of Khorne": "implemented",
+    "Mark of Nurgle": "implemented",
+    "Mark of Slaanesh": "implemented",
+    "Mark of Tzeentch": "implemented",
+}
+
+# A model's printed armour value -> the ArmourDict name that gives it.
+ARMOUR_VALUES = {
+    "6+": "Light Armor",
+    "5+": "Heavy Armor",
+    "4+": "Full Plate Armor",
+    "3+": "Armour Value 3+",
+    "2+": "Armour Value 2+",
 }
 
 ARMOUR = {
@@ -100,6 +152,7 @@ FACTIONS = {
         aliases=["Cathay", "Empire of Grand Cathay", "Grand Cathay"],
         profile_aliases={"Miao": "Miao Ying", "Storm Dragon": "Miao Ying"},
         race="Cathayan",
+        unit_races=[("ogre", "Ogre")],
     ),
     "bretonnia": dict(
         module="kingdom_of_bretonnia", faction="Kingdom of Bretonnia",
@@ -129,6 +182,7 @@ FACTIONS = {
         races={"Saurus Oldblood": "Saurus", "Saurus Scar-Veteran": "Saurus",
                "Skink Chief": "Skink", "Skink Priest": "Skink",
                "Slann Mage-Priest": "Slann"},
+        unit_races=[("skink", "Skink"), ("saurus|temple guard|cold one", "Saurus")],
     ),
     "ogres": dict(
         module="ogre_kingdoms", faction="Ogre Kingdoms", army="ogre-kingdoms",
@@ -136,6 +190,7 @@ FACTIONS = {
         aliases=["Ogres", "Ogre Kingdoms", "OK"],
         profile_aliases={"Ogre Tyrant": "Tyrant", "Ogre Bruiser": "Bruiser"},
         race="Ogre",
+        unit_races=[("gnoblar", "Gnoblar"), ("giant", "Giant")],
     ),
     "realms_of_men": dict(
         module="realms_of_men", faction="Realms of Men", army="realms-of-men",
@@ -188,6 +243,9 @@ FACTIONS = {
                "Cairn Wraith": "Spirit", "Tomb Banshee": "Spirit",
                "Wight King": "Wight", "Wight Lord": "Wight",
                "Strigoi Ghoul King": "Vampire"},
+        unit_race="Undead",
+        unit_races=[("ghoul|crypt horror", "Ghoul"),
+                    ("vargheist|blood knight|varghulf|coven throne", "Vampire")],
     ),
     "wood_elves": dict(
         module="wood_elf_realms", faction="Wood Elf Realms",
@@ -198,7 +256,39 @@ FACTIONS = {
         race="Wood Elf",
         races={"Branchwraith": "Forest Spirit",
                "Treeman Ancient": "Forest Spirit"},
+        unit_races=[("dryad|tree", "Forest Spirit")],
     ),
+    # The factions whose characters were hand-transcribed. Only their UNITS
+    # (and any FACTION_RULES entries those units add) are generated.
+    "high_elves": dict(module="high_elves", faction="High Elves",
+                       army="high-elf-realms", race="High Elf", legacy=True),
+    "orcs": dict(module="orc_and_goblin_tribes", faction="Orcs",
+                 army="orc-and-goblin-tribes", race="Orc", legacy=True,
+                 unit_races=[("night goblin|fanatic", "Night Goblin"),
+                             ("snotling", "Snotling"), ("squig", "Squig"),
+                             ("goblin|skulker|arachnarok|doom diver|throwa|lobber", "Goblin"),
+                             ("troll", "Troll"), ("giant", "Giant"), ("ogre", "Ogre")]),
+    "chaos": dict(module="warriors_of_chaos", faction="Warriors of Chaos",
+                  army="warriors-of-chaos", race="Chaos Warrior", legacy=True,
+                  unit_races=[("marauder|skin wolves", "Chaos Marauder"),
+                              ("ogre", "Ogre"), ("troll", "Troll")]),
+    "empire": dict(module="empire_of_man", faction="Empire of Man",
+                   army="empire-of-man", race="Human", legacy=True,
+                   unit_races=[("ogre", "Ogre")]),
+    "dwarfs": dict(module="dwarfen_mountain_holds", faction="Dwarfen Mountain Holds",
+                   army="dwarfen-mountain-holds", race="Dwarf", legacy=True),
+    "beastmen": dict(module="beastmen_brayherds", faction="Beastmen Brayherds",
+                     army="beastmen-brayherds", race="Beastman", legacy=True,
+                     unit_races=[("centigor", "Centigor"), ("minotaur", "Minotaur"),
+                                 ("giant", "Giant")]),
+    "chaos_dwarfs": dict(module="chaos_dwarfs", faction="Chaos Dwarfs",
+                         army="chaos-dwarfs", race="Chaos Dwarf", legacy=True,
+                         unit_races=[("hobgoblin|sneaky gits", "Hobgoblin"),
+                                     ("bull centaur", "Bull Centaur")]),
+    "daemons": dict(module="daemons_of_chaos", faction="Daemons of Chaos",
+                    army="daemons-of-chaos", race="Daemon", legacy=True),
+    "dark_elves": dict(module="dark_elves", faction="Dark Elves",
+                       army="dark-elves", race="Dark Elf", legacy=True),
     "dwarfs_anvil": dict(
         module=None, faction="Dwarfen Mountain Holds",
         army="dwarfen-mountain-holds", title="Dwarfen Mountain Holds",
@@ -285,26 +375,113 @@ def statline(row):
     return " ".join(f"{k}{row[k]}" for k in ("M", "WS", "BS", "S", "T", "W", "I", "A", "Ld"))
 
 
+def _numeric(row, key):
+    return str(row.get(key, "")).strip().isdigit()
+
+
+def unit_rows(unit):
+    """(fighting row, champion row or None, body row or None, other rows).
+
+    The fighting row is the first rank-and-file row with its own Weapon Skill
+    and Attacks - the rider of a cavalry model, the crew of a chariot or war
+    machine, the monster itself. The champion is the row the options let one
+    model be upgraded to. The body is the row a crew or rider borrows
+    Toughness and Wounds from (a chariot, a war machine).
+    """
+    rows = unit["profiles"]
+    options = unit["options"].lower()
+    champion = None
+    for row in rows:
+        label = re.sub(r"\s*\(.*\)$", "", row["Name"]).strip().lower()
+        if "champion" in label or re.search(
+            r"upgrade one model to an? " + re.escape(label) + r"\b", options
+        ):
+            champion = row
+            break
+    fighters = [r for r in rows if r is not champion and _numeric(r, "WS")]
+    fighters.sort(key=lambda r: not _numeric(r, "A"))  # stable: prefer real Attacks
+    main = fighters[0] if fighters else rows[0]
+    body = None
+    if not (_numeric(main, "T") and _numeric(main, "W")):
+        body = next((r for r in rows if _numeric(r, "T") and _numeric(r, "W")), None)
+    others = [r for r in rows if r is not main and r is not champion]
+    return main, champion, body, others
+
+
+def _unit_race(cfg, name):
+    for pattern, race in cfg.get("unit_races", []):
+        if re.search(pattern, name, re.IGNORECASE):
+            return race
+    return cfg.get("unit_race", cfg["race"])
+
+
+def _stats(row, body=None):
+    stats = {}
+    for key, col in (("Movement", "M"), ("WeaponSkill", "WS"), ("BallisticSkill", "BS"),
+                     ("Strength", "S"), ("Toughness", "T"), ("Initiative", "I"),
+                     ("Wounds", "W"), ("Attacks", "A"), ("Leadership", "Ld")):
+        value = _int(row[col])
+        if value is None and body is not None and col in ("T", "W"):
+            value = _int(body[col])
+        stats[key] = value
+    return stats
+
+
 def build_character(slug, cfg, review):
+    return build_entry(slug, cfg, review, is_unit=False)
+
+
+def build_unit(slug, cfg, review):
+    return build_entry(slug, cfg, review, is_unit=True)
+
+
+def build_entry(slug, cfg, review, is_unit):
     from weapons import find_weapon_key
 
     unit = site.unit(slug)
     raw = unit["raw"]
     name = unit["name"]
-    main, others = profile_for(unit)
-    # The site files a named character under either field.
-    named = "Named Character" in unit["unit_category"] + unit["troop_type"]
-    comments = [f"https://tow.whfb.app/unit/{slug} - {unit['cost']} pts"]
+    champion = body = None
+    if is_unit:
+        main, champion, body, others = unit_rows(unit)
+        named = False
+        size = str(raw.get("unitSize") or "").strip()
+        per = "model" if size != "1" else "unit"
+        comments = [f"https://tow.whfb.app/unit/{slug} - {unit['cost']} pts per {per}"
+                    + (f", unit size {size}" if size and size != "1" else "")]
+        fighter = main["Name"]
+        if not _numeric(main, "A") and str(main["A"]).strip() not in ("-", ""):
+            comments.append(f"Its Attacks are {main['A']}, a dice value the engine cannot use yet; "
+                            "recorded as None, so it makes no attacks.")
+        if not size:
+            size = "not given"
+            comments.append("The site gives no unit size.")
+        comments.append(f"Fights with the {fighter} row"
+                        + (f", using the {body['Name']} row's Toughness and Wounds" if body else "")
+                        + ".")
+    else:
+        main, others = profile_for(unit)
+        # The site files a named character under either field.
+        named = "Named Character" in unit["unit_category"] + unit["troop_type"]
+        comments = [f"https://tow.whfb.app/unit/{slug} - {unit['cost']} pts"]
     for other in others:
         comments.append(f"Also has a profile for {other['Name']} ({statline(other)}); not simulated.")
 
     eq_text = site.text(raw.get("equipment")).strip()
     eq_lower = eq_text.lower()
-    # Only the character's own equipment line counts, not its mount's.
+    # Only the fighting model's own equipment line counts, not its mount's.
     own_line = eq_text
-    lines = [l for l in eq_text.splitlines() if l.strip()]
+    lines = [l.lstrip("- ").strip() for l in eq_text.splitlines() if l.strip()]
     if len(lines) > 1 and ":" in lines[0]:
         own_line = lines[0]
+        if is_unit:
+            wanted = mount_names._fold(re.sub(r"\s*\(.*\)$", "", main["Name"]))
+            for line in lines:
+                label = mount_names._fold(line.split(":", 1)[0])
+                if label and (label in wanted or wanted in label
+                              or label.rstrip("s") in wanted or wanted.rstrip("s") in label):
+                    own_line = line
+                    break
     own_lower = own_line.lower()
 
     weapons, ranged, armour_options = [], [], []
@@ -340,6 +517,7 @@ def build_character(slug, cfg, review):
         elif category == "ranged":
             ranged.append(shown)
 
+    equipment_weapons = list(weapons)
     counts_as = re.search(r"counts as (?:an? )?(light|heavy|full plate) armour", own_lower)
     if counts_as and armour is None:
         armour = ARMOUR[counts_as.group(1) + " armour"]
@@ -352,7 +530,7 @@ def build_character(slug, cfg, review):
         if low in ARMOUR:
             armour_options.append(ARMOUR[low])
             continue
-        if low == "shield":
+        if low in ("shield", "shields"):
             shield_option = True
             continue
         if kind != "rule":
@@ -366,8 +544,18 @@ def build_character(slug, cfg, review):
             if shown not in ranged:
                 ranged.append(shown)
 
+    from weapons import get_weapon_special_rules
+
+    # Tails, maws and the like make one extra attack; they are never the
+    # weapon a model fights with.
+    equipped = [w for w in equipment_weapons if w != "Hand Weapon"
+                and "Secondary Attack" not in get_weapon_special_rules(w)]
     if magic_weapons:
         default_weapon = magic_weapons[0]
+    elif is_unit and equipped:
+        # A unit carrying a hand weapon and a special weapon fights with the
+        # special one by default (White Lions with their great blades).
+        default_weapon = equipped[0]
     elif "Hand Weapon" in weapons:
         default_weapon = "Hand Weapon"
     elif weapons:
@@ -384,6 +572,24 @@ def build_character(slug, cfg, review):
         if find_weapon_key(w) is None:
             review.append(f"{name}: melee weapon {w!r} has no MeleeWeaponDict entry")
 
+    from special_rules import RequiresTwoHands
+
+    if shield and default_weapon and RequiresTwoHands in get_weapon_special_rules(default_weapon):
+        # It carries a shield, but cannot use it with this weapon.
+        shield = False
+        comments.append(f"Carries a shield, which it cannot use with its {default_weapon}; "
+                        "pass Shield=True with a one-handed weapon.")
+
+    printed = str(raw.get("armourValue") or "").strip()
+    if printed:
+        # The site prints this model's armour value outright (a chariot, a
+        # monster, Settra); it already includes any barding, so the crew's own
+        # armour and shields do not add to it.
+        armour = ARMOUR_VALUES[printed]
+        armour_options = []
+        shield = shield_option = False
+        comments.append(f"Armour value {printed} as printed on the site.")
+
     armour_list = []
     for a in [armour] + armour_options:
         if a and a not in armour_list:
@@ -391,7 +597,7 @@ def build_character(slug, cfg, review):
 
     mounts = []
     for shown, link_slug, kind in unit["option_links"]:
-        if kind != "armyListEntry":
+        if kind != "armyListEntry" or is_unit:
             continue
         target = mount_names.canonical(site.unit(link_slug)["name"])
         shown_words = set(mount_names._fold(re.sub(r"\s*\(.*$", "", shown)).split())
@@ -406,7 +612,7 @@ def build_character(slug, cfg, review):
 
     optional = [shown for shown, _s, kind in unit["option_links"]
                 if kind == "rule" and classify(_s)[0] is None
-                and shown.lower() not in ARMOUR and shown.lower() != "shield"]
+                and shown.lower() not in ARMOUR and shown.lower() not in ("shield", "shields")]
 
     if ranged:
         comments.append(
@@ -425,26 +631,21 @@ def build_character(slug, cfg, review):
     if len(troop) > 1:
         comments.append(f"Troop type by form: {', '.join(troop)}; the first is used.")
 
-    race = cfg.get("races", {}).get(name, cfg["race"])
+    if is_unit:
+        race = _unit_race(cfg, name)
+    else:
+        race = cfg.get("races", {}).get(name, cfg["race"])
 
-    base = {
-        "Movement": _int(main["M"]),
-        "WeaponSkill": _int(main["WS"]),
-        "BallisticSkill": _int(main["BS"]),
-        "Strength": _int(main["S"]),
-        "Toughness": _int(main["T"]),
-        "Initiative": _int(main["I"]),
-        "Wounds": _int(main["W"]),
-        "Attacks": _int(main["A"]),
-        "Leadership": _int(main["Ld"]),
+    base = dict(_stats(main, body))
+    base.update({
         "Race": race,
         "Armor": armour,
         "Weapon": default_weapon,
         "Shield": shield,
         "SpecialRules": rules,
         "TroopType": troop[0].replace(" ", "") if troop else None,
-        "UnitCategory": "NamedCharacter" if named else "Character",
-    }
+        "UnitCategory": "Unit" if is_unit else ("NamedCharacter" if named else "Character"),
+    })
     if unit["wizard_level"] is not None and unit["lores"]:
         base["WizardLevel"] = int(unit["wizard_level"])
         base["Lores"] = [re.sub(r"\s+Lore$", "", l) for l in unit["lores"]]
@@ -456,9 +657,24 @@ def build_character(slug, cfg, review):
     if override.get("comment"):
         comments.append(override["comment"])
 
-    return name, {
+    points = unit["cost"]
+    note = str(raw.get("costOverride") or "").strip()
+    if points is None and note:
+        match = re.search(r"\d+", note)
+        points = int(match.group(0)) if match else None
+    entry = {
         "comments": comments,
-        "points": unit["cost"],
+        "points": points,
+    }
+    if note:
+        entry["points_note"] = note
+    if is_unit:
+        entry["points_per"] = per
+        entry["unit_size"] = size or None
+        if champion is not None:
+            entry["champion"] = dict({"Name": champion["Name"]}, **_stats(champion, body))
+        entry["other_profiles"] = [dict({"Name": r["Name"]}, **_stats(r)) for r in others]
+    entry.update({
         "base_profile": base,
         "equipment_options": {
             "weapons": weapons,
@@ -468,7 +684,8 @@ def build_character(slug, cfg, review):
         },
         "mount_options": {"mounts": mounts},
         "rule_links": unit["rule_links"],
-    }
+    })
+    return name, entry
 
 
 def _py(value):
@@ -485,6 +702,19 @@ def render_character(name, entry):
         for line in textwrap.wrap(c, 76):
             out.append(f"        # {line}")
     out.append(f'        "points": {entry["points"]},')
+    for key in ("points_note", "points_per", "unit_size"):
+        if key in entry:
+            out.append(f'        "{key}": {_py(entry[key])},')
+    if entry.get("champion"):
+        out.append(f'        "champion": {entry["champion"]!r},')
+    if "other_profiles" in entry:
+        if entry["other_profiles"]:
+            out.append('        "other_profiles": [')
+            for row in entry["other_profiles"]:
+                out.append(f"            {row!r},")
+            out.append("        ],")
+        else:
+            out.append('        "other_profiles": [],')
     out.append('        "base_profile": {')
     for k, v in entry["base_profile"].items():
         out.append(f'            "{k}": {_py(v)},')
@@ -501,7 +731,7 @@ def render_character(name, entry):
 
 
 def faction_rules(characters):
-    """FACTION_RULES from every rule on the faction's characters."""
+    """FACTION_RULES from every rule on the given profiles."""
     seen = {}
     for entry in characters.values():
         for shown, slug, _kind in entry["rule_links"]:
@@ -540,21 +770,67 @@ def render_rules(rules):
     return "\n".join(out)
 
 
+def legacy_characters(cfg):
+    import importlib
+
+    return importlib.import_module(f"factions.{cfg['module']}").CHARACTERS
+
+
 def build(key):
+    """(cfg, characters, units, rules, review) for one faction."""
     cfg = FACTIONS[key]
     review = []
-    characters = {}
+    characters, units = {}, {}
     for section, slug, _name in site.army_units(cfg["army"]):
-        if "Character" not in section:
+        if cfg.get("only"):
+            if slug in cfg["only"]:
+                name, entry = build_character(slug, cfg, review)
+                characters[name] = entry
             continue
-        if cfg.get("only") and slug not in cfg["only"]:
-            continue
-        name, entry = build_character(slug, cfg, review)
-        characters[name] = entry
-    return cfg, characters, faction_rules(characters), review
+        if section == "Mount":
+            continue  # mounts.py
+        if "Character" in section:
+            if cfg.get("legacy"):
+                continue
+            name, entry = build_character(slug, cfg, review)
+            characters[name] = entry
+        else:
+            page = site.unit(slug)
+            if not page["profiles"]:
+                review.append(f"{_name}: the site page has no statline; skipped")
+                continue
+            body_text = site.text(page["raw"].get("bodyBefore"))
+            if "only be included in your army as a character's mount" in body_text:
+                continue  # mounts.py
+            if not any(_numeric(r, "WS") for r in page["profiles"]):
+                review.append(f"{_name}: no row that fights; skipped")
+                continue
+            name, entry = build_unit(slug, cfg, review)
+            base = entry["base_profile"]
+            if not (base["Toughness"] and base["Wounds"]):
+                review.append(f"{name}: no Toughness/Wounds of its own; skipped")
+                continue
+            if cfg.get("legacy") and name in legacy_characters(cfg):
+                continue  # already hand-transcribed as a character
+            units[name] = entry
+    for name in set(characters) & set(units):
+        review.append(f"{name}: both a character and a unit")
+    rules = faction_rules(dict(characters, **units))
+    return cfg, characters, units, rules, review
 
 
-def render_module(cfg, characters, rules):
+def render_units(units):
+    body = "\n".join(render_character(n, e) for n, e in units.items())
+    return f"""# Regular (non-character) units. `points` is per model unless `points_per`
+# says "unit"; `unit_size` is the minimum ("10+") or fixed size. Each unit
+# fights with the row named in its comment; its champion's statline is under
+# `champion` and any mount, crew or beast rows under `other_profiles`.
+UNITS = {{
+{body}
+}}"""
+
+
+def render_module(cfg, characters, units, rules):
     aliases = "\n".join(f"    {_py(a)}," for a in cfg["aliases"])
     profile_aliases = "\n".join(
         f"    {_py(k)}: {_py(v)}," for k, v in cfg["profile_aliases"].items()
@@ -585,11 +861,10 @@ CHARACTERS = {{
 {body}
 }}
 
-# Regular (non-character) units go here.
-UNITS = {{}}
+{render_units(units)}
 
 
-# Special rules carried by this faction's characters. `status` is how far the
+# Special rules carried by this faction's characters and units. `status` is how far the
 # engine goes with each: "implemented", "partial", or None for recorded only.
 # Texts longer than a paragraph are cut, marked "[...]"; `url` has the rest.
 FACTION_RULES = {{
@@ -600,17 +875,59 @@ PROFILES = dict(CHARACTERS, **UNITS)
 '''
 
 
+_UNITS_BLOCK = re.compile(
+    r"(?:# Regular \(non-character\) units[^\n]*\n(?:#[^\n]*\n)*)?"
+    r"UNITS = \{(?:\}|\n.*?\n\})\n", re.S)
+
+
+def update_legacy_module(path, units, rules):
+    """Replace UNITS in a hand-written module, and add missing FACTION_RULES."""
+    source = open(path, encoding="utf-8").read()
+    match = _UNITS_BLOCK.search(source)
+    if match is None:
+        match = re.search(r"# Regular \(non-character\) units go here\.\nUNITS = \{\}\n", source)
+    if match is None:
+        raise ValueError(f"{path}: no UNITS block found")
+    source = source[:match.start()] + render_units(units) + "\n" + source[match.end():]
+
+    start = source.index("FACTION_RULES = {")
+    end = source.index("\n}\n", start)
+    existing = source[start:end]
+    known = {base_rule_name(k) for k in re.findall(r"^    ['\"](.+?)['\"]: \{", existing, re.M)}
+    missing = {k: v for k, v in rules.items() if k not in known}
+    if missing:
+        source = source[:end] + "\n" + render_rules(missing) + source[end:]
+
+    # Entries this tool wrote (they carry a "url") take their status from
+    # ENGINE_RULES, so a rule implemented later is not left marked as missing.
+    def refresh(match):
+        return f'{match.group(1)}"status": {_py(ENGINE_RULES.get(match.group(2)))},\n{match.group(3)}'
+    source = re.sub(
+        r'(\n    "([^"\n]+)": \{\n        )"status": [^\n]*,\n(        "url": )',
+        refresh, source)
+    with open(path, "w", encoding="utf-8") as fh:
+        fh.write(source)
+    return sorted(missing)
+
+
 def main(argv):
     key = argv[1]
-    cfg, characters, rules, review = build(key)
-    source = render_module(cfg, characters, rules)
-    if "-w" in argv and cfg["module"]:
-        path = os.path.join(ROOT, "factions", cfg["module"] + ".py")
-        with open(path, "w", encoding="utf-8") as fh:
-            fh.write(source)
-        print(f"wrote {path}")
-    elif "-w" not in argv:
-        print(source)
+    cfg, characters, units, rules, review = build(key)
+    path = os.path.join(ROOT, "factions", (cfg["module"] or "") + ".py")
+    if cfg.get("legacy"):
+        if "-w" in argv:
+            added = update_legacy_module(path, units, rules)
+            print(f"updated {path}: {len(units)} units, rules added: {added}")
+        else:
+            print(render_units(units))
+    else:
+        source = render_module(cfg, characters, units, rules)
+        if "-w" in argv and cfg["module"]:
+            with open(path, "w", encoding="utf-8") as fh:
+                fh.write(source)
+            print(f"wrote {path}")
+        elif "-w" not in argv:
+            print(source)
     for line in review:
         print("REVIEW:", line, file=sys.stderr)
 

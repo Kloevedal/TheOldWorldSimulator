@@ -94,6 +94,7 @@ CHARACTERS = {
         # not simulated.
         # Also has a profile for Skeletal Steed (x4) (M8 WS2 BS- S3 T- W- I2 A1 Ld-);
         # not simulated.
+        # Armour value 4+ as printed on the site.
         # Settra's own Wounds are '-': he uses the Chariot of the Gods' W8 (and its
         # T5, the same as his).
         "points": 445,
@@ -108,7 +109,7 @@ CHARACTERS = {
             "Attacks": 5,
             "Leadership": 10,
             "Race": "Tomb King",
-            "Armor": None,
+            "Armor": "Full Plate Armor",
             "Weapon": "The Blessed Blade of Ptra",
             "Shield": False,
             "SpecialRules": ["Commander of Legions", "Curse of the Necropolis", "Dry as Dust", "Flammable", "Impact Hits (2D3)", "Indomitable (3)", "Lore of Nehekhara", "My Will Be Done", "Nehekharan Undead", "Regeneration (5+)", "Settra Does Not Kneel!", "Settra the Great"],
@@ -119,7 +120,7 @@ CHARACTERS = {
         },
         "equipment_options": {
             "weapons": ["The Blessed Blade of Ptra"],
-            "armor": [],
+            "armor": ["Full Plate Armor"],
             "shield": False,
             "items": ["The Blessed Blade of Ptra", "The Chariot of the Gods", "The Crown of Nehekhara", "The Scarab Brooch of Usirian"],
         },
@@ -354,11 +355,958 @@ CHARACTERS = {
     },
 }
 
-# Regular (non-character) units go here.
-UNITS = {}
+# Regular (non-character) units. `points` is per model unless `points_per`
+# says "unit"; `unit_size` is the minimum ("10+") or fixed size. Each unit
+# fights with the row named in its comment; its champion's statline is under
+# `champion` and any mount, crew or beast rows under `other_profiles`.
+UNITS = {
+    "Carrion": {
+        # https://tow.whfb.app/unit/carrion - 27 pts per model, unit size 2+
+        # Fights with the Carrion row.
+        "points": 27,
+        "points_per": "model",
+        "unit_size": "2+",
+        "other_profiles": [],
+        "base_profile": {
+            "Movement": 2,
+            "WeaponSkill": 3,
+            "BallisticSkill": 0,
+            "Strength": 4,
+            "Toughness": 4,
+            "Initiative": 3,
+            "Wounds": 2,
+            "Attacks": 3,
+            "Leadership": 4,
+            "Race": "Tomb King",
+            "Armor": None,
+            "Weapon": "Hand Weapon",
+            "Shield": False,
+            "SpecialRules": ["Fly (10)", "Nehekharan Undead", "Regeneration (6+)", "Skirmishers", "Swiftstride"],
+            "TroopType": "MonstrousInfantry",
+            "UnitCategory": "Unit",
+        },
+        "equipment_options": {
+            "weapons": ["Hand Weapon"],
+            "armor": [],
+            "shield": False,
+            "items": [],
+        },
+        "mount_options": {
+            "mounts": []
+        }
+    },
+    "Skeleton Archers": {
+        # https://tow.whfb.app/unit/skeleton-archers - 5 pts per model, unit size 10+
+        # (5+ if a detachment)
+        # Fights with the Skeleton Archer row.
+        # Shooting is not simulated, so these are left out of the options: warbows.
+        "points": 5,
+        "points_per": "model",
+        "unit_size": "10+ (5+ if a detachment)",
+        "champion": {'Name': 'Master of Arrows', 'Movement': 4, 'WeaponSkill': 2, 'BallisticSkill': 3, 'Strength': 3, 'Toughness': 3, 'Initiative': 2, 'Wounds': 1, 'Attacks': 1, 'Leadership': 5},
+        "other_profiles": [],
+        "base_profile": {
+            "Movement": 4,
+            "WeaponSkill": 2,
+            "BallisticSkill": 2,
+            "Strength": 3,
+            "Toughness": 3,
+            "Initiative": 2,
+            "Wounds": 1,
+            "Attacks": 1,
+            "Leadership": 5,
+            "Race": "Tomb King",
+            "Armor": None,
+            "Weapon": "Hand Weapon",
+            "Shield": False,
+            "SpecialRules": ["Arrows of Asaph", "Detachment", "Nehekharan Undead", "Open Order", "Regeneration (6+)"],
+            "TroopType": "RegularInfantry",
+            "UnitCategory": "Unit",
+        },
+        "equipment_options": {
+            "weapons": ["Hand Weapon"],
+            "armor": ["Light Armor"],
+            "shield": False,
+            "items": [],
+        },
+        "mount_options": {
+            "mounts": []
+        }
+    },
+    "Skeleton Infantry Cohort": {
+        # https://tow.whfb.app/unit/skeleton-infantry-cohort - 5 pts per model, unit
+        # size 10+/10+
+        # Fights with the Royal Host Warrior row.
+        # Also has a profile for Royal Host Archer (M4 WS2 BS2 S3 T3 W1 I2 A1 Ld5);
+        # not simulated.
+        "points": 5,
+        "points_per": "model",
+        "unit_size": "10+/10+",
+        "champion": {'Name': 'Master of Arms', 'Movement': 4, 'WeaponSkill': 2, 'BallisticSkill': 2, 'Strength': 3, 'Toughness': 3, 'Initiative': 3, 'Wounds': 1, 'Attacks': 2, 'Leadership': 5},
+        "other_profiles": [
+            {'Name': 'Royal Host Archer', 'Movement': 4, 'WeaponSkill': 2, 'BallisticSkill': 2, 'Strength': 3, 'Toughness': 3, 'Initiative': 2, 'Wounds': 1, 'Attacks': 1, 'Leadership': 5},
+        ],
+        "base_profile": {
+            "Movement": 4,
+            "WeaponSkill": 2,
+            "BallisticSkill": 2,
+            "Strength": 3,
+            "Toughness": 3,
+            "Initiative": 2,
+            "Wounds": 1,
+            "Attacks": 1,
+            "Leadership": 5,
+            "Race": "Tomb King",
+            "Armor": "Light Armor",
+            "Weapon": "Thrusting Spear",
+            "Shield": True,
+            "SpecialRules": ["Arrows of Asaph", "Close Order", "Horde", "Motley Crew", "Nehekharan Undead", "Regeneration (6+)", "Regimental Unit", "Steadfast Discipline"],
+            "TroopType": "RegularInfantry",
+            "UnitCategory": "Unit",
+            "OptionalRules": ["Nehekharan Phalanx"],
+        },
+        "equipment_options": {
+            "weapons": ["Hand Weapon", "Thrusting Spear"],
+            "armor": ["Light Armor"],
+            "shield": True,
+            "items": [],
+        },
+        "mount_options": {
+            "mounts": []
+        }
+    },
+    "Skeleton Skirmishers": {
+        # https://tow.whfb.app/unit/skeleton-skirmishers - 4 pts per model, unit size
+        # 5-20
+        # Fights with the Skeleton Skirmisher row.
+        # Shooting is not simulated, so these are left out of the options: Warbows.
+        "points": 4,
+        "points_per": "model",
+        "unit_size": "5-20",
+        "other_profiles": [],
+        "base_profile": {
+            "Movement": 5,
+            "WeaponSkill": 2,
+            "BallisticSkill": 2,
+            "Strength": 3,
+            "Toughness": 3,
+            "Initiative": 2,
+            "Wounds": 1,
+            "Attacks": 1,
+            "Leadership": 4,
+            "Race": "Tomb King",
+            "Armor": None,
+            "Weapon": "Hand Weapon",
+            "Shield": False,
+            "SpecialRules": ["Arrows of Asaph", "Chariot Runners", "Nehekharan Undead", "Regeneration (6+)", "Skirmishers", "Vanguard"],
+            "TroopType": "RegularInfantry",
+            "UnitCategory": "Unit",
+        },
+        "equipment_options": {
+            "weapons": ["Hand Weapon"],
+            "armor": [],
+            "shield": True,
+            "items": [],
+        },
+        "mount_options": {
+            "mounts": []
+        }
+    },
+    "Skeleton Warriors (Tomb Kings)": {
+        # https://tow.whfb.app/unit/skeleton-warriors-tomb-kings - 4 pts per model,
+        # unit size 10+
+        # Fights with the Skeleton Warrior row.
+        "points": 4,
+        "points_per": "model",
+        "unit_size": "10+",
+        "champion": {'Name': 'Master of Arms', 'Movement': 4, 'WeaponSkill': 2, 'BallisticSkill': 2, 'Strength': 3, 'Toughness': 3, 'Initiative': 2, 'Wounds': 1, 'Attacks': 2, 'Leadership': 5},
+        "other_profiles": [],
+        "base_profile": {
+            "Movement": 4,
+            "WeaponSkill": 2,
+            "BallisticSkill": 2,
+            "Strength": 3,
+            "Toughness": 3,
+            "Initiative": 2,
+            "Wounds": 1,
+            "Attacks": 1,
+            "Leadership": 5,
+            "Race": "Tomb King",
+            "Armor": None,
+            "Weapon": "Hand Weapon",
+            "Shield": True,
+            "SpecialRules": ["Close Order", "Horde", "Nehekharan Undead", "Regeneration (6+)", "Regimental Unit"],
+            "TroopType": "RegularInfantry",
+            "UnitCategory": "Unit",
+            "OptionalRules": ["Nehekharan Phalanx"],
+        },
+        "equipment_options": {
+            "weapons": ["Hand Weapon", "Thrusting Spear"],
+            "armor": ["Light Armor"],
+            "shield": True,
+            "items": [],
+        },
+        "mount_options": {
+            "mounts": []
+        }
+    },
+    "Tomb Guard": {
+        # https://tow.whfb.app/unit/tomb-guard - 10 pts per model, unit size 5+
+        # Fights with the Tomb Guard row.
+        "points": 10,
+        "points_per": "model",
+        "unit_size": "5+",
+        "champion": {'Name': 'Tomb Captain', 'Movement': 4, 'WeaponSkill': 3, 'BallisticSkill': 3, 'Strength': 4, 'Toughness': 4, 'Initiative': 3, 'Wounds': 1, 'Attacks': 2, 'Leadership': 7},
+        "other_profiles": [],
+        "base_profile": {
+            "Movement": 4,
+            "WeaponSkill": 3,
+            "BallisticSkill": 3,
+            "Strength": 4,
+            "Toughness": 4,
+            "Initiative": 2,
+            "Wounds": 1,
+            "Attacks": 1,
+            "Leadership": 7,
+            "Race": "Tomb King",
+            "Armor": "Light Armor",
+            "Weapon": "Hand Weapon",
+            "Shield": True,
+            "SpecialRules": ["Cleaving Blow", "Close Order", "Indomitable (1)", "Khopesh", "Nehekharan Undead", "Regeneration (6+)", "Regimental Unit"],
+            "TroopType": "RegularInfantry",
+            "UnitCategory": "Unit",
+            "OptionalRules": ["Drilled", "Nehekharan Phalanx"],
+        },
+        "equipment_options": {
+            "weapons": ["Hand Weapon"],
+            "armor": ["Light Armor"],
+            "shield": True,
+            "items": [],
+        },
+        "mount_options": {
+            "mounts": []
+        }
+    },
+    "Tomb Swarms": {
+        # https://tow.whfb.app/unit/tomb-swarms - 37 pts per model, unit size 2-10
+        # Fights with the Tomb Swarm row.
+        "points": 37,
+        "points_per": "model",
+        "unit_size": "2-10",
+        "other_profiles": [],
+        "base_profile": {
+            "Movement": 5,
+            "WeaponSkill": 3,
+            "BallisticSkill": 0,
+            "Strength": 2,
+            "Toughness": 2,
+            "Initiative": 1,
+            "Wounds": 5,
+            "Attacks": 5,
+            "Leadership": 10,
+            "Race": "Tomb King",
+            "Armor": None,
+            "Weapon": "Hand Weapon",
+            "Shield": False,
+            "SpecialRules": ["Dry as Dust", "Nehekharan Undead", "Poisoned Attacks", "Regeneration (6+)", "Skirmishers"],
+            "TroopType": "Swarm",
+            "UnitCategory": "Unit",
+            "OptionalRules": ["Ambushers"],
+        },
+        "equipment_options": {
+            "weapons": ["Hand Weapon"],
+            "armor": [],
+            "shield": False,
+            "items": [],
+        },
+        "mount_options": {
+            "mounts": []
+        }
+    },
+    "Ushabti": {
+        # https://tow.whfb.app/unit/ushabti - 49 pts per model, unit size 3+
+        # Fights with the Ushabti row.
+        # Shooting is not simulated, so these are left out of the options: greatbows.
+        "points": 49,
+        "points_per": "model",
+        "unit_size": "3+",
+        "champion": {'Name': 'Ancient', 'Movement': 5, 'WeaponSkill': 4, 'BallisticSkill': 3, 'Strength': 4, 'Toughness': 4, 'Initiative': 2, 'Wounds': 3, 'Attacks': 4, 'Leadership': 8},
+        "other_profiles": [],
+        "base_profile": {
+            "Movement": 5,
+            "WeaponSkill": 4,
+            "BallisticSkill": 2,
+            "Strength": 4,
+            "Toughness": 4,
+            "Initiative": 2,
+            "Wounds": 3,
+            "Attacks": 3,
+            "Leadership": 8,
+            "Race": "Tomb King",
+            "Armor": "Heavy Armor",
+            "Weapon": "Ritual Blade",
+            "Shield": False,
+            "SpecialRules": ["Arrows of Asaph", "Close Order", "Indomitable (1)", "Khopesh", "Nehekharan Undead", "Regeneration (6+)"],
+            "TroopType": "MonstrousInfantry",
+            "UnitCategory": "Unit",
+        },
+        "equipment_options": {
+            "weapons": ["Hand Weapon", "Ritual Blade"],
+            "armor": ["Heavy Armor"],
+            "shield": False,
+            "items": [],
+        },
+        "mount_options": {
+            "mounts": []
+        }
+    },
+    "Venerable Ushabti": {
+        # https://tow.whfb.app/unit/venerable-ushabti - 56 pts per model, unit size 3+
+        # Fights with the Venerable Ushabti row.
+        "points": 56,
+        "points_per": "model",
+        "unit_size": "3+",
+        "champion": {'Name': 'Venerable Ancient', 'Movement': 4, 'WeaponSkill': 5, 'BallisticSkill': 3, 'Strength': 5, 'Toughness': 4, 'Initiative': 2, 'Wounds': 3, 'Attacks': 4, 'Leadership': 8},
+        "other_profiles": [],
+        "base_profile": {
+            "Movement": 4,
+            "WeaponSkill": 5,
+            "BallisticSkill": 3,
+            "Strength": 5,
+            "Toughness": 4,
+            "Initiative": 2,
+            "Wounds": 3,
+            "Attacks": 3,
+            "Leadership": 8,
+            "Race": "Tomb King",
+            "Armor": "Heavy Armor",
+            "Weapon": "Ritual Blade",
+            "Shield": False,
+            "SpecialRules": ["Close Order", "Indomitable (1)", "Khopesh", "Magic Resistance (-2)", "Nehekharan Undead", "Regeneration (6+)"],
+            "TroopType": "MonstrousInfantry",
+            "UnitCategory": "Unit",
+        },
+        "equipment_options": {
+            "weapons": ["Hand Weapon", "Ritual Blade"],
+            "armor": ["Heavy Armor"],
+            "shield": False,
+            "items": [],
+        },
+        "mount_options": {
+            "mounts": []
+        }
+    },
+    "Necropolis Knights": {
+        # https://tow.whfb.app/unit/necropolis-knights - 54 pts per model, unit size
+        # 2+
+        # Fights with the Necropolis Knight row.
+        # Also has a profile for Necroserpent (M7 WS3 BS- S5 T- W- I3 A3 Ld-); not
+        # simulated.
+        "points": 54,
+        "points_per": "model",
+        "unit_size": "2+",
+        "champion": {'Name': 'Necropolis Captain', 'Movement': None, 'WeaponSkill': 4, 'BallisticSkill': 3, 'Strength': 4, 'Toughness': 4, 'Initiative': 3, 'Wounds': 3, 'Attacks': 3, 'Leadership': 8},
+        "other_profiles": [
+            {'Name': 'Necroserpent', 'Movement': 7, 'WeaponSkill': 3, 'BallisticSkill': None, 'Strength': 5, 'Toughness': None, 'Initiative': 3, 'Wounds': None, 'Attacks': 3, 'Leadership': None},
+        ],
+        "base_profile": {
+            "Movement": None,
+            "WeaponSkill": 4,
+            "BallisticSkill": 3,
+            "Strength": 4,
+            "Toughness": 4,
+            "Initiative": 3,
+            "Wounds": 3,
+            "Attacks": 2,
+            "Leadership": 8,
+            "Race": "Tomb King",
+            "Armor": "Light Armor",
+            "Weapon": "Cavalry Spear",
+            "Shield": True,
+            "SpecialRules": ["Armoured Hide (1)", "Cleaving Blow (Riders only)", "Close Order", "Impact Hits (1)", "Indomitable (1)", "Khopesh", "Nehekharan Undead", "Poisoned Attacks (Necroserpent only)", "Regeneration (6+)", "Swiftstride"],
+            "TroopType": "MonstrousCavalry",
+            "UnitCategory": "Unit",
+        },
+        "equipment_options": {
+            "weapons": ["Hand Weapon", "Cavalry Spear", "Great Weapon"],
+            "armor": ["Light Armor"],
+            "shield": True,
+            "items": [],
+        },
+        "mount_options": {
+            "mounts": []
+        }
+    },
+    "Necroserpents": {
+        # https://tow.whfb.app/unit/necroserpents - 38 pts per model, unit size 2+
+        # Fights with the Necroserpent row.
+        "points": 38,
+        "points_per": "model",
+        "unit_size": "2+",
+        "other_profiles": [],
+        "base_profile": {
+            "Movement": 7,
+            "WeaponSkill": 3,
+            "BallisticSkill": 0,
+            "Strength": 5,
+            "Toughness": 4,
+            "Initiative": 3,
+            "Wounds": 3,
+            "Attacks": 3,
+            "Leadership": 7,
+            "Race": "Tomb King",
+            "Armor": None,
+            "Weapon": "Hand Weapon",
+            "Shield": False,
+            "SpecialRules": ["Ambushers", "Armoured Hide (1)", "Impact Hits (1)", "Indomitable (1)", "Move Through Cover", "Nehekharan Undead", "Open Order", "Poisoned Attacks", "Regeneration (6+)", "Swiftstride"],
+            "TroopType": "MonstrousCavalry",
+            "UnitCategory": "Unit",
+        },
+        "equipment_options": {
+            "weapons": ["Hand Weapon"],
+            "armor": [],
+            "shield": False,
+            "items": [],
+        },
+        "mount_options": {
+            "mounts": []
+        }
+    },
+    "Sepulchral Stalkers": {
+        # https://tow.whfb.app/unit/sepulchral-stalkers - 49 pts per model, unit size
+        # 2+
+        # Fights with the Sepulchral Stalkers row.
+        # Shooting is not simulated, so these are left out of the options: petrifying
+        # gaze.
+        "points": 49,
+        "points_per": "model",
+        "unit_size": "2+",
+        "other_profiles": [],
+        "base_profile": {
+            "Movement": 7,
+            "WeaponSkill": 3,
+            "BallisticSkill": 3,
+            "Strength": 4,
+            "Toughness": 4,
+            "Initiative": 3,
+            "Wounds": 3,
+            "Attacks": 2,
+            "Leadership": 8,
+            "Race": "Tomb King",
+            "Armor": "Heavy Armor",
+            "Weapon": "Halberd",
+            "Shield": False,
+            "SpecialRules": ["Close Order", "Indomitable (1)", "Nehekharan Undead", "Regeneration (6+)", "Swiftstride"],
+            "TroopType": "MonstrousCavalry",
+            "UnitCategory": "Unit",
+            "OptionalRules": ["Ambushers"],
+        },
+        "equipment_options": {
+            "weapons": ["Hand Weapon", "Writhing Tail", "Halberd"],
+            "armor": ["Heavy Armor"],
+            "shield": False,
+            "items": [],
+        },
+        "mount_options": {
+            "mounts": []
+        }
+    },
+    "Skeleton Cavalry Cohort": {
+        # https://tow.whfb.app/unit/skeleton-cavalry-cohort - 12 pts per model, unit
+        # size 5+/5+
+        # Fights with the Royal Host Horseman row.
+        # Also has a profile for Royal Host Horse Archer (M- WS2 BS3 S3 T3 W1 I2 A1
+        # Ld5); not simulated.
+        # Also has a profile for Skeletal Steed (M8 WS2 BS- S3 T- W- I2 A1 Ld-); not
+        # simulated.
+        "points": 12,
+        "points_per": "model",
+        "unit_size": "5+/5+",
+        "champion": {'Name': 'Master of Horse', 'Movement': None, 'WeaponSkill': 2, 'BallisticSkill': 2, 'Strength': 3, 'Toughness': 3, 'Initiative': 3, 'Wounds': 1, 'Attacks': 2, 'Leadership': 5},
+        "other_profiles": [
+            {'Name': 'Royal Host Horse Archer', 'Movement': None, 'WeaponSkill': 2, 'BallisticSkill': 3, 'Strength': 3, 'Toughness': 3, 'Initiative': 2, 'Wounds': 1, 'Attacks': 1, 'Leadership': 5},
+            {'Name': 'Skeletal Steed', 'Movement': 8, 'WeaponSkill': 2, 'BallisticSkill': None, 'Strength': 3, 'Toughness': None, 'Initiative': 2, 'Wounds': None, 'Attacks': 1, 'Leadership': None},
+        ],
+        "base_profile": {
+            "Movement": None,
+            "WeaponSkill": 2,
+            "BallisticSkill": 2,
+            "Strength": 3,
+            "Toughness": 3,
+            "Initiative": 2,
+            "Wounds": 1,
+            "Attacks": 1,
+            "Leadership": 5,
+            "Race": "Tomb King",
+            "Armor": "Light Armor",
+            "Weapon": "Cavalry Spear",
+            "Shield": True,
+            "SpecialRules": ["Arrows of Asaph", "Close Order", "Horde", "Motley Crew", "Nehekharan Undead", "Regeneration (6+)", "Steadfast Discipline", "Swiftstride", "Vanguard"],
+            "TroopType": "HeavyCavalry",
+            "UnitCategory": "Unit",
+            "OptionalRules": ["Counter Charge"],
+        },
+        "equipment_options": {
+            "weapons": ["Hand Weapon", "Cavalry Spear"],
+            "armor": ["Light Armor"],
+            "shield": True,
+            "items": [],
+        },
+        "mount_options": {
+            "mounts": []
+        }
+    },
+    "Skeleton Horse Archers": {
+        # https://tow.whfb.app/unit/skeleton-horse-archers - 11 pts per model, unit
+        # size 5+
+        # Fights with the Skeleton Horse Archer row.
+        # Also has a profile for Skeletal Steed (M8 WS2 BS- S3 T- W- I2 A1 Ld-); not
+        # simulated.
+        # Shooting is not simulated, so these are left out of the options: warbows.
+        "points": 11,
+        "points_per": "model",
+        "unit_size": "5+",
+        "champion": {'Name': 'Master of Horse', 'Movement': None, 'WeaponSkill': 2, 'BallisticSkill': 3, 'Strength': 3, 'Toughness': 3, 'Initiative': 2, 'Wounds': 1, 'Attacks': 1, 'Leadership': 5},
+        "other_profiles": [
+            {'Name': 'Skeletal Steed', 'Movement': 8, 'WeaponSkill': 2, 'BallisticSkill': None, 'Strength': 3, 'Toughness': None, 'Initiative': 2, 'Wounds': None, 'Attacks': 1, 'Leadership': None},
+        ],
+        "base_profile": {
+            "Movement": None,
+            "WeaponSkill": 2,
+            "BallisticSkill": 2,
+            "Strength": 3,
+            "Toughness": 3,
+            "Initiative": 2,
+            "Wounds": 1,
+            "Attacks": 1,
+            "Leadership": 5,
+            "Race": "Tomb King",
+            "Armor": None,
+            "Weapon": "Hand Weapon",
+            "Shield": False,
+            "SpecialRules": ["Arrows of Asaph", "Nehekharan Undead", "Open Order", "Regeneration (6+)", "Reserve Move", "Scouts", "Skirmishers", "Swiftstride"],
+            "TroopType": "LightCavalry",
+            "UnitCategory": "Unit",
+            "OptionalRules": ["Chariot Runners"],
+        },
+        "equipment_options": {
+            "weapons": ["Hand Weapon"],
+            "armor": ["Light Armor"],
+            "shield": False,
+            "items": [],
+        },
+        "mount_options": {
+            "mounts": []
+        }
+    },
+    "Skeleton Horsemen": {
+        # https://tow.whfb.app/unit/skeleton-horsemen - 11 pts per model, unit size 4+
+        # Fights with the Skeleton Horseman row.
+        # Also has a profile for Skeletal Steed (M8 WS2 BS- S3 T- W- I2 A1 Ld-); not
+        # simulated.
+        "points": 11,
+        "points_per": "model",
+        "unit_size": "4+",
+        "champion": {'Name': 'Master of Horse', 'Movement': None, 'WeaponSkill': 2, 'BallisticSkill': 2, 'Strength': 3, 'Toughness': 3, 'Initiative': 2, 'Wounds': 1, 'Attacks': 2, 'Leadership': 5},
+        "other_profiles": [
+            {'Name': 'Skeletal Steed', 'Movement': 8, 'WeaponSkill': 2, 'BallisticSkill': None, 'Strength': 3, 'Toughness': None, 'Initiative': 2, 'Wounds': None, 'Attacks': 1, 'Leadership': None},
+        ],
+        "base_profile": {
+            "Movement": None,
+            "WeaponSkill": 2,
+            "BallisticSkill": 2,
+            "Strength": 3,
+            "Toughness": 3,
+            "Initiative": 2,
+            "Wounds": 1,
+            "Attacks": 1,
+            "Leadership": 5,
+            "Race": "Tomb King",
+            "Armor": None,
+            "Weapon": "Hand Weapon",
+            "Shield": True,
+            "SpecialRules": ["Close Order", "Horde", "Nehekharan Undead", "Regeneration (6+)", "Swiftstride", "Vanguard"],
+            "TroopType": "HeavyCavalry",
+            "UnitCategory": "Unit",
+            "OptionalRules": ["Counter Charge"],
+        },
+        "equipment_options": {
+            "weapons": ["Hand Weapon", "Cavalry Spear"],
+            "armor": ["Light Armor"],
+            "shield": True,
+            "items": [],
+        },
+        "mount_options": {
+            "mounts": []
+        }
+    },
+    "Skeleton Chariots": {
+        # https://tow.whfb.app/unit/skeleton-chariots - 41 pts per model, unit size 1+
+        # Fights with the Skeletal Crew (x2) row, using the Chariot row's Toughness
+        # and Wounds.
+        # Also has a profile for Chariot (M- WS- BS- S4 T4 W3 I- A- Ld-); not
+        # simulated.
+        # Also has a profile for Master Charioteer (M- WS3 BS2 S3 T- W- I2 A2 Ld7);
+        # not simulated.
+        # Also has a profile for Skeletal Steed (x2) (M8 WS2 BS- S3 T- W- I2 A1 Ld-);
+        # not simulated.
+        # Armour value 4+ as printed on the site.
+        # Shooting is not simulated, so these are left out of the options: warbows.
+        "points": 41,
+        "points_per": "model",
+        "unit_size": "1+",
+        "other_profiles": [
+            {'Name': 'Chariot', 'Movement': None, 'WeaponSkill': None, 'BallisticSkill': None, 'Strength': 4, 'Toughness': 4, 'Initiative': None, 'Wounds': 3, 'Attacks': None, 'Leadership': None},
+            {'Name': 'Master Charioteer', 'Movement': None, 'WeaponSkill': 3, 'BallisticSkill': 2, 'Strength': 3, 'Toughness': None, 'Initiative': 2, 'Wounds': None, 'Attacks': 2, 'Leadership': 7},
+            {'Name': 'Skeletal Steed (x2)', 'Movement': 8, 'WeaponSkill': 2, 'BallisticSkill': None, 'Strength': 3, 'Toughness': None, 'Initiative': 2, 'Wounds': None, 'Attacks': 1, 'Leadership': None},
+        ],
+        "base_profile": {
+            "Movement": None,
+            "WeaponSkill": 3,
+            "BallisticSkill": 2,
+            "Strength": 3,
+            "Toughness": 4,
+            "Initiative": 2,
+            "Wounds": 3,
+            "Attacks": 1,
+            "Leadership": 7,
+            "Race": "Tomb King",
+            "Armor": "Full Plate Armor",
+            "Weapon": "Cavalry Spear",
+            "Shield": False,
+            "SpecialRules": ["Arrows of Asaph", "Dry as Dust", "Horde", "Impact Hits (D3)", "Nehekharan Undead", "Open Order", "Regeneration (6+)", "Reserve Move", "Swiftstride"],
+            "TroopType": "LightChariot",
+            "UnitCategory": "Unit",
+        },
+        "equipment_options": {
+            "weapons": ["Hand Weapon", "Cavalry Spear"],
+            "armor": ["Full Plate Armor"],
+            "shield": False,
+            "items": [],
+        },
+        "mount_options": {
+            "mounts": []
+        }
+    },
+    "Tomb Guard Chariots": {
+        # https://tow.whfb.app/unit/tomb-guard-chariots - 49 pts per model, unit size
+        # 3+
+        # Fights with the Tomb Guard Crew (x2) row, using the Chariot row's Toughness
+        # and Wounds.
+        # Also has a profile for Chariot (M- WS- BS- S4 T4 W3 I- A- Ld-); not
+        # simulated.
+        # Also has a profile for Tomb Captain (M- WS3 BS3 S4 T- W- I2 A2 Ld7); not
+        # simulated.
+        # Also has a profile for Skeletal Steed (x2) (M8 WS2 BS- S3 T- W- I2 A1 Ld-);
+        # not simulated.
+        # Carries a shield, which it cannot use with its Halberd; pass Shield=True
+        # with a one-handed weapon.
+        # Armour value 4+ as printed on the site.
+        "points": 49,
+        "points_per": "model",
+        "unit_size": "3+",
+        "other_profiles": [
+            {'Name': 'Chariot', 'Movement': None, 'WeaponSkill': None, 'BallisticSkill': None, 'Strength': 4, 'Toughness': 4, 'Initiative': None, 'Wounds': 3, 'Attacks': None, 'Leadership': None},
+            {'Name': 'Tomb Captain', 'Movement': None, 'WeaponSkill': 3, 'BallisticSkill': 3, 'Strength': 4, 'Toughness': None, 'Initiative': 2, 'Wounds': None, 'Attacks': 2, 'Leadership': 7},
+            {'Name': 'Skeletal Steed (x2)', 'Movement': 8, 'WeaponSkill': 2, 'BallisticSkill': None, 'Strength': 3, 'Toughness': None, 'Initiative': 2, 'Wounds': None, 'Attacks': 1, 'Leadership': None},
+        ],
+        "base_profile": {
+            "Movement": None,
+            "WeaponSkill": 3,
+            "BallisticSkill": 3,
+            "Strength": 4,
+            "Toughness": 4,
+            "Initiative": 2,
+            "Wounds": 3,
+            "Attacks": 1,
+            "Leadership": 7,
+            "Race": "Tomb King",
+            "Armor": "Full Plate Armor",
+            "Weapon": "Halberd",
+            "Shield": False,
+            "SpecialRules": ["Cleaving Blow (Tomb Guard Crew only)", "Dry as Dust", "Impact Hits (D3+1)", "Indomitable (2)", "Khopesh", "Nehekharan Undead", "Open Order", "Regeneration (6+)", "Reserve Move", "Swiftstride"],
+            "TroopType": "LightChariot",
+            "UnitCategory": "Unit",
+        },
+        "equipment_options": {
+            "weapons": ["Hand Weapon", "Halberd"],
+            "armor": ["Full Plate Armor"],
+            "shield": False,
+            "items": [],
+        },
+        "mount_options": {
+            "mounts": []
+        }
+    },
+    "Khemrian Warsphinx": {
+        # https://tow.whfb.app/unit/khemrian-warsphinx - 175 pts per unit
+        # Fights with the Khemrian Warsphinx row.
+        # Also has a profile for Tomb Guard Crew (x2) (M- WS3 BS3 S4 T- W- I3 A1 Ld8);
+        # not simulated.
+        # Armour value 5+ as printed on the site.
+        # Shooting is not simulated, so these are left out of the options: Fiery roar.
+        "points": 175,
+        "points_per": "unit",
+        "unit_size": "1",
+        "other_profiles": [
+            {'Name': 'Tomb Guard Crew (x2)', 'Movement': None, 'WeaponSkill': 3, 'BallisticSkill': 3, 'Strength': 4, 'Toughness': None, 'Initiative': 3, 'Wounds': None, 'Attacks': 1, 'Leadership': 8},
+        ],
+        "base_profile": {
+            "Movement": 6,
+            "WeaponSkill": 4,
+            "BallisticSkill": None,
+            "Strength": 5,
+            "Toughness": 6,
+            "Initiative": 1,
+            "Wounds": 5,
+            "Attacks": 4,
+            "Leadership": None,
+            "Race": "Tomb King",
+            "Armor": "Heavy Armor",
+            "Weapon": "Wicked Claws",
+            "Shield": False,
+            "SpecialRules": ["Arrows of Asaph", "Cleaving Blow (Tomb Guard Crew only)", "Close Order", "Howdah", "Indomitable (2)", "Khopesh (Tomb Guard Crew only)", "Large Target", "Nehekharan Undead", "Regeneration (6+)", "Stomp Attacks (D3)", "Terror"],
+            "TroopType": "Behemoth",
+            "UnitCategory": "Unit",
+        },
+        "equipment_options": {
+            "weapons": ["Wicked Claws", "Envenomed Sting"],
+            "armor": ["Heavy Armor"],
+            "shield": False,
+            "items": [],
+        },
+        "mount_options": {
+            "mounts": []
+        }
+    },
+    "Necrolith Colossus": {
+        # https://tow.whfb.app/unit/necrolith-colossus - 160 pts per unit
+        # Fights with the Necrolith Colossus row.
+        "points": 160,
+        "points_per": "unit",
+        "unit_size": "1",
+        "other_profiles": [],
+        "base_profile": {
+            "Movement": 6,
+            "WeaponSkill": 3,
+            "BallisticSkill": 2,
+            "Strength": 6,
+            "Toughness": 6,
+            "Initiative": 1,
+            "Wounds": 5,
+            "Attacks": 4,
+            "Leadership": 8,
+            "Race": "Tomb King",
+            "Armor": "Heavy Armor",
+            "Weapon": "Paired Great Khopeshes",
+            "Shield": False,
+            "SpecialRules": ["Close Order", "Indomitable (2)", "Large Target", "Nehekharan Undead", "Regeneration (6+)", "Stomp Attacks (D3)", "Terror", "Timmm-berrr!", "Unstoppable Assault"],
+            "TroopType": "Behemoth",
+            "UnitCategory": "Unit",
+        },
+        "equipment_options": {
+            "weapons": ["Paired Great Khopeshes"],
+            "armor": ["Heavy Armor"],
+            "shield": False,
+            "items": [],
+        },
+        "mount_options": {
+            "mounts": []
+        }
+    },
+    "Necrosphinx": {
+        # https://tow.whfb.app/unit/necrosphinx - 195 pts per unit
+        # Fights with the Necrosphinx row.
+        "points": 195,
+        "points_per": "unit",
+        "unit_size": "1",
+        "other_profiles": [],
+        "base_profile": {
+            "Movement": 6,
+            "WeaponSkill": 4,
+            "BallisticSkill": 0,
+            "Strength": 5,
+            "Toughness": 6,
+            "Initiative": 1,
+            "Wounds": 6,
+            "Attacks": 5,
+            "Leadership": 8,
+            "Race": "Tomb King",
+            "Armor": "Heavy Armor",
+            "Weapon": "Cleaving Blades",
+            "Shield": False,
+            "SpecialRules": ["Close Order", "Fly (9)", "Indomitable (2)", "Large Target", "Nehekharan Undead", "Regeneration (5+)", "Stomp Attacks (D3+2)", "Swiftstride", "Terror", "Soul Reaper"],
+            "TroopType": "Behemoth",
+            "UnitCategory": "Unit",
+        },
+        "equipment_options": {
+            "weapons": ["Cleaving Blades", "Decapitating Strike", "Envenomed Sting"],
+            "armor": ["Heavy Armor"],
+            "shield": False,
+            "items": [],
+        },
+        "mount_options": {
+            "mounts": []
+        }
+    },
+    "Tomb Scorpion": {
+        # https://tow.whfb.app/unit/tomb-scorpion - 70 pts per unit
+        # Fights with the Tomb Scorpion row.
+        "points": 70,
+        "points_per": "unit",
+        "unit_size": "1",
+        "other_profiles": [],
+        "base_profile": {
+            "Movement": 7,
+            "WeaponSkill": 4,
+            "BallisticSkill": 0,
+            "Strength": 5,
+            "Toughness": 5,
+            "Initiative": 3,
+            "Wounds": 3,
+            "Attacks": 4,
+            "Leadership": 8,
+            "Race": "Tomb King",
+            "Armor": "Heavy Armor",
+            "Weapon": "Decapitating Claws",
+            "Shield": False,
+            "SpecialRules": ["Close Order", "Indomitable (1)", "Magic Resistance (-1)", "Nehekharan Undead", "Regeneration (6+)", "Stomp Attacks (D3)", "Swiftstride", "Vanguard"],
+            "TroopType": "MonstrousCreature",
+            "UnitCategory": "Unit",
+            "OptionalRules": ["Ambushers"],
+        },
+        "equipment_options": {
+            "weapons": ["Decapitating Claws", "Envenomed Sting"],
+            "armor": ["Heavy Armor"],
+            "shield": False,
+            "items": [],
+        },
+        "mount_options": {
+            "mounts": []
+        }
+    },
+    "Winged Warsphinx": {
+        # https://tow.whfb.app/unit/winged-warsphinx - 180 pts per unit
+        # Fights with the Winged Warsphinx row.
+        # Armour value 5+ as printed on the site.
+        # Shooting is not simulated, so these are left out of the options: Fiery roar.
+        "points": 180,
+        "points_per": "unit",
+        "unit_size": "1",
+        "other_profiles": [],
+        "base_profile": {
+            "Movement": 6,
+            "WeaponSkill": 4,
+            "BallisticSkill": 0,
+            "Strength": 5,
+            "Toughness": 6,
+            "Initiative": 1,
+            "Wounds": 5,
+            "Attacks": 4,
+            "Leadership": 8,
+            "Race": "Tomb King",
+            "Armor": "Heavy Armor",
+            "Weapon": "Wicked Claws",
+            "Shield": False,
+            "SpecialRules": ["Close Order", "Counter Charge", "Fly (9)", "Indomitable (2)", "Large Target", "Nehekharan Undead", "Regeneration (6+)", "Stomp Attacks (D3)", "Swiftstride", "Terror"],
+            "TroopType": "Behemoth",
+            "UnitCategory": "Unit",
+        },
+        "equipment_options": {
+            "weapons": ["Wicked Claws", "Envenomed Sting"],
+            "armor": ["Heavy Armor"],
+            "shield": False,
+            "items": [],
+        },
+        "mount_options": {
+            "mounts": []
+        }
+    },
+    "Casket of Souls": {
+        # https://tow.whfb.app/unit/casket-of-souls - 135 pts per unit
+        # Fights with the Casket Guardians row.
+        # Also has a profile for Casket of Souls (M- WS- BS- S- T6 W4 I- A- Ld-); not
+        # simulated.
+        "points": 135,
+        "points_per": "unit",
+        "unit_size": "1",
+        "other_profiles": [
+            {'Name': 'Casket of Souls', 'Movement': None, 'WeaponSkill': None, 'BallisticSkill': None, 'Strength': None, 'Toughness': 6, 'Initiative': None, 'Wounds': 4, 'Attacks': None, 'Leadership': None},
+        ],
+        "base_profile": {
+            "Movement": 4,
+            "WeaponSkill": 3,
+            "BallisticSkill": 3,
+            "Strength": 3,
+            "Toughness": 3,
+            "Initiative": 3,
+            "Wounds": 4,
+            "Attacks": 4,
+            "Leadership": 8,
+            "Race": "Tomb King",
+            "Armor": "Light Armor",
+            "Weapon": "Great Weapon",
+            "Shield": False,
+            "SpecialRules": ["Cleaving Blow", "Covenant of Power", "Dry as Dust", "Immovable Object", "Indomitable (2)", "Nehekharan Undead", "Regeneration (5+)", "Skirmishers", "Unbound Spirits", "Vortex of Souls"],
+            "TroopType": "WarMachine",
+            "UnitCategory": "Unit",
+        },
+        "equipment_options": {
+            "weapons": ["Hand Weapon", "Great Weapon"],
+            "armor": ["Light Armor"],
+            "shield": False,
+            "items": [],
+        },
+        "mount_options": {
+            "mounts": []
+        }
+    },
+    "Screaming Skull Catapult": {
+        # https://tow.whfb.app/unit/screaming-skull-catapult - 105 pts per unit
+        # Fights with the Skeleton Crew row.
+        # Also has a profile for Screaming Skull Catapult (M- WS- BS- S- T6 W3 I- A-
+        # Ld-); not simulated.
+        # Shooting is not simulated, so these are left out of the options: Screaming
+        # skull catapult.
+        "points": 105,
+        "points_per": "unit",
+        "unit_size": "1",
+        "other_profiles": [
+            {'Name': 'Screaming Skull Catapult', 'Movement': None, 'WeaponSkill': None, 'BallisticSkill': None, 'Strength': None, 'Toughness': 6, 'Initiative': None, 'Wounds': 3, 'Attacks': None, 'Leadership': None},
+        ],
+        "base_profile": {
+            "Movement": 4,
+            "WeaponSkill": 2,
+            "BallisticSkill": 2,
+            "Strength": 3,
+            "Toughness": 3,
+            "Initiative": 2,
+            "Wounds": 3,
+            "Attacks": 3,
+            "Leadership": 5,
+            "Race": "Tomb King",
+            "Armor": "Light Armor",
+            "Weapon": "Hand Weapon",
+            "Shield": False,
+            "SpecialRules": ["Dry as Dust", "Indomitable (1)", "Nehekharan Undead", "Regeneration (6+)", "Skirmishers"],
+            "TroopType": "WarMachine",
+            "UnitCategory": "Unit",
+            "OptionalRules": ["Skulls of the Foe"],
+        },
+        "equipment_options": {
+            "weapons": ["Hand Weapon"],
+            "armor": ["Light Armor"],
+            "shield": False,
+            "items": [],
+        },
+        "mount_options": {
+            "mounts": []
+        }
+    },
+}
 
 
-# Special rules carried by this faction's characters. `status` is how far the
+# Special rules carried by this faction's characters and units. `status` is how far the
 # engine goes with each: "implemented", "partial", or None for recorded only.
 # Texts longer than a paragraph are cut, marked "[...]"; `url` has the rest.
 FACTION_RULES = {
@@ -395,6 +1343,26 @@ FACTION_RULES = {
             "[...]"
         ),
     },
+    "Armoured Hide": {
+        "status": "implemented",
+        "url": "https://tow.whfb.app/special-rules/armoured-hide",
+        "text": (
+            "The hide of some creatures forms natural armour and improves their "
+            "armour value (and that of their rider). By how much armour value is "
+            "improved varies from model to model, as shown in brackets after the "
+            "name of this special rule (shown here as 'X'). Note that a model that "
+            "wears no armour is considered to have an armour value of 7+ for the "
+            "purposes of rules that improve armour value."
+        ),
+    },
+    "Arrows of Asaph": {
+        "status": None,
+        "url": "https://tow.whfb.app/special-rules/arrows-of-asaph",
+        "text": (
+            "Units with this special rule never apply any modifiers to their rolls "
+            "To Hit when shooting, regardless of the source of the modifier."
+        ),
+    },
     "Banner of the King": {
         "status": None,
         "url": "https://tow.whfb.app/special-rules/banner-of-the-king",
@@ -410,12 +1378,78 @@ FACTION_RULES = {
             "a unit is affected by both, use the highest value."
         ),
     },
+    "Chariot Runners": {
+        "status": None,
+        "url": "https://tow.whfb.app/special-rules/chariot-runners",
+        "text": (
+            "Friendly models whose troop type is chariot can draw a line of sight "
+            "over or through models with this special rule and can move through "
+            "friendly units if they are in Skirmish formation and if the majority "
+            "of models have this special rule. If the chariot's move would result "
+            "in it ending up 'on top' of a Chariot Runner, simply nudge the Chariot "
+            "Runner aside, by the smallest amount possible, to make space for the "
+            "chariot. Whilst in Skirmish formation units of Chariot Runners can "
+            "treat friendly chariots that are within 1\" of one or more of the "
+            "unit's models as a part of the unit for the purposes of unit "
+            "coherency."
+        ),
+    },
+    "Cleaving Blow": {
+        "status": "implemented",
+        "url": "https://tow.whfb.app/special-rules/cleaving-blow",
+        "text": (
+            "If a model with this special rule rolls a natural 6 when making a roll "
+            "To Wound for an attack made in combat, it has struck a 'Cleaving "
+            "Blow'. Enemy models whose troop type is regular infantry, heavy "
+            "infantry, light cavalry, heavy cavalry or war beasts are not permitted "
+            "an armour or Regeneration save against a Cleaving Blow (Ward saves can "
+            "be attempted as normal). Note that if an attack wounds automatically, "
+            "this special rule cannot be used."
+        ),
+    },
+    "Close Order": {
+        "status": None,
+        "url": "https://tow.whfb.app/special-rules/close-order",
+        "text": (
+            "A unit consisting of models with this special rule may adopt a Close "
+            "Order formation."
+        ),
+    },
     "Commander of Legions": {
         "status": None,
         "url": "https://tow.whfb.app/special-rules/commander-of-legions",
         "text": (
             "Settra gains the Arise! special rule and, unlike other models with "
             "this special rule, may use it even when engaged in combat."
+        ),
+    },
+    "Counter Charge": {
+        "status": None,
+        "url": "https://tow.whfb.app/special-rules/counter-charge",
+        "text": (
+            "This special rule can only be used by units that consist entirely of "
+            "models with this special rule. When a unit with this special rule is "
+            "charged in its front arc by an enemy unit whose troop type is cavalry, "
+            "chariot or monster, it may declare a 'Counter Charge' charge reaction: "
+            "Counter Charge The unit surges forward to meet the enemy charge. "
+            "Measure the distance between the two units. If the distance is less "
+            "than the Movement characteristic of the charging unit, the charged "
+            "unit has not enough time to meet the enemy charge and must either Hold "
+            "or Flee instead. Otherwise, pivot the unit about its centre so that it "
+            "is facing directly towards the centre of the charging enemy unit. "
+            "After [...]"
+        ),
+    },
+    "Covenant of Power": {
+        "status": None,
+        "url": "https://tow.whfb.app/special-rules/covenant-of-power",
+        "text": (
+            "Whilst within 12\" of a Casket of Souls, friendly Liche Priests may "
+            "apply a +1 modifier to any Casting roll they make. Additionally, any "
+            "model (friend or foe) that casts a Bound spell whilst within 12\" of a "
+            "Casket of Souls may apply a +1 modifier to the Casting roll. Note, "
+            "however, that this bonus does not apply to any Bound spells cast by a "
+            "Casket of Souls."
         ),
     },
     "Curse of the Necropolis": {
@@ -426,6 +1460,16 @@ FACTION_RULES = {
             "attack, the unit that made the attack must immediately make a "
             "Leadership test. If this test is failed, the enemy unit suffers D3 "
             "Strength 2 hits, each with an AP of -."
+        ),
+    },
+    "Detachment": {
+        "status": None,
+        "url": "https://tow.whfb.app/warhammer-armies/detachment-special-rules",
+        "text": (
+            "Detachments follow a number of special rules, representing the "
+            "specialised way in which they function alongside their regimental "
+            "units: - Regimental Deployment - Regimental Leadership - Regimental "
+            "Psychology - Supporting Actions"
         ),
     },
     "Dry as Dust": {
@@ -505,6 +1549,23 @@ FACTION_RULES = {
             "discard the lowest result."
         ),
     },
+    "Horde": {
+        "status": None,
+        "url": "https://tow.whfb.app/special-rules/horde",
+        "text": (
+            "A unit with this special rule may increase the maximum Rank Bonus it "
+            "can claim (as determined by its troop type) by one."
+        ),
+    },
+    "Howdah": {
+        "status": None,
+        "url": "https://tow.whfb.app/special-rules/howdah",
+        "text": (
+            "To represent its howdah and crew, a behemoth with this special rule "
+            "has a split profile and follows both the Split Profile (Chariots) and "
+            "Firing Platform. In all other respects, this model is a behemoth."
+        ),
+    },
     "Immortal Overseer": {
         "status": None,
         "url": "https://tow.whfb.app/special-rules/immortal-overseer",
@@ -517,8 +1578,19 @@ FACTION_RULES = {
             "10)."
         ),
     },
-    "Impact Hits": {
+    "Immovable Object": {
         "status": None,
+        "url": "https://tow.whfb.app/special-rules/immovable-object",
+        "text": (
+            "Once this model has been placed on the battlefield during deployment "
+            "it cannot be moved by its crew during the Remaining Moves sub-phase. "
+            "Note that the model can still pivot freely at any time during its turn "
+            "(the better to face the enemy) and may make a follow up move as "
+            "normal."
+        ),
+    },
+    "Impact Hits": {
+        "status": "implemented",
         "url": "https://tow.whfb.app/special-rules/impact-hits",
         "text": (
             "The number of Impact Hits caused varies from model to model, and will "
@@ -571,6 +1643,19 @@ FACTION_RULES = {
             "automatically, this special rule cannot be used."
         ),
     },
+    "Large Target": {
+        "status": None,
+        "url": "https://tow.whfb.app/special-rules/large-target",
+        "text": (
+            "Large Targets do not benefit from partial or full cover. In addition, "
+            "a unit can draw a line of sight to a Large Target over or through "
+            "another unit, and vice versa, provided that unit is not also a Large "
+            "Target. Finally, a unit that shoots at a Large Target can shoot with "
+            "one additional rank. For example, a unit armed with crossbows can "
+            "shoot with its first two ranks when shooting at a Large Target, or "
+            "with its first three if also standing on a hill."
+        ),
+    },
     "Loner": {
         "status": None,
         "url": "https://tow.whfb.app/special-rules/loner",
@@ -593,6 +1678,45 @@ FACTION_RULES = {
             "their randomly generated spells as normal. When they do so, they may "
             "select instead either the signature spell of their chosen Lore of "
             "Magic, or one of the spells listed below. Lore of Nehekhara Lore"
+        ),
+    },
+    "Magic Resistance": {
+        "status": None,
+        "url": "https://tow.whfb.app/special-rules/magic-resistance",
+        "text": (
+            "The Casting roll of any enemy spell (including Bound spells) that "
+            "targets a unit that includes one or more models with this special rule "
+            "suffers a modifier, as shown in brackets after the name of this "
+            "special rule (shown here as '-X'). Note that this special rule is not "
+            "cumulative. If two or more models in a unit have this special rule, "
+            "use the highest modifier."
+        ),
+    },
+    "Motley Crew": {
+        "status": None,
+        "url": "https://tow.whfb.app/special-rules/motley-crew",
+        "text": (
+            "Units with this special rule may include models of the same type that "
+            "are equipped differently to one another, and/or models of different "
+            "types that fight together in a single unit. If necessary, the army "
+            "list entry for such units will be accompanied by a brief explanation "
+            "of the unit's composition. Different Weapons The fighting rank of a "
+            "Motley Crew may contain models that are armed with different weapons. "
+            "In such cases, the controlling player must roll different batches of "
+            "dice for the different models, making it clear to their opponent which "
+            "model's attacks they represent and where they are being directed. "
+            "These attacks are made in the Initiative order of the individual "
+            "models, as [...]"
+        ),
+    },
+    "Move Through Cover": {
+        "status": None,
+        "url": "https://tow.whfb.app/special-rules/move-through-cover",
+        "text": (
+            "Models with this special rule do not suffer any modifiers to their "
+            "Movement characteristic for moving through difficult or dangerous "
+            "terrain. In addition, a model with this special rule may re-roll any "
+            "rolls of 1 when making Dangerous Terrain tests."
         ),
     },
     "My Will Be Done": {
@@ -623,6 +1747,36 @@ FACTION_RULES = {
             "special rule, and vice versa."
         ),
     },
+    "Open Order": {
+        "status": None,
+        "url": "https://tow.whfb.app/unusual-formations/open-order-formation",
+        "text": (
+            "A unit arrayed in an Open Order formation closely resembles one in a "
+            "Close Order formation; the key differences lie in how the unit moves "
+            "and interacts with terrain. As with a unit in Close Order, a unit in "
+            "Open Order consists of two or more models that are arranged in base "
+            "contact with each other, edge-to-edge and front corner to front "
+            "corner, as shown in Fig 182.1. All models in such a unit must face the "
+            "same direction. In addition, all models in the unit must be arranged "
+            "in a formation that consists of one or more horizontal rows, called "
+            "ranks, and a number of vertical rows, called files. As far as "
+            "possible, there must be the same number of models in each rank. Where "
+            "this is not [...]"
+        ),
+    },
+    "Poisoned Attacks": {
+        "status": "implemented",
+        "url": "https://tow.whfb.app/special-rules/poisoned-attacks",
+        "text": (
+            "If a model with Poisoned Attacks rolls a natural 6 when making a roll "
+            "To Hit, it may apply a +2 modifier to that hit’s roll To Wound. Unless "
+            "otherwise stated, a model with this special rule may use it when "
+            "making both shooting and combat attacks. Any spells cast by the model "
+            "are unaffected, as are any attacks made with magic weapons. Note that "
+            "if an attack needs a To Hit roll of 7+, or hits automatically, this "
+            "special rule cannot be used."
+        ),
+    },
     "Regeneration": {
         "status": "implemented",
         "url": "https://tow.whfb.app/special-rules/regeneration",
@@ -638,6 +1792,25 @@ FACTION_RULES = {
             "Regeneration values unless stated otherwise."
         ),
     },
+    "Regimental Unit": {
+        "status": None,
+        "url": "https://tow.whfb.app/special-rules/regimental-unit",
+        "text": (
+            "A unit with this special rule can be accompanied by detachment."
+        ),
+    },
+    "Reserve Move": {
+        "status": None,
+        "url": "https://tow.whfb.app/special-rules/reserve-move",
+        "text": (
+            "Unless it charged, marched or fled during the Movement phase, a unit "
+            "in which the majority of the models have this special rule may make a "
+            "Reserve move at the end of the Shooting phase of its turn, after all "
+            "shooting has been resolved. A unit making a Reserve move moves as "
+            "described in the Basic Movement rules. It may manoeuvre normally, but "
+            "cannot march."
+        ),
+    },
     "Scarab Prince": {
         "status": None,
         "url": "https://tow.whfb.app/special-rules/scarab-prince",
@@ -645,6 +1818,20 @@ FACTION_RULES = {
             "Should Prince Apophas lose his last Wound, before his model is removed "
             "from play, all enemy units within 2D6\" of him suffer 2D6 Strength 2 "
             "hits with an AP of -1."
+        ),
+    },
+    "Scouts": {
+        "status": None,
+        "url": "https://tow.whfb.app/special-rules/scouts",
+        "text": (
+            "Units with this special rule may be deployed after all other units "
+            "from both armies. They can be deployed anywhere on the battlefield "
+            "that is more than 12\" away from an enemy model. If deployed in this "
+            "way, Scouts cannot declare a charge during their first turn. If both "
+            "armies contain Scouts, a roll-off should determine which player "
+            "deploys Scouts first. The players then alternate deploying their "
+            "scouting units one at a time, starting with the player who won the "
+            "roll-off."
         ),
     },
     "Settra Does Not Kneel!": {
@@ -676,6 +1863,49 @@ FACTION_RULES = {
             "natural 5 or 6 when making a roll To Wound, rather than the usual 6."
         ),
     },
+    "Skirmishers": {
+        "status": None,
+        "url": "https://tow.whfb.app/unusual-formations/skirmish-formation",
+        "text": (
+            "A unit of models in Skirmish formation (often referred to as "
+            "'Skirmishers' in the rules that follow) never consists of rigid ranks "
+            "and files. Instead, it moves as a single loose group or rough line. "
+            "This enables Skirmishers to move quickly and take advantage of terrain "
+            "to shelter from the enemy."
+        ),
+    },
+    "Soul Reaper": {
+        "status": None,
+        "url": "https://tow.whfb.app/special-rules/soul-reaper",
+        "text": (
+            "After deployment but before the first turn begins, nominate a single "
+            "enemy character. This is the soul marked by the Necrosphinx to journey "
+            "into the underworld by the battle's end. This model may re-roll any "
+            "rolls To Hit of a natural 1 made against the nominated character."
+        ),
+    },
+    "Steadfast Discipline": {
+        "status": None,
+        "url": "https://tow.whfb.app/special-rules/steadfast-discipline",
+        "text": (
+            "A unit with this special rule can Volley Fire during a turn in which "
+            "it moved, or whilst performing a Stand & Shoot charge reaction."
+        ),
+    },
+    "Stomp Attacks": {
+        "status": "implemented",
+        "url": "https://tow.whfb.app/special-rules/stomp-attacks",
+        "text": (
+            "The number of Stomp Attacks caused varies from model to model, and "
+            "will be shown in brackets after the name of this special rule (shown "
+            "here as 'X'). Often, this is determined by the roll of a dice. "
+            "Resolving Stomp Attacks Stomp Attacks can only be made by a model that "
+            "is in base contact with the enemy. Stomp Attacks are attacks made in "
+            "combat that must be made last, after all other attacks have been made, "
+            "including attacks made at Initiative 1. They hit automatically and use "
+            "the unmodified Strength of the model making them."
+        ),
+    },
     "Stone Shaper": {
         "status": None,
         "url": "https://tow.whfb.app/special-rules/stone-shaper",
@@ -686,6 +1916,16 @@ FACTION_RULES = {
             "that is within their Command range. Until the end of this turn, the "
             "nominated unit improves the Regeneration value of its Regeneration "
             "save by 1."
+        ),
+    },
+    "Swiftstride": {
+        "status": None,
+        "url": "https://tow.whfb.app/special-rules/swiftstride",
+        "text": (
+            "A unit which consists entirely of models with this special rule "
+            "increases its maximum possible charge range by 3\" and, before making a "
+            "Charge, Flee or Pursuit roll, may choose to apply a +D6 modifier to "
+            "the result."
         ),
     },
     "Sworn Protector": {
@@ -714,6 +1954,41 @@ FACTION_RULES = {
             "cause Terror are [...]"
         ),
     },
+    "Timmm-berrr!": {
+        "status": None,
+        "url": "https://tow.whfb.app/special-rules/timmm-berrr",
+        "text": (
+            "When this model is reduced to zero Wounds, the winner of a roll-off "
+            "chooses one of its arcs (front, flank or rear) for it to fall into. "
+            "Any units that are within the chosen arc and in base contact with this "
+            "model suffer D6 hits, each using the Strength characteristic of this "
+            "model, with an AP of -1. Once these hits are resolved, this model is "
+            "removed from play."
+        ),
+    },
+    "Unbound Spirits": {
+        "status": None,
+        "url": "https://tow.whfb.app/special-rules/unbound-spirits",
+        "text": (
+            "If the crew of a Casket of Souls is reduced to zero Wounds, "
+            "immediately roll a D6 for every unit (friend or foe) within 12\" of the "
+            "model. On a roll of 4+, the unit suffers D6 Strength 3 hits, with no "
+            "armour or Regeneration saves permitted (Ward saves can be attempted as "
+            "normal). Once these hits are resolved, the Casket of Souls is removed "
+            "from play."
+        ),
+    },
+    "Unstoppable Assault": {
+        "status": None,
+        "url": "https://tow.whfb.app/special-rules/unstoppable-assault",
+        "text": (
+            "During the Combat phase of any turn in which this model charged, every "
+            "attack it makes that causes an unsaved wound allows it to immediately "
+            "make one additional attack. These additional attacks also benefit from "
+            "this special rule. Note that any unsaved wounds caused by the Stomp "
+            "Attacks (D3) special rule do not benefit from this special rule."
+        ),
+    },
     "Usirian's Reaper": {
         "status": None,
         "url": "https://tow.whfb.app/special-rules/usirians-reaper",
@@ -723,6 +1998,28 @@ FACTION_RULES = {
             "made against that character. In addition, any hits inflicted by "
             "Apophas against the nominated character gain the Magical Attacks "
             "special rule."
+        ),
+    },
+    "Vanguard": {
+        "status": None,
+        "url": "https://tow.whfb.app/special-rules/vanguard",
+        "text": (
+            "After deployment, units with this special rule may make a Vanguard "
+            "move. A unit making a Vanguard move moves as described in the Basic "
+            "Movement rules. It may manoeuvre normally but cannot march. If both "
+            "armies contain Vanguard units, a roll-off determines who moves first. "
+            "The players then alternate moving their Vanguard units one at a time, "
+            "starting with the player who won the roll-off. Units that make a "
+            "Vanguard move cannot declare a charge during their first turn."
+        ),
+    },
+    "Vortex of Souls": {
+        "status": None,
+        "url": "https://tow.whfb.app/special-rules/vortex-of-souls",
+        "text": (
+            "A Casket of Souls can cast the following Bound spells, with a Power "
+            "Level of 2: Light of Death & Light of Protection Light of Death Light "
+            "of Protection"
         ),
     },
 }

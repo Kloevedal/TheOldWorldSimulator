@@ -47,6 +47,14 @@ def fighter(name="Fighter", **overrides):
     return Character(name=name, **stats)
 
 
+
+def faction_characters(faction):
+    """The character roster of one faction - UNITS are pinned separately."""
+    from factions import FACTION_MODULES
+
+    return next(m.CHARACTERS for m in FACTION_MODULES if m.FACTION == faction)
+
+
 class TestDuelRunsToCompletion(unittest.TestCase):
     """The structural fix: a duel resolves without crashing or double-striking."""
 
@@ -545,7 +553,7 @@ class TestOrcProfiles(unittest.TestCase):
     def test_the_whole_roster_is_present(self):
         from faction_profiles import FactionProfiles
 
-        self.assertEqual(set(FactionProfiles["Orcs"]), set(self.EXPECTED))
+        self.assertEqual(set(faction_characters("Orcs")), set(self.EXPECTED))
 
     def test_statlines_match_the_source(self):
         from faction_profiles import FactionProfiles
@@ -596,6 +604,9 @@ class TestOrcProfiles(unittest.TestCase):
             name="Kiknik", faction_type="Orcs", profile_name="Kiknik Toofsnatcha"
         )
         self.assertEqual(parse_armour_bane(kiknik.SpecialRules), 0)
+        # Chompa, now simulated as his mount, keeps it for its own attacks.
+        (chompa,) = kiknik.mount_parts
+        self.assertEqual(parse_armour_bane(chompa.SpecialRules), 1)
 
     def test_hatred_dwarfs_matches_a_dwarf_defender(self):
         """The rule says "Dwarfs"; a profile's Race says "Dwarf"."""
@@ -732,7 +743,7 @@ class TestHighElfProfiles(unittest.TestCase):
     def test_the_whole_roster_is_present(self):
         from faction_profiles import FactionProfiles
 
-        self.assertEqual(set(FactionProfiles["High Elves"]), set(self.POINTS))
+        self.assertEqual(set(faction_characters("High Elves")), set(self.POINTS))
 
     def test_statlines_match_the_source(self):
         from faction_profiles import FactionProfiles
@@ -1129,7 +1140,7 @@ class TestChaosProfiles(unittest.TestCase):
     def test_the_whole_roster_is_present(self):
         from faction_profiles import FactionProfiles
 
-        self.assertEqual(set(FactionProfiles["Warriors of Chaos"]), set(self.EXPECTED))
+        self.assertEqual(set(faction_characters("Warriors of Chaos")), set(self.EXPECTED))
 
     def test_statlines_match_the_source(self):
         from faction_profiles import FactionProfiles
@@ -1299,7 +1310,7 @@ class TestEmpireProfiles(unittest.TestCase):
     def test_the_whole_roster_is_present(self):
         from faction_profiles import FactionProfiles
 
-        self.assertEqual(set(FactionProfiles["Empire of Man"]), set(self.EXPECTED))
+        self.assertEqual(set(faction_characters("Empire of Man")), set(self.EXPECTED))
 
     def test_statlines_match_the_source(self):
         from faction_profiles import FactionProfiles
@@ -1398,7 +1409,7 @@ class TestDwarfProfiles(unittest.TestCase):
         from faction_profiles import FactionProfiles
 
         self.assertEqual(
-            set(FactionProfiles["Dwarfen Mountain Holds"]), set(self.EXPECTED)
+            set(faction_characters("Dwarfen Mountain Holds")), set(self.EXPECTED)
         )
 
     def test_statlines_match_the_source(self):
@@ -1564,7 +1575,8 @@ class TestUnverifiedItems(unittest.TestCase):
 
     # Pages that would not load, or entries not yet transcribed. Keep this in
     # step with what has actually been read off the site.
-    EXPECTED = ["Grisly Totem", "Skull of the Unicorn Lord"]
+    # Both were read from the site's page data in the units pass; none remain.
+    EXPECTED = []
 
     def test_the_unverified_list_is_exactly_this(self):
         """Pinning it means the gap cannot grow without someone noticing."""
@@ -1585,6 +1597,22 @@ class TestUnverifiedItems(unittest.TestCase):
         for name in unverified_items():
             with self.subTest(item=name):
                 self.assertTrue(MagicItemDict[name].get("text"))
+
+
+class TestNewlyVerifiedItems(unittest.TestCase):
+    def test_the_skull_of_the_unicorn_lord_wards_by_attack_type(self):
+        from special_rules import parse_ward
+
+        ghorros = Character(name="G", faction_type="Beastmen Brayherds",
+                            profile_name="Ghorros Warhoof")
+        self.assertEqual(parse_ward(ghorros.SpecialRules, is_magical=False), 6)
+        self.assertEqual(parse_ward(ghorros.SpecialRules, is_magical=True), 5)
+
+    def test_a_braystaff_counts_as_a_great_weapon(self):
+        from weapons import get_weapon_stats
+
+        self.assertEqual(get_weapon_stats("Braystaff"), get_weapon_stats("Grisly Totem"))
+        self.assertEqual(get_weapon_stats("Braystaff")[:2], (2, -2))
 
 
 class TestKillingBlowOldWorldRules(unittest.TestCase):

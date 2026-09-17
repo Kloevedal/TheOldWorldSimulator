@@ -18,13 +18,16 @@ MeleeWeaponDict = {
     ("Thrusting Spear", "ThrustingSpear", "Spear"): [None, 0, None],  # Thrusting Spear, no strength bonus, no armor piercing, no special rules
     ("Chayal",):[2,-3,[KillingBlow,RequiresTwoHands,Magic,RerollHits1]], # Chayal, +2 Strength, -3 Armor Piercing, Killing Blow, Requires Two Hands, Magic, Reroll Hits of 1
     ("Mathlann's Ire", "MathlannsIre"):[1,-2,["AB1",Magic,ForceRerollOneHit]], # Mathlann's Ire, +1 Strength, -2 Armor Piercing, Armour Bane 1, Magic, enemies reroll one successful hit
-    ("SwordofHoeth",):[2,-2,[Magic,RequiresTwoHands]], # Sword of Hoeth, +2 Strength, -2 Armor Piercing, Magic
+    ("Sword of Hoeth", "SwordofHoeth"):[2,-2,[Magic,RequiresTwoHands]], # Sword of Hoeth, +2 Strength, -2 Armor Piercing, Magic
     ("Handmaiden's Spear", "HandmaidensSpear"): [None, 0, [FirstRoundOnly]],  # Handmaiden's Spear, treated as a thrown/thrusting spear
     ("Ceremonial Halberd", "CeremonialHalberd"): [1, -1, ["AB1", Magic, RequiresTwoHands]],  # Ceremonial Halberd, +1 Strength, -1 Armor Piercing, Armour Bane 1, Magic
     ("Mansmasher",): [1, -1, [Magic, FirstRoundStr]],  # Mansmasher, +1 Strength on the charge round only, -1 Armor Piercing
     ("Darkforged Weapon", "DarkforgedWeapon"): [None, -1, None],  # Darkforged weapon, -1 Armor Piercing (Chaos Dwarf craftsmanship)
-    ("Braystaff", "Bray Staff"): [None, 0, None],  # Braystaff, a Bray-Shaman's staff, no bonuses
-    ("Grisly Totem", "GrislyTotem"): [None, 0, [Magic]],  # Grisly Totem, Kralmaw's Braystaff (full profile not yet transcribed)
+    # A Braystaff is used offensively (as a great weapon) or defensively (as a
+    # hand weapon that gives an armour value of 5+), chosen each round.
+    ("Braystaff", "Bray Staff", "Braystaff (Offensive)"): [2, -2, [StrikeLast, "AB1", RequiresTwoHands]],
+    ("Braystaff (Defensive)",): [None, 0, None],  # also armour value 5+: pass Armor="Heavy Armor"
+    ("Grisly Totem", "GrislyTotem"): [2, -2, [StrikeLast, "AB1", RequiresTwoHands]],  # Kralmaw's Braystaff, used offensively
     ("Judgement",): [2, -2, [MagicalAttacks, "Multiple Wounds (2)", RequiresTwoHands]],  # Judgement, +2 Strength, -2 Armor Piercing, Magical Attacks, Multiple Wounds (2), Requires Two Hands
     ("Beast Reaver", "BeastReaver"): [1, -1, [Magic, "Reroll Wounds (Beastmen Brayherds)"]],  # Beast Reaver, +1 Strength, -1 Armor Piercing, rerolls failed wounds vs Beastmen
     ("Axe of Dargo", "AxeOfDargo"): [2, -3, [Magic]],  # Axe of Dargo, +2 Strength, -3 Armor Piercing
@@ -83,7 +86,107 @@ MeleeWeaponDict = {
     ("Thornspitter Stave",): [1, 0, ["AB1", Magic, MagicalAttacks]],  # combat profile
     ("Trailblazer's Hatchet", "Trailblazers Hatchet"): [1, -1, [FlamingAttacks, Magic, MagicalAttacks, MoveThroughCover]],
     
+    # Unit and monster weapons, drafted by tools/transcribe_weapons.py from each
+    # weapon's rules page. "Secondary Attack" marks a weapon used for one extra
+    # attack (or one of several) each turn - a tail, a maw, Troll Vomit - which
+    # is never a unit's default weapon. "Strength (N)" is a weapon with its own
+    # Strength. Rules the engine does not use yet are kept verbatim.
+    ('Bilesword',): [None, -2, ['Armour Bane (1)', 'Strike Last', 'No Regeneration Saves']],  # Regeneration saves are not permitted against wounds caused by this weapon (armour and Ward saves can be attempted as normal).
+    ('Bloodflail',): [2, -2, ['1st round strength only', 'Armour Bane (1)', 'Multiple Wounds (D3)']],  # A Bloodflail's Strength modifier applies only during the first round of combat.
+    ("Bonegrinder Giant's Club", 'Bonegrinder Giants Club'): [None, 0, []],  # Strength '*' has no fixed value; AP '*' has no fixed value
+    ('Brass Bound Hooves',): [None, -2, []],
+    ('Cavernous Maw',): [None, -2, ['Armour Bane (1)', 'Killing Blow', 'Secondary Attack']],  # In combat, this model must make one of its attacks each turn with this weapon.
+    ('Cleaver-limbs',): [None, -2, ['Killing Blow', 'Monster Slayer']],
+    ('Cleaving Blades',): [None, -1, ['Killing Blow']],
+    ('Colossal Fang-filled Gob',): [None, -2, ['Killing Blow']],
+    ('Crown of Horns (Grand Cathay)',): [None, -1, ['Armour Bane (1)']],
+    ('Daemonic Talons',): [None, -1, []],
+    ('Decapitating Claws',): [None, -2, ['Killing Blow', 'Monster Slayer']],
+    ('Decapitating Strike',): [5, -4, ['Killing Blow', 'Monster Slayer', 'Strike Last', 'Secondary Attack']],  # This model may make one additional attack each turn with this weapon.
+    ('Distensible Jaw',): [None, 0, ['Killing Blow', 'Secondary Attack']],  # In combat, this model must make one of its attacks each turn with this weapon.
+    ('Doom-Flayer',): [None, -1, ['Strength (4)', 'Counter Charge', 'Extra Attacks (+D6)', 'Impact Hits (D6+1)']],  # Impact Hits caused by this weapon have an Armour Piercing characteristic of -2.
+    ('Dread Halberd',): [1, -1, ['Armour Bane (1)', 'Fight in Extra Rank', 'Requires Two Hands']],  # A model wielding a dread halberd cannot make a supporting attack during a turn in which it charged.
+    ('Ensorcelled Weapon',): [None, -1, []],
+    ('Envenomed Sting',): [None, 0, ['Poisoned Attacks', 'Strike First', 'Secondary Attack']],  # In combat, this model may choose to make one of its attacks each turn with this weapon.
+    ('Fiend Tail',): [None, -1, ['Extra Attacks (+D3)', 'Secondary Attack']],  # In combat, a Chimera with a fiend tail may make an additional D3 attacks each turn, each of which must be made with this weapon.
+    ('Filth-Encrusted Claws',): [None, -1, ['Poisoned Attacks']],
+    ('Filth-Encrusted Talons',): [None, -1, ['Armour Bane (1)', 'Poisoned Attacks']],
+    ("Giant's Club", 'Giants Club'): [None, 0, []],  # Strength '*' has no fixed value; AP '*' has no fixed value
+    ('Gnashing Maws',): [None, -2, ['Strike Last', 'Secondary Attack']],  # In combat, this model may choose to make one of its attacks each turn with this weapon. For each Wound an enemy unit loses as a result of an attack made with th...
+    ('Goring Horns',): [1, -3, ['Flaming Attacks', 'Strike First', 'Secondary Attack']],  # In combat, this model may make one of its attacks each turn with this weapon.
+    ('Great Axe',): [2, -3, ['Armour Bane (2)', 'Monster Slayer', 'Requires Two Hands', 'Strike Last']],
+    ('Great Hammer',): [2, -2, ['Armour Bane (2)', 'Magical Attacks', 'Requires Two Hands']],
+    ('Great Horns',): [None, -3, []],
+    ('Great Tusks',): [None, -1, ['Armour Bane (2)']],
+    ('Grimfrost Weapon',): [None, -1, ['Armour Bane (1)', 'Magical Attacks']],
+    ('Gromril Great Axe',): [2, -3, ['Requires Two Hands', 'Strike Last']],
+    ('Har Ganeth Greatsword',): [2, -1, ['Cleaving Blow', 'Requires Two Hands']],
+    ('Hellblade',): [None, -1, ['Cleaving Blow']],
+    ('Horns of Stone',): [None, -2, []],
+    ('Huge Gob',): [None, -1, ['Armour Bane (1)']],
+    ('Hunting Spear',): [1, -2, ['First Round Only', 'Armour Bane (1)']],  # A hunting spear can only be used during a turn in which the wielder charged. In subsequent turns (or if the wielder did not charge) the model must use its hand ...
+    ('Impaling Claws',): [None, -2, ['Killing Blow', 'Strike First']],
+    ('Iron Claw',): [None, -3, ['Killing Blow']],
+    ("Lamprey's Bite", 'Lampreys Bite'): [None, -1, ['Multiple Wounds (D3, against monsters)']],  # The Multiple Wounds (D3) special rule only applies against enemy models whose troop type is monster.
+    ('Lash & Buckler', 'Lash and Buckler'): [None, -1, ['Armour Bane (1)', 'Fight in Extra Rank', 'Requires Two Hands']],  # A model equipped with a lash & buckler improves its armour value by 1.
+    ('Lash of Khorne',): [None, -2, ['Armour Bane (1)', 'Strike First']],
+    ('Lashing Talons',): [None, -1, ['Armour Bane (1)']],
+    ('Long Spear',): [None, 0, ['Fight in Extra Rank', 'Strike First (against chargers)']],  # Models whose troop type is infantry only. A model wielding a long spear cannot make a supporting attack during a turn in which it charged. A long spear's Strike...
+    ('Mace Tail',): [1, -2, ['Secondary Attack']],  # A Lammasu may make one additional attack each turn with this weapon.
+    ('Monstrous Tusks',): [None, -1, ['Armour Bane (1)']],
+    ('Paired Great Khopeshes',): [None, -2, ['Killing Blow', 'Requires Two Hands']],
+    ('Piercing Claws',): [None, -1, ['Armour Bane (2)', '+1A', 'Requires Two Hands']],
+    ('Plagueflail',): [2, -3, ['1st round strength only', 'Multiple Wounds (D3)']],  # A Plagueflail's Strength modifier applies only during the first round of combat.
+    ('Plaguesword',): [None, 0, ['Armour Bane (1)', 'No Regeneration Saves']],  # Regeneration saves are not permitted against wounds caused by this weapon (armour and Ward saves can be attempted as normal).
+    ('Poisonous Tail',): [None, 0, ['Poisoned Attacks', 'Strike First', 'Secondary Attack']],  # In combat, this model may make one of its attacks each turn with this weapon.
+    ('Polearm Single-Handed',): [None, 0, ['Fight in Extra Rank']],  # A polearm has two profiles. You must choose which the unit will use when its combat is chosen during Step 1.1 of the Choose & Fight Combat sub-phase. A model wi...
+    ('Rancid Maw',): [None, -2, ['Armour Bane (1)', 'Multiple Wounds (2)', 'Secondary Attack']],  # In combat, this model must make one of its attacks each turn with this weapon.
+    ("Ranger's Glaive", 'Rangers Glaive'): [2, -2, ['Requires Two Hands']],
+    ('Ritual Blade',): [2, -3, ['Requires Two Hands', 'Strike Last']],
+    ('Scything Blow',): [None, -2, ['Armour Bane (1)', 'Extra Attacks (+2D3)', 'Strike Last']],  # This weapon has two profiles, representing the different ways it can be used in combat. You must choose which profile the wielder will use at the start of each ...
+    ('Serpentine Tail',): [2, -2, ['Strike Last', 'Secondary Attack']],  # In combat, this model must make one of its attacks each turn with this weapon.
+    ('Serrated Maw',): [None, 0, ['Armour Bane (2)', 'Multiple Wounds (2)', 'Secondary Attack']],  # In combat, this model must make one of its attacks each turn with this weapon. If this model has Two Heads, it must make two of its attacks each turn with this ...
+    ('Serrated Maws',): [None, 0, ['Armour Bane (1)', 'Multiple Wounds (2)', 'Secondary Attack']],  # In combat, this model must make each attack granted by the Extra Attacks (+remaining Wounds) special rule with this weapon.
+    ('Slashing Talons',): [None, -1, []],
+    ('Slashing Talons (Lizardmen)',): [None, -3, ['Multiple Wounds (D3, against monsters)']],  # The Multiple Wounds (D3) special rule only applies against enemy models whose troop type is monster.
+    ('Spectral Scythe (Black Coach)',): [None, -6, ['Magical Attacks']],  # AP 'N/A': no armour save is permitted, which AP -6 guarantees
+    ('Steam Drill',): [3, -3, ['Furious Charge', 'Requires Two Hands', 'Strike Last']],  # A unit of Miners held in reserve that includes a Prospector equipped with a steam drill may re-roll the D6 when rolling to determine if they arrive on the battl...
+    ('Things-catcher',): [None, -1, ['Fight in Extra Rank', 'Killing Blow', 'Requires Two Hands']],
+    ('Throwing Spear',): [None, 0, ['First Round Only', 'Fight in Extra Rank']],  # A throwing spear can only be used during a turn in which the wielder charged. In subsequent turns (or if the wielder did not charge) the model must use its hand...
+    ('Thunderous Bludgeon',): [None, -3, ['Strike Last']],
+    ('Trampling Hooves',): [None, -1, ['Flaming Attacks']],
+    ('Troll Vomit',): [None, -2, ['Strength (3)', 'Secondary Attack']],  # A Troll that is in base contact with an enemy model may make one additional attack each turn with this weapon. This attack must be made last, after all other at...
+    ('Twisted Antlers',): [None, -2, ['Armour Bane (1)']],
+    ('Venom Sting',): [None, -1, ['Armour Bane (1)', 'Secondary Attack']],  # In combat, a Rot Fly makes one of its attacks each turn with this weapon.
+    ('Venom Surge',): [None, -2, ['Multiple Wounds (D6)', 'Poisoned Attacks', 'Strike First', 'Secondary Attack']],  # In combat, this model may choose to make one of its attacks each turn with this weapon.
+    ('Venomous Tail',): [None, 0, ['Poisoned Attacks', 'Strike First']],
+    ('Venomous Talons',): [None, -2, ['Poisoned Attacks']],
+    ('Warp Grinder',): [None, -3, ['Strength (5)', 'Ambushers', 'Killing Blow', 'Requires Two Hands']],  # If a Weapon Team is equipped with a Warp Grinder, both it and its parent unit gain the Ambushers special rule.
+    ('Warpstone Claws',): [None, -1, ['Armour Bane (1)', 'Magical Attacks']],
+    ('Wicked Claws',): [None, -2, []],
+    ('Wolf Hammer',): [1, -2, ['Requires Two Hands']],  # If the wielder of a wolf hammer uses it during a turn in which they made a charge move of 3" or more, they have a +2 modifier to their Strength characteristic, ...
+    ('Writhing Tail',): [None, -1, ['Extra Attacks (+D3)', 'Secondary Attack']],  # In combat, a Sepulchral Stalker may make an additional D3 attacks each turn, each of which must be made with this weapon (roll separately for each model in the ...
+    ('Writhing Tentacles (Daemons of Chaos)',): [None, -1, ['Armour Bane (1)']],
+    ('Writhing Tentacles (Dark Elves)',): [None, -2, ['Poisoned Attacks']],
 }
+
+# Magic weapons transcribed from every magic-item page. Hand-entered profiles
+# above take precedence; a site profile is only added under a new name.
+def _merge_site_weapons():
+    from magic_items_data import SITE_ITEM_WEAPONS
+
+    known = {name.lower() for key in MeleeWeaponDict for name in key}
+    for name, profile in SITE_ITEM_WEAPONS.items():
+        plain = name[4:] if name.lower().startswith("the ") else name
+        if name.lower() in known or plain.lower() in known:
+            continue
+        aliases = tuple(dict.fromkeys(n for n in (name, plain) if n))
+        MeleeWeaponDict[aliases] = list(profile)
+        known.update(a.lower() for a in aliases)
+
+
+_merge_site_weapons()
+
 
 def find_weapon_key(weapon):
     """Return the MeleeWeaponDict key tuple that contains the given weapon name, or None."""

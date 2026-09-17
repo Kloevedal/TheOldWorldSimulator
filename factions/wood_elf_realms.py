@@ -58,6 +58,7 @@ CHARACTERS = {
     "Orion, the King in the Woods": {
         # https://tow.whfb.app/unit/orion-the-king-in-the-woods - 405 pts
         "points": 405,
+        "points_note": "405 points",
         "base_profile": {
             "Movement": 9,
             "WeaponSkill": 8,
@@ -393,11 +394,771 @@ CHARACTERS = {
     },
 }
 
-# Regular (non-character) units go here.
-UNITS = {}
+# Regular (non-character) units. `points` is per model unless `points_per`
+# says "unit"; `unit_size` is the minimum ("10+") or fixed size. Each unit
+# fights with the row named in its comment; its champion's statline is under
+# `champion` and any mount, crew or beast rows under `other_profiles`.
+UNITS = {
+    "Bear of Loren": {
+        # https://tow.whfb.app/unit/bear-of-loren - 20 pts per model
+        # The site gives no unit size.
+        # Fights with the Bear of Loren row.
+        "points": 20,
+        "points_per": "model",
+        "unit_size": "not given",
+        "other_profiles": [],
+        "base_profile": {
+            "Movement": 5,
+            "WeaponSkill": 4,
+            "BallisticSkill": None,
+            "Strength": 4,
+            "Toughness": 4,
+            "Initiative": 3,
+            "Wounds": 2,
+            "Attacks": 2,
+            "Leadership": 6,
+            "Race": "Wood Elf",
+            "Armor": None,
+            "Weapon": "Hand Weapon",
+            "Shield": False,
+            "SpecialRules": ["Armoured Hide (1)", "Cleaving Blow", "Fear", "Motley Crew", "Run with the Pack", "Skirmishers"],
+            "TroopType": "WarBeast",
+            "UnitCategory": "Unit",
+        },
+        "equipment_options": {
+            "weapons": ["Hand Weapon"],
+            "armor": [],
+            "shield": False,
+            "items": [],
+        },
+        "mount_options": {
+            "mounts": []
+        }
+    },
+    "Beast Keeper": {
+        # https://tow.whfb.app/unit/beast-keeper - 11 pts per model
+        # The site gives no unit size.
+        # Fights with the Beast Keeper row.
+        "points": 11,
+        "points_per": "model",
+        "unit_size": "not given",
+        "other_profiles": [],
+        "base_profile": {
+            "Movement": 5,
+            "WeaponSkill": 4,
+            "BallisticSkill": 4,
+            "Strength": 3,
+            "Toughness": 3,
+            "Initiative": 4,
+            "Wounds": 1,
+            "Attacks": 1,
+            "Leadership": 8,
+            "Race": "Wood Elf",
+            "Armor": "Light Armor",
+            "Weapon": "Hand Weapon",
+            "Shield": False,
+            "SpecialRules": ["Elven Reflexes", "Motley Crew", "Move Through Cover", "Run with the Pack", "Skirmishers"],
+            "TroopType": "RegularInfantry",
+            "UnitCategory": "Unit",
+        },
+        "equipment_options": {
+            "weapons": ["Hand Weapon"],
+            "armor": ["Light Armor"],
+            "shield": False,
+            "items": [],
+        },
+        "mount_options": {
+            "mounts": []
+        }
+    },
+    "Deepwood Hound": {
+        # https://tow.whfb.app/unit/deepwood-hound - 8 pts per model, unit size 1-3
+        # Fights with the Deepwood Hound row.
+        "points": 8,
+        "points_per": "model",
+        "unit_size": "1-3",
+        "other_profiles": [],
+        "base_profile": {
+            "Movement": 9,
+            "WeaponSkill": 4,
+            "BallisticSkill": None,
+            "Strength": 3,
+            "Toughness": 3,
+            "Initiative": 3,
+            "Wounds": 1,
+            "Attacks": 1,
+            "Leadership": 5,
+            "Race": "Wood Elf",
+            "Armor": None,
+            "Weapon": "Hand Weapon",
+            "Shield": False,
+            "SpecialRules": ["Motley Crew", "Run with the Pack", "Skirmishers", "Warband"],
+            "TroopType": "WarBeast",
+            "UnitCategory": "Unit",
+        },
+        "equipment_options": {
+            "weapons": ["Hand Weapon"],
+            "armor": [],
+            "shield": False,
+            "items": [],
+        },
+        "mount_options": {
+            "mounts": []
+        }
+    },
+    "Deepwood Scouts": {
+        # https://tow.whfb.app/unit/deepwood-scouts - 13 pts per model, unit size 5+
+        # Fights with the Deepwood Scout row.
+        # Shooting is not simulated, so these are left out of the options: Asrai
+        # longbows.
+        "points": 13,
+        "points_per": "model",
+        "unit_size": "5+",
+        "champion": {'Name': "Lord's Bowman", 'Movement': 5, 'WeaponSkill': 4, 'BallisticSkill': 5, 'Strength': 3, 'Toughness': 3, 'Initiative': 4, 'Wounds': 1, 'Attacks': 1, 'Leadership': 8},
+        "other_profiles": [],
+        "base_profile": {
+            "Movement": 5,
+            "WeaponSkill": 4,
+            "BallisticSkill": 4,
+            "Strength": 3,
+            "Toughness": 3,
+            "Initiative": 4,
+            "Wounds": 1,
+            "Attacks": 1,
+            "Leadership": 8,
+            "Race": "Wood Elf",
+            "Armor": None,
+            "Weapon": "Hand Weapon",
+            "Shield": False,
+            "SpecialRules": ["Elven Reflexes", "Evasive", "Fire & Flee", "Move Through Cover", "Open Order", "Scouts", "Skirmishers"],
+            "TroopType": "RegularInfantry",
+            "UnitCategory": "Unit",
+            "OptionalRules": ["Arcane bodkins", "Hagbane tips", "Moonfire shot", "Swiftshiver shards", "Trueflight arrows"],
+        },
+        "equipment_options": {
+            "weapons": ["Hand Weapon"],
+            "armor": [],
+            "shield": False,
+            "items": [],
+        },
+        "mount_options": {
+            "mounts": []
+        }
+    },
+    "Dryads": {
+        # https://tow.whfb.app/unit/dryads - 13 pts per model, unit size 5+
+        # Fights with the Dryad row.
+        "points": 13,
+        "points_per": "model",
+        "unit_size": "5+",
+        "champion": {'Name': 'Nymph', 'Movement': 6, 'WeaponSkill': 4, 'BallisticSkill': 4, 'Strength': 3, 'Toughness': 4, 'Initiative': 4, 'Wounds': 1, 'Attacks': 3, 'Leadership': 8},
+        "other_profiles": [],
+        "base_profile": {
+            "Movement": 6,
+            "WeaponSkill": 4,
+            "BallisticSkill": 4,
+            "Strength": 3,
+            "Toughness": 4,
+            "Initiative": 4,
+            "Wounds": 1,
+            "Attacks": 2,
+            "Leadership": 8,
+            "Race": "Forest Spirit",
+            "Armor": "Light Armor",
+            "Weapon": "Hand Weapon",
+            "Shield": False,
+            "SpecialRules": ["Armour Bane (1)", "Fear", "Flammable", "Furious Charge", "Immune to Psychology", "Magical Attacks", "Move Through Cover", "Open Order", "Regeneration (6+)", "Skirmishers", "Stubborn", "Tree Spirit"],
+            "TroopType": "RegularInfantry",
+            "UnitCategory": "Unit",
+            "OptionalRules": ["Forest Spites"],
+        },
+        "equipment_options": {
+            "weapons": ["Hand Weapon"],
+            "armor": ["Light Armor"],
+            "shield": False,
+            "items": [],
+        },
+        "mount_options": {
+            "mounts": []
+        }
+    },
+    "Eternal Guard": {
+        # https://tow.whfb.app/unit/eternal-guard - 12 pts per model, unit size 5+
+        # Fights with the Eternal Guard row.
+        "points": 12,
+        "points_per": "model",
+        "unit_size": "5+",
+        "champion": {'Name': 'Eternal Warden', 'Movement': 5, 'WeaponSkill': 5, 'BallisticSkill': 4, 'Strength': 3, 'Toughness': 3, 'Initiative': 4, 'Wounds': 1, 'Attacks': 2, 'Leadership': 9},
+        "other_profiles": [],
+        "base_profile": {
+            "Movement": 5,
+            "WeaponSkill": 5,
+            "BallisticSkill": 4,
+            "Strength": 3,
+            "Toughness": 3,
+            "Initiative": 4,
+            "Wounds": 1,
+            "Attacks": 1,
+            "Leadership": 9,
+            "Race": "Wood Elf",
+            "Armor": "Light Armor",
+            "Weapon": "Asrai Spear",
+            "Shield": False,
+            "SpecialRules": ["Close Order", "Elven Reflexes", "Martial Prowess", "Move Through Cover", "Stubborn"],
+            "TroopType": "RegularInfantry",
+            "UnitCategory": "Unit",
+            "OptionalRules": ["Drilled", "Veteran"],
+        },
+        "equipment_options": {
+            "weapons": ["Hand Weapon", "Asrai Spear"],
+            "armor": ["Light Armor"],
+            "shield": True,
+            "items": [],
+        },
+        "mount_options": {
+            "mounts": []
+        }
+    },
+    "Forest Cat": {
+        # https://tow.whfb.app/unit/forest-cat - 6 pts per model, unit size 1-3
+        # Fights with the Forest Cat row.
+        "points": 6,
+        "points_per": "model",
+        "unit_size": "1-3",
+        "other_profiles": [],
+        "base_profile": {
+            "Movement": 7,
+            "WeaponSkill": 4,
+            "BallisticSkill": None,
+            "Strength": 3,
+            "Toughness": 3,
+            "Initiative": 4,
+            "Wounds": 1,
+            "Attacks": 1,
+            "Leadership": 5,
+            "Race": "Wood Elf",
+            "Armor": None,
+            "Weapon": "Hand Weapon",
+            "Shield": False,
+            "SpecialRules": ["Armour Bane (1)", "Motley Crew", "Run with the Pack", "Skirmishers"],
+            "TroopType": "WarBeast",
+            "UnitCategory": "Unit",
+        },
+        "equipment_options": {
+            "weapons": ["Hand Weapon"],
+            "armor": [],
+            "shield": False,
+            "items": [],
+        },
+        "mount_options": {
+            "mounts": []
+        }
+    },
+    "Glade Guard": {
+        # https://tow.whfb.app/unit/glade-guard - 10 pts per model, unit size 5+
+        # Fights with the Glade Guard row.
+        # Shooting is not simulated, so these are left out of the options: Asrai
+        # longbows.
+        "points": 10,
+        "points_per": "model",
+        "unit_size": "5+",
+        "champion": {'Name': "Lord's Bowman", 'Movement': 5, 'WeaponSkill': 4, 'BallisticSkill': 5, 'Strength': 3, 'Toughness': 3, 'Initiative': 4, 'Wounds': 1, 'Attacks': 1, 'Leadership': 8},
+        "other_profiles": [],
+        "base_profile": {
+            "Movement": 5,
+            "WeaponSkill": 4,
+            "BallisticSkill": 4,
+            "Strength": 3,
+            "Toughness": 3,
+            "Initiative": 4,
+            "Wounds": 1,
+            "Attacks": 1,
+            "Leadership": 8,
+            "Race": "Wood Elf",
+            "Armor": None,
+            "Weapon": "Hand Weapon",
+            "Shield": False,
+            "SpecialRules": ["Elven Reflexes", "Move Through Cover", "Open Order"],
+            "TroopType": "RegularInfantry",
+            "UnitCategory": "Unit",
+            "OptionalRules": ["Arcane bodkins", "Hagbane tips", "Moonfire shot", "Swiftshiver shards", "Trueflight arrows", "Fire & Flee", "Vanguard"],
+        },
+        "equipment_options": {
+            "weapons": ["Hand Weapon"],
+            "armor": [],
+            "shield": False,
+            "items": [],
+        },
+        "mount_options": {
+            "mounts": []
+        }
+    },
+    "Guardians of Talsyn": {
+        # https://tow.whfb.app/unit/guardians-of-talsyn - 18 pts per model, unit size
+        # 5+
+        # Fights with the Guardian of Talsyn row.
+        "points": 18,
+        "points_per": "model",
+        "unit_size": "5+",
+        "champion": {'Name': 'Watchmaster', 'Movement': 5, 'WeaponSkill': 5, 'BallisticSkill': 4, 'Strength': 3, 'Toughness': 3, 'Initiative': 4, 'Wounds': 1, 'Attacks': 3, 'Leadership': 9},
+        "other_profiles": [],
+        "base_profile": {
+            "Movement": 5,
+            "WeaponSkill": 5,
+            "BallisticSkill": 4,
+            "Strength": 3,
+            "Toughness": 3,
+            "Initiative": 4,
+            "Wounds": 1,
+            "Attacks": 2,
+            "Leadership": 9,
+            "Race": "Wood Elf",
+            "Armor": "Light Armor",
+            "Weapon": "Asrai Spear",
+            "Shield": False,
+            "SpecialRules": ["Close Order", "Drilled", "Elven Reflexes", "Martial Prowess", "Move Through Cover", "Parry", "Stubborn", "Veteran"],
+            "TroopType": "RegularInfantry",
+            "UnitCategory": "Unit",
+        },
+        "equipment_options": {
+            "weapons": ["Hand Weapon", "Asrai Spear"],
+            "armor": ["Light Armor"],
+            "shield": True,
+            "items": [],
+        },
+        "mount_options": {
+            "mounts": []
+        }
+    },
+    "Sylvan Boar": {
+        # https://tow.whfb.app/unit/sylvan-boar - 11 pts per model, unit size 1-3
+        # Fights with the Sylvan Boar row.
+        "points": 11,
+        "points_per": "model",
+        "unit_size": "1-3",
+        "other_profiles": [],
+        "base_profile": {
+            "Movement": 6,
+            "WeaponSkill": 3,
+            "BallisticSkill": None,
+            "Strength": 4,
+            "Toughness": 4,
+            "Initiative": 3,
+            "Wounds": 1,
+            "Attacks": 1,
+            "Leadership": 5,
+            "Race": "Wood Elf",
+            "Armor": None,
+            "Weapon": "Hand Weapon",
+            "Shield": False,
+            "SpecialRules": ["Furious Charge", "Motley Crew", "Razor Tusks", "Run with the Pack", "Skirmishers"],
+            "TroopType": "WarBeast",
+            "UnitCategory": "Unit",
+        },
+        "equipment_options": {
+            "weapons": ["Hand Weapon"],
+            "armor": [],
+            "shield": False,
+            "items": [],
+        },
+        "mount_options": {
+            "mounts": []
+        }
+    },
+    "Tree Kin": {
+        # https://tow.whfb.app/unit/tree-kin - 51 pts per model, unit size 2+
+        # Fights with the Tree Kin row.
+        "points": 51,
+        "points_per": "model",
+        "unit_size": "2+",
+        "champion": {'Name': 'Elder', 'Movement': 5, 'WeaponSkill': 4, 'BallisticSkill': 4, 'Strength': 4, 'Toughness': 6, 'Initiative': 3, 'Wounds': 3, 'Attacks': 4, 'Leadership': 8},
+        "other_profiles": [],
+        "base_profile": {
+            "Movement": 5,
+            "WeaponSkill": 4,
+            "BallisticSkill": 4,
+            "Strength": 4,
+            "Toughness": 6,
+            "Initiative": 3,
+            "Wounds": 3,
+            "Attacks": 3,
+            "Leadership": 8,
+            "Race": "Forest Spirit",
+            "Armor": "Heavy Armor",
+            "Weapon": "Hand Weapon",
+            "Shield": False,
+            "SpecialRules": ["Armour Bane (2)", "Close Order", "Fear", "Flammable", "Immune to Psychology", "Magical Attacks", "Move Through Cover", "Regeneration (5+)", "Stomp Attacks (1)", "Stubborn", "Tree Spirit", "Tree Whack"],
+            "TroopType": "MonstrousInfantry",
+            "UnitCategory": "Unit",
+            "OptionalRules": ["Forest Spites"],
+        },
+        "equipment_options": {
+            "weapons": ["Hand Weapon"],
+            "armor": ["Heavy Armor"],
+            "shield": False,
+            "items": [],
+        },
+        "mount_options": {
+            "mounts": []
+        }
+    },
+    "Wardancers": {
+        # https://tow.whfb.app/unit/wardancers - 16 pts per model, unit size 5+
+        # Fights with the Wardancer row.
+        "points": 16,
+        "points_per": "model",
+        "unit_size": "5+",
+        "champion": {'Name': 'Bladesinger', 'Movement': 5, 'WeaponSkill': 6, 'BallisticSkill': 4, 'Strength': 4, 'Toughness': 3, 'Initiative': 6, 'Wounds': 1, 'Attacks': 3, 'Leadership': 8},
+        "other_profiles": [],
+        "base_profile": {
+            "Movement": 5,
+            "WeaponSkill": 6,
+            "BallisticSkill": 4,
+            "Strength": 4,
+            "Toughness": 3,
+            "Initiative": 6,
+            "Wounds": 1,
+            "Attacks": 2,
+            "Leadership": 8,
+            "Race": "Wood Elf",
+            "Armor": None,
+            "Weapon": "Hand Weapon",
+            "Shield": False,
+            "SpecialRules": ["Dances of Loec", "Evasive", "Furious Charge", "Immune to Psychology", "Loner", "Motley Crew", "Move Through Cover", "Open Order", "Skirmishers", "Strike First", "Talismanic Tattoos", "Ward6"],
+            "TroopType": "RegularInfantry",
+            "UnitCategory": "Unit",
+        },
+        "equipment_options": {
+            "weapons": ["Hand Weapon", "Two Hand Weapons", "Throwing Spear"],
+            "armor": [],
+            "shield": False,
+            "items": [],
+        },
+        "mount_options": {
+            "mounts": []
+        }
+    },
+    "Waywatchers": {
+        # https://tow.whfb.app/unit/waywatchers - 16 pts per model, unit size 5+
+        # Fights with the Waywatcher row.
+        # Shooting is not simulated, so these are left out of the options: Asrai
+        # longbows.
+        "points": 16,
+        "points_per": "model",
+        "unit_size": "5+",
+        "champion": {'Name': 'Sentinel', 'Movement': 5, 'WeaponSkill': 4, 'BallisticSkill': 6, 'Strength': 3, 'Toughness': 3, 'Initiative': 5, 'Wounds': 1, 'Attacks': 1, 'Leadership': 8},
+        "other_profiles": [],
+        "base_profile": {
+            "Movement": 5,
+            "WeaponSkill": 4,
+            "BallisticSkill": 5,
+            "Strength": 3,
+            "Toughness": 3,
+            "Initiative": 5,
+            "Wounds": 1,
+            "Attacks": 1,
+            "Leadership": 8,
+            "Race": "Wood Elf",
+            "Armor": None,
+            "Weapon": "Hand Weapon",
+            "Shield": False,
+            "SpecialRules": ["Elven Reflexes", "Evasive", "Feigned Flight", "Fire & Flee", "Ignores Cover", "Move Through Cover", "Scouts", "Skirmishers"],
+            "TroopType": "RegularInfantry",
+            "UnitCategory": "Unit",
+            "OptionalRules": ["Arcane bodkins", "Hagbane tips", "Moonfire shot", "Swiftshiver shards", "Trueflight arrows", "Ambushers", "Vanguard", "Veteran"],
+        },
+        "equipment_options": {
+            "weapons": ["Hand Weapon"],
+            "armor": [],
+            "shield": False,
+            "items": [],
+        },
+        "mount_options": {
+            "mounts": []
+        }
+    },
+    "Wildwood Rangers": {
+        # https://tow.whfb.app/unit/wildwood-rangers - 14 pts per model, unit size 5+
+        # Fights with the Wildwood Ranger row.
+        "points": 14,
+        "points_per": "model",
+        "unit_size": "5+",
+        "champion": {'Name': 'Wildwood Warden', 'Movement': 5, 'WeaponSkill': 5, 'BallisticSkill': 4, 'Strength': 3, 'Toughness': 3, 'Initiative': 4, 'Wounds': 1, 'Attacks': 2, 'Leadership': 9},
+        "other_profiles": [],
+        "base_profile": {
+            "Movement": 5,
+            "WeaponSkill": 5,
+            "BallisticSkill": 4,
+            "Strength": 3,
+            "Toughness": 3,
+            "Initiative": 4,
+            "Wounds": 1,
+            "Attacks": 1,
+            "Leadership": 9,
+            "Race": "Wood Elf",
+            "Armor": "Light Armor",
+            "Weapon": "Ranger's Glaive",
+            "Shield": False,
+            "SpecialRules": ["Close Order", "Elven Reflexes", "Guardians of the Wildwood", "Immune to Psychology", "Move Through Cover"],
+            "TroopType": "RegularInfantry",
+            "UnitCategory": "Unit",
+        },
+        "equipment_options": {
+            "weapons": ["Hand Weapon", "Ranger's Glaive"],
+            "armor": ["Light Armor"],
+            "shield": True,
+            "items": [],
+        },
+        "mount_options": {
+            "mounts": []
+        }
+    },
+    "Glade Riders": {
+        # https://tow.whfb.app/unit/glade-riders - 17 pts per model, unit size 4+
+        # Fights with the Glade Rider row.
+        # Also has a profile for Elven Steed (M9 WS3 BS- S3 T- W- I4 A1 Ld-); not
+        # simulated.
+        # Shooting is not simulated, so these are left out of the options: Asrai
+        # longbows.
+        "points": 17,
+        "points_per": "model",
+        "unit_size": "4+",
+        "champion": {'Name': 'Glade Knight', 'Movement': None, 'WeaponSkill': 4, 'BallisticSkill': 5, 'Strength': 3, 'Toughness': 3, 'Initiative': 4, 'Wounds': 1, 'Attacks': 1, 'Leadership': 8},
+        "other_profiles": [
+            {'Name': 'Elven Steed', 'Movement': 9, 'WeaponSkill': 3, 'BallisticSkill': None, 'Strength': 3, 'Toughness': None, 'Initiative': 4, 'Wounds': None, 'Attacks': 1, 'Leadership': None},
+        ],
+        "base_profile": {
+            "Movement": None,
+            "WeaponSkill": 4,
+            "BallisticSkill": 4,
+            "Strength": 3,
+            "Toughness": 3,
+            "Initiative": 4,
+            "Wounds": 1,
+            "Attacks": 1,
+            "Leadership": 8,
+            "Race": "Wood Elf",
+            "Armor": None,
+            "Weapon": "Cavalry Spear",
+            "Shield": False,
+            "SpecialRules": ["Elven Reflexes", "Fast Cavalry", "Fire & Flee", "Open Order", "Skirmishers", "Swiftstride"],
+            "TroopType": "LightCavalry",
+            "UnitCategory": "Unit",
+            "OptionalRules": ["Arcane bodkins", "Hagbane tips", "Moonfire shot", "Swiftshiver shards", "Trueflight arrows", "Ambushers", "Drilled", "Reserve Move"],
+        },
+        "equipment_options": {
+            "weapons": ["Hand Weapon", "Cavalry Spear"],
+            "armor": [],
+            "shield": False,
+            "items": [],
+        },
+        "mount_options": {
+            "mounts": []
+        }
+    },
+    "Sisters of the Thorn": {
+        # https://tow.whfb.app/unit/sisters-of-the-thorn - 22 pts per model, unit size
+        # 4+
+        # Fights with the Sister of the Thorn row.
+        # Also has a profile for Steed of Isha (M8 WS3 BS- S4 T- W- I4 A1 Ld-); not
+        # simulated.
+        # Shooting is not simulated, so these are left out of the options: blackbriar
+        # javelins.
+        "points": 22,
+        "points_per": "model",
+        "unit_size": "4+",
+        "champion": {'Name': 'Handmaiden of the Thorn', 'Movement': None, 'WeaponSkill': 4, 'BallisticSkill': 6, 'Strength': 3, 'Toughness': 3, 'Initiative': 4, 'Wounds': 1, 'Attacks': 2, 'Leadership': 9},
+        "other_profiles": [
+            {'Name': 'Steed of Isha', 'Movement': 8, 'WeaponSkill': 3, 'BallisticSkill': None, 'Strength': 4, 'Toughness': None, 'Initiative': 4, 'Wounds': None, 'Attacks': 1, 'Leadership': None},
+        ],
+        "base_profile": {
+            "Movement": None,
+            "WeaponSkill": 4,
+            "BallisticSkill": 5,
+            "Strength": 3,
+            "Toughness": 3,
+            "Initiative": 4,
+            "Wounds": 1,
+            "Attacks": 1,
+            "Leadership": 9,
+            "Race": "Wood Elf",
+            "Armor": None,
+            "Weapon": "Hand Weapon",
+            "Shield": False,
+            "SpecialRules": ["Daughters of Eternity", "Ward4", "Deepwood Coven", "Elven Reflexes", "Fast Cavalry", "Fire & Flee", "Move Through Cover", "Open Order", "Poisoned Attacks", "Swiftstride"],
+            "TroopType": "LightCavalry",
+            "UnitCategory": "Unit",
+        },
+        "equipment_options": {
+            "weapons": ["Hand Weapon"],
+            "armor": [],
+            "shield": False,
+            "items": [],
+        },
+        "mount_options": {
+            "mounts": []
+        }
+    },
+    "Warhawk Riders": {
+        # https://tow.whfb.app/unit/warhawk-riders - 41 pts per model, unit size 3+
+        # Fights with the Warhawk Rider row.
+        # Also has a profile for Warhawk (M2 WS3 BS- S4 T- W- I4 A2 Ld-); not
+        # simulated.
+        # Shooting is not simulated, so these are left out of the options: Asrai
+        # longbows.
+        "points": 41,
+        "points_per": "model",
+        "unit_size": "3+",
+        "champion": {'Name': 'Wind Rider', 'Movement': None, 'WeaponSkill': 4, 'BallisticSkill': 5, 'Strength': 3, 'Toughness': 4, 'Initiative': 4, 'Wounds': 2, 'Attacks': 2, 'Leadership': 8},
+        "other_profiles": [
+            {'Name': 'Warhawk', 'Movement': 2, 'WeaponSkill': 3, 'BallisticSkill': None, 'Strength': 4, 'Toughness': None, 'Initiative': 4, 'Wounds': None, 'Attacks': 2, 'Leadership': None},
+        ],
+        "base_profile": {
+            "Movement": None,
+            "WeaponSkill": 4,
+            "BallisticSkill": 4,
+            "Strength": 3,
+            "Toughness": 4,
+            "Initiative": 4,
+            "Wounds": 2,
+            "Attacks": 1,
+            "Leadership": 8,
+            "Race": "Wood Elf",
+            "Armor": None,
+            "Weapon": "Cavalry Spear",
+            "Shield": False,
+            "SpecialRules": ["Elven Reflexes", "Evasive", "Fear", "Feigned Flight", "Fire & Flee", "Fly (10)", "Skirmishers", "Swiftstride"],
+            "TroopType": "MonstrousCavalry",
+            "UnitCategory": "Unit",
+            "OptionalRules": ["Arcane bodkins", "Hagbane tips", "Moonfire shot", "Swiftshiver shards", "Trueflight arrows"],
+        },
+        "equipment_options": {
+            "weapons": ["Hand Weapon", "Cavalry Spear"],
+            "armor": [],
+            "shield": False,
+            "items": [],
+        },
+        "mount_options": {
+            "mounts": []
+        }
+    },
+    "Wild Riders": {
+        # https://tow.whfb.app/unit/wild-riders - 26 pts per model, unit size 4+
+        # Fights with the Wild Rider row.
+        # Also has a profile for Steed of Kurnous (M9 WS3 BS- S4 T- W- I4 A1 Ld-); not
+        # simulated.
+        "points": 26,
+        "points_per": "model",
+        "unit_size": "4+",
+        "champion": {'Name': 'Wild Hunter', 'Movement': None, 'WeaponSkill': 5, 'BallisticSkill': 4, 'Strength': 4, 'Toughness': 3, 'Initiative': 5, 'Wounds': 1, 'Attacks': 2, 'Leadership': 9},
+        "other_profiles": [
+            {'Name': 'Steed of Kurnous', 'Movement': 9, 'WeaponSkill': 3, 'BallisticSkill': None, 'Strength': 4, 'Toughness': None, 'Initiative': 4, 'Wounds': None, 'Attacks': 1, 'Leadership': None},
+        ],
+        "base_profile": {
+            "Movement": None,
+            "WeaponSkill": 5,
+            "BallisticSkill": 4,
+            "Strength": 4,
+            "Toughness": 3,
+            "Initiative": 5,
+            "Wounds": 1,
+            "Attacks": 1,
+            "Leadership": 9,
+            "Race": "Wood Elf",
+            "Armor": "Light Armor",
+            "Weapon": "Hunting Spear",
+            "Shield": False,
+            "SpecialRules": ["Counter Charge", "Elven Reflexes", "Fast Cavalry", "Fear", "Frenzy", "Furious Charge (Riders only)", "Move Through Cover", "Open Order", "Swiftstride", "Talismanic Tattoos", "Ward6"],
+            "TroopType": "LightCavalry",
+            "UnitCategory": "Unit",
+        },
+        "equipment_options": {
+            "weapons": ["Hand Weapon", "Hunting Spear"],
+            "armor": ["Light Armor"],
+            "shield": True,
+            "items": [],
+        },
+        "mount_options": {
+            "mounts": []
+        }
+    },
+    "Great Eagle": {
+        # https://tow.whfb.app/unit/great-eagle - 60 pts per unit
+        # Fights with the Great Eagle row.
+        "points": 60,
+        "points_per": "unit",
+        "unit_size": "1",
+        "other_profiles": [],
+        "base_profile": {
+            "Movement": 2,
+            "WeaponSkill": 5,
+            "BallisticSkill": 0,
+            "Strength": 4,
+            "Toughness": 4,
+            "Initiative": 4,
+            "Wounds": 3,
+            "Attacks": 3,
+            "Leadership": 6,
+            "Race": "Wood Elf",
+            "Armor": None,
+            "Weapon": "Wicked Claws",
+            "Shield": False,
+            "SpecialRules": ["Close Order", "Fear", "Fly (10)", "Stomp Attacks (1)", "Swiftstride"],
+            "TroopType": "MonstrousCreature",
+            "UnitCategory": "Unit",
+        },
+        "equipment_options": {
+            "weapons": ["Wicked Claws", "Serrated Maw"],
+            "armor": [],
+            "shield": False,
+            "items": [],
+        },
+        "mount_options": {
+            "mounts": []
+        }
+    },
+    "Treeman": {
+        # https://tow.whfb.app/unit/treeman - 215 pts per unit
+        # Fights with the Treeman row.
+        # Shooting is not simulated, so these are left out of the options:
+        # Strangleroots.
+        "points": 215,
+        "points_per": "unit",
+        "unit_size": "1",
+        "other_profiles": [],
+        "base_profile": {
+            "Movement": 5,
+            "WeaponSkill": 6,
+            "BallisticSkill": 4,
+            "Strength": 5,
+            "Toughness": 6,
+            "Initiative": 2,
+            "Wounds": 5,
+            "Attacks": 5,
+            "Leadership": 9,
+            "Race": "Forest Spirit",
+            "Armor": "Full Plate Armor",
+            "Weapon": "Oaken Fists",
+            "Shield": False,
+            "SpecialRules": ["Armour Bane (1)", "Close Order", "Flammable", "Immune to Psychology", "Large Target", "Magical Attacks", "Move Through Cover", "Regeneration (5+)", "Stomp Attacks (D3)", "Stubborn", "Terror", "Timmm-berrr!", "Tree Spirit", "Tree Whack"],
+            "TroopType": "Behemoth",
+            "UnitCategory": "Unit",
+            "OptionalRules": ["Forest Spites"],
+        },
+        "equipment_options": {
+            "weapons": ["Oaken Fists"],
+            "armor": ["Full Plate Armor"],
+            "shield": False,
+            "items": [],
+        },
+        "mount_options": {
+            "mounts": []
+        }
+    },
+}
 
 
-# Special rules carried by this faction's characters. `status` is how far the
+# Special rules carried by this faction's characters and units. `status` is how far the
 # engine goes with each: "implemented", "partial", or None for recorded only.
 # Texts longer than a paragraph are cut, marked "[...]"; `url` has the rest.
 FACTION_RULES = {
@@ -414,12 +1175,37 @@ FACTION_RULES = {
             "Save roll against that wound."
         ),
     },
+    "Armoured Hide": {
+        "status": "implemented",
+        "url": "https://tow.whfb.app/special-rules/armoured-hide",
+        "text": (
+            "The hide of some creatures forms natural armour and improves their "
+            "armour value (and that of their rider). By how much armour value is "
+            "improved varies from model to model, as shown in brackets after the "
+            "name of this special rule (shown here as 'X'). Note that a model that "
+            "wears no armour is considered to have an armour value of 7+ for the "
+            "purposes of rules that improve armour value."
+        ),
+    },
     "Boldest of the Bold": {
         "status": None,
         "url": "https://tow.whfb.app/special-rules/boldest-of-the-bold",
         "text": (
             "Araloth ignores all negative modifiers to his Leadership "
             "characteristic."
+        ),
+    },
+    "Cleaving Blow": {
+        "status": "implemented",
+        "url": "https://tow.whfb.app/special-rules/cleaving-blow",
+        "text": (
+            "If a model with this special rule rolls a natural 6 when making a roll "
+            "To Wound for an attack made in combat, it has struck a 'Cleaving "
+            "Blow'. Enemy models whose troop type is regular infantry, heavy "
+            "infantry, light cavalry, heavy cavalry or war beasts are not permitted "
+            "an armour or Regeneration save against a Cleaving Blow (Ward saves can "
+            "be attempted as normal). Note that if an attack wounds automatically, "
+            "this special rule cannot be used."
         ),
     },
     "Close Order": {
@@ -430,6 +1216,23 @@ FACTION_RULES = {
             "Order formation."
         ),
     },
+    "Counter Charge": {
+        "status": None,
+        "url": "https://tow.whfb.app/special-rules/counter-charge",
+        "text": (
+            "This special rule can only be used by units that consist entirely of "
+            "models with this special rule. When a unit with this special rule is "
+            "charged in its front arc by an enemy unit whose troop type is cavalry, "
+            "chariot or monster, it may declare a 'Counter Charge' charge reaction: "
+            "Counter Charge The unit surges forward to meet the enemy charge. "
+            "Measure the distance between the two units. If the distance is less "
+            "than the Movement characteristic of the charging unit, the charged "
+            "unit has not enough time to meet the enemy charge and must either Hold "
+            "or Flee instead. Otherwise, pivot the unit about its centre so that it "
+            "is facing directly towards the centre of the charging enemy unit. "
+            "After [...]"
+        ),
+    },
     "Courage Beyond Compare": {
         "status": None,
         "url": "https://tow.whfb.app/special-rules/courage-beyond-compare",
@@ -437,6 +1240,46 @@ FACTION_RULES = {
             "If this character joins a unit of Guardians of Talsyn, that unit gains "
             "the Immune to Psychology special rule. Should this character leave the "
             "unit for any reason, the unit loses this special rule."
+        ),
+    },
+    "Dances of Loec": {
+        "status": None,
+        "url": "https://tow.whfb.app/special-rules/dances-of-loec",
+        "text": (
+            "When this unit's combat is chosen during Step 1.1 of any Choose & "
+            "Fight Combat subphase, choose one of the following Dances of Loec for "
+            "it to perform. Every model within the unit performs the same Dance: - "
+            "Whirling Death: Until the end of this Combat phase, the Armour "
+            "Piercing characteristic of this unit's weapons is improved by 2. - "
+            "Storm of Blades: Until the end of this Combat phase, this unit gains "
+            "the Extra Attacks (+1) special rule. - The Shadows Coil: Until the end "
+            "of this Combat phase, this unit has a 4+ ward save against any wounds "
+            "suffered. - Woven Mist: Any enemy model that directs its attacks "
+            "against this unit during this Combat phase suffers a -1 modifier to "
+            "its rolls To Hit. [...]"
+        ),
+    },
+    "Daughters of Eternity": {
+        "status": "implemented",
+        "url": "https://tow.whfb.app/special-rules/daughters-of-eternity",
+        "text": (
+            "Models with this special rule have a 4+ Ward save against any wounds "
+            "suffered."
+        ),
+    },
+    "Deepwood Coven": {
+        "status": None,
+        "url": "https://tow.whfb.app/special-rules/deepwood-coven",
+        "text": (
+            "A unit of Sisters of the Thorn knows a single, randomly generated "
+            "spell from either the Battle Magic or Elementalism Lore of Magic. If "
+            "you wish, this spell may be discarded and the unit may instead select "
+            "the signature spell of its chosen Lore of Magic. The unit may cast "
+            "this spell as a Bound spell: - If the unit includes a Handmaiden of "
+            "the Thorn, it may cast this Bound spell with a Power Level of 1. - If "
+            "it includes both a Handmaiden of the Thorn and a standard bearer, it "
+            "may cast this Bound spell with a Power Level of 2. - Otherwise, the "
+            "unit may cast this Bound spell with a Power Level of 0."
         ),
     },
     "Drilled": {
@@ -470,6 +1313,15 @@ FACTION_RULES = {
             "directly away from the enemy unit shooting at it. Once this unit has "
             "completed its move, the enemy unit may continue with its shooting as "
             "declared."
+        ),
+    },
+    "Fast Cavalry": {
+        "status": None,
+        "url": "https://tow.whfb.app/special-rules/fast-cavalry",
+        "text": (
+            "If all of the models (including characters) within a unit arrayed in "
+            "an Open Order formation have this special rule, the unit may perform "
+            "its Quick Turn even if it marched."
         ),
     },
     "Favour of the Goddess": {
@@ -529,6 +1381,23 @@ FACTION_RULES = {
             "a wound caused by a Flaming attack."
         ),
     },
+    "Fly": {
+        "status": None,
+        "url": "https://tow.whfb.app/special-rules/fly",
+        "text": (
+            "Except when following up or pursuing, a model with this special rule "
+            "can choose to move by flying through the air, rather than moving "
+            "across the ground as normal. When a model flies it uses a special ‘Fly "
+            "Movement’ characteristic, shown in brackets after the name of this "
+            "special rule (shown here as ‘X’). Models that choose to move by "
+            "flying: - May move as normal (i.e., they may charge, march and "
+            "manoeuvre as if moving on the ground), except that they are able to "
+            "pass freely above other models, units and terrain features without any "
+            "penalty, and they can march whilst within 8\" of an enemy unit without "
+            "first having to make a Leadership test. - May end their movement in "
+            "terrain, but will [...]"
+        ),
+    },
     "Frenzy": {
         "status": "implemented",
         "url": "https://tow.whfb.app/special-rules/frenzy",
@@ -553,6 +1422,16 @@ FACTION_RULES = {
             "During a turn in which it made a charge move of 3\" or more, a model "
             "with this special rule gains a +1 modifier to its Attacks "
             "characteristic."
+        ),
+    },
+    "Guardians of the Wildwood": {
+        "status": None,
+        "url": "https://tow.whfb.app/special-rules/guardians-of-the-wildwood",
+        "text": (
+            "Whilst it is in base contact with an enemy model that causes Fear or "
+            "Terror, a model with this special rule gains a +1 modifier to its "
+            "Attacks characteristics (to a maximum of 10) and the Multiple Wounds "
+            "(2) special rule."
         ),
     },
     "Hawk-eyed Archer": {
@@ -645,6 +1524,33 @@ FACTION_RULES = {
             "any hits caused by magic items."
         ),
     },
+    "Martial Prowess": {
+        "status": None,
+        "url": "https://tow.whfb.app/special-rules/martial-prowess",
+        "text": (
+            "During the first round of combat, a unit with this special rule gains "
+            "a +1 modifier to its Weapon Skill characteristic. In addition, a unit "
+            "with this special rule can make supporting attacks to its flank or "
+            "rear, as well as to its front."
+        ),
+    },
+    "Motley Crew": {
+        "status": None,
+        "url": "https://tow.whfb.app/special-rules/motley-crew",
+        "text": (
+            "Units with this special rule may include models of the same type that "
+            "are equipped differently to one another, and/or models of different "
+            "types that fight together in a single unit. If necessary, the army "
+            "list entry for such units will be accompanied by a brief explanation "
+            "of the unit's composition. Different Weapons The fighting rank of a "
+            "Motley Crew may contain models that are armed with different weapons. "
+            "In such cases, the controlling player must roll different batches of "
+            "dice for the different models, making it clear to their opponent which "
+            "model's attacks they represent and where they are being directed. "
+            "These attacks are made in the Initiative order of the individual "
+            "models, as [...]"
+        ),
+    },
     "Move Through Cover": {
         "status": None,
         "url": "https://tow.whfb.app/special-rules/move-through-cover",
@@ -680,6 +1586,19 @@ FACTION_RULES = {
             "shield, this unit improves its armour value by 1."
         ),
     },
+    "Poisoned Attacks": {
+        "status": "implemented",
+        "url": "https://tow.whfb.app/special-rules/poisoned-attacks",
+        "text": (
+            "If a model with Poisoned Attacks rolls a natural 6 when making a roll "
+            "To Hit, it may apply a +2 modifier to that hit’s roll To Wound. Unless "
+            "otherwise stated, a model with this special rule may use it when "
+            "making both shooting and combat attacks. Any spells cast by the model "
+            "are unaffected, as are any attacks made with magic weapons. Note that "
+            "if an attack needs a To Hit roll of 7+, or hits automatically, this "
+            "special rule cannot be used."
+        ),
+    },
     "Rallying Cry": {
         "status": None,
         "url": "https://tow.whfb.app/special-rules/rallying-cry",
@@ -689,6 +1608,16 @@ FACTION_RULES = {
             "that is within their Command range. The nominated unit immediately "
             "makes a Rally test. If this test is failed, the unit may attempt to "
             "rally again as normal during the Rally sub-phase."
+        ),
+    },
+    "Razor Tusks": {
+        "status": None,
+        "url": "https://tow.whfb.app/special-rules/razor-tusks",
+        "text": (
+            "During a turn in which it charged, the Armour Piercing characteristic "
+            "of this model's tusks (hand weapon) is improved by 1. Note that this "
+            "special rule only applies to attacks made by a the model, not to a "
+            "chariot or its crew (should it have one)."
         ),
     },
     "Regeneration": {
@@ -704,6 +1633,17 @@ FACTION_RULES = {
             "is recovered, but is still counted for the purposes of calculating the "
             "combat result. Rules that affect armour values do not affect "
             "Regeneration values unless stated otherwise."
+        ),
+    },
+    "Run with the Pack": {
+        "status": None,
+        "url": "https://tow.whfb.app/special-rules/run-with-the-pack",
+        "text": (
+            "Whilst one or more Beast Keeper remains within this unit, the unit is "
+            "not subject to the Undisciplined rule and war beasts within this unit "
+            "do not fear models with the Flaming Attacks special rule. In addition, "
+            "a unit with this special rule may use the Movement characteristic of "
+            "the majority of the models in the unit."
         ),
     },
     "Scouts": {
@@ -735,8 +1675,19 @@ FACTION_RULES = {
             "remainder of the game."
         ),
     },
-    "Stomp Attacks": {
+    "Skirmishers": {
         "status": None,
+        "url": "https://tow.whfb.app/unusual-formations/skirmish-formation",
+        "text": (
+            "A unit of models in Skirmish formation (often referred to as "
+            "'Skirmishers' in the rules that follow) never consists of rigid ranks "
+            "and files. Instead, it moves as a single loose group or rough line. "
+            "This enables Skirmishers to move quickly and take advantage of terrain "
+            "to shelter from the enemy."
+        ),
+    },
+    "Stomp Attacks": {
+        "status": "implemented",
         "url": "https://tow.whfb.app/special-rules/stomp-attacks",
         "text": (
             "The number of Stomp Attacks caused varies from model to model, and "
@@ -770,6 +1721,16 @@ FACTION_RULES = {
             "become Stubborn when joined by a character that is. A Stubborn "
             "character cannot use this special rule whilst part of a unit that is "
             "not Stubborn."
+        ),
+    },
+    "Swiftstride": {
+        "status": None,
+        "url": "https://tow.whfb.app/special-rules/swiftstride",
+        "text": (
+            "A unit which consists entirely of models with this special rule "
+            "increases its maximum possible charge range by 3\" and, before making a "
+            "Charge, Flee or Pursuit roll, may choose to apply a +D6 modifier to "
+            "the result."
         ),
     },
     "Talismanic Tattoos": {
@@ -868,6 +1829,32 @@ FACTION_RULES = {
             "required to make a Break test. Instead, it will automatically Give "
             "Ground as it is pushed back by the enemy. Characters that are not "
             "Unbreakable cannot join units that are, and vice versa."
+        ),
+    },
+    "Veteran": {
+        "status": None,
+        "url": "https://tow.whfb.app/special-rules/veteran",
+        "text": (
+            "If the majority of the models in a unit have this special rule, the "
+            "unit may re-roll any failed Leadership test. Note that a Break test is "
+            "not a Leadership test."
+        ),
+    },
+    "Warband": {
+        "status": None,
+        "url": "https://tow.whfb.app/special-rules/warband",
+        "text": (
+            "Unless it is fleeing, a Warband gains a positive (+) modifier to its "
+            "Leadership characteristic equal to its current Rank Bonus, up to a "
+            "maximum of Leadership 10. However, a Warband cannot use this modifier "
+            "to its Leadership should it ever choose to make a Restraint test or, "
+            "if it is Impetuous, when testing to see if it must declare a charge or "
+            "may act as normal. In addition, if the majority of the models in a "
+            "unit have this special rule, it may re-roll its Charge roll. Note that "
+            "unless a character also has this special rule, their Leadership cannot "
+            "be modified by this special rule. A Warband can use either its own "
+            "modified Leadership, the modified Leadership of a Warband character, "
+            "or the [...]"
         ),
     },
 }
