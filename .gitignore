@@ -6,3 +6,6 @@ venv/
 .pytest_cache/
 .DS_Store
 .tow_cache/
+
+# Built website (tools/build_site.py)
+site/

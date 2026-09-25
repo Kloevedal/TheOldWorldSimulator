@@ -259,6 +259,7 @@ COMMON_MAGIC_ITEMS = {
     },
     "Bedazzling Helm": {
         "type": "Magic Armour", "cost": 60, "rules": [ImproveArmor1InCombat],
+        "worn_with_armour": True,
         "text": ("Infantry or cavalry only; worn with other armour. Improves "
                  "armour value by 1 (to a maximum of 2+). Enemies attacking the "
                  "wearer suffer -1 To Hit (not modelled)."),
@@ -712,7 +713,7 @@ def check_purchase(faction, profile, items):
                     f"these cost {spent[budget]}"
                 )
         kind = entry.get("type")
-        stacks = budget == "Runes" or "worn with other armour" in (entry.get("text") or "")
+        stacks = budget == "Runes" or entry.get("worn_with_armour", False)
         if kind in SINGLE_SLOT_TYPES and not stacks:
             if kind in slots:
                 raise ValueError(f"{profile} cannot carry both {slots[kind]} and {key} ({kind})")

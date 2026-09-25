@@ -30,7 +30,8 @@ Units, shooting, movement and psychology are out of scope for now — see [todo.
 | [dice.py](dice.py) | Every D6 in the engine. Seedable and scriptable, so tests are deterministic. |
 | [combat_simulations.py](combat_simulations.py) | The engine: rolls, strike order, and the duel driver. |
 | [tests/](tests/) | The test suite — see [Testing](#testing). Run with `python3 run_tests.py`. |
-| [tools/](tools/) | Development only: `tow_site.py` reads the site's page data; `transcribe_faction.py`, `transcribe_mounts.py`, `transcribe_weapons.py`, `transcribe_items.py`, `transcribe_allowances.py` and `transcribe_costs.py` generate data from it; `verify_rosters.py` checks every roster, statline and points value against it. |
+| [web_api.py](web_api.py), [web/](web/) | The website: `web/` is the page (plain HTML, CSS and JavaScript); `web_api.py` is what it calls, run in the browser with Pyodide. Built by `tools/build_site.py`. |
+| [tools/](tools/) | Development only: `tow_site.py` reads the site's page data; `transcribe_faction.py`, `transcribe_mounts.py`, `transcribe_weapons.py`, `transcribe_items.py`, `transcribe_allowances.py` and `transcribe_costs.py` generate data from it; `verify_rosters.py` checks every roster, statline and points value against it; `build_site.py` builds the website. |
 | [simulator_app.py](simulator_app.py) | Desktop app (Tkinter, native look). Launch with [run_app.command](run_app.command). |
 | [ui_kit.py](ui_kit.py) | The app's drawn widgets: stat tiles, win bar, fight log. |
 | [mounted.py](mounted.py) | Mounted characters: applies a mount to a character (troop type, Toughness/Wounds, armour, shared rules) and builds its attackers. |
@@ -309,6 +310,19 @@ Double-click `run_app.command` in Finder, or run `./run_app.command`. The app us
 
 The launcher uses uv's Python 3.13 (Tk 8.6) and falls back to `python3`.
 
+## Website
+
+The same simulator as a website, for sharing: it runs entirely in the visitor's browser (Python via [Pyodide](https://pyodide.org)), so there is no server, nothing to install and nothing to pay for.
+
+```bash
+python3 tools/build_site.py --serve    # build into site/ and open http://localhost:8000
+```
+
+- **Features:** as the desktop app, with Duel and Units modes, priced pickers, X (y) statlines, points, the item shop with name-and-rules search, Odds and Play-by-play. **Share link** puts both fighters in the URL; saved fighters stay in the visitor's browser.
+- **No rules text is published.** The rosters and item data hold rules text copied from tow.whfb.app (`text`, `not_modelled`, `weapon_note`, `restriction`). The build strips those fields from the packed simulator, fails if any remaining string is a piece of that text, and checks that the stripped simulator gives the same results as the full one for every profile. The site shows short summaries and links each item to tow.whfb.app.
+- **Safety:** the page never inserts HTML (all text goes in as text, so a name in a share link cannot run code), has a strict Content-Security-Policy, keeps the fight in the URL fragment (never sent to the server), and uses no cookies, analytics or keys. Pyodide is pinned to one version.
+- **Publishing:** `.github/workflows/pages.yml` runs the quick tests, builds and deploys to GitHub Pages on every push to `main`, once Pages is enabled with source "GitHub Actions" (Settings → Pages). The site is then at `https://<user>.github.io/TheOldWorldSimulator/`.
+
 ## Testing
 
 ```bash
@@ -335,6 +349,7 @@ Enable the hook once per clone with `git config core.hooksPath .githooks`. GitHu
 | `test_monsters.py` | Impact Hits and Stomp Attacks ordering, unmodified Strength, Thunderstomp, dice amounts, Extra Attacks. |
 | `test_site_rosters.py` | Every roster, statline and points value against the site (skipped without the `.tow_cache/` page cache). |
 | `test_app_model.py` | The desktop app's logic: loadouts, extras, the item shop, runs and their defaults, saved fighters. `TOW_GUI_TESTS=1` also opens the window. |
+| `test_web.py` | The website: `web_api` input checks and calls, the rules-text stripping, and the page's no-HTML-injection and CSP rules. |
 | `test_points.py` | Option prices against the rosters, points totals (per-model units, fixed mounts, free default kit), weapon and item summaries, the X (y) statline, and rule-aware item search. |
 
 Statistical tests use fixed seeds and four-sigma bands, so they are deterministic and do not flake.

@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- Only this site's own files run on the page; the simulator (Pyodide from
+       jsDelivr) runs inside a worker. No inline scripts or styles. -->
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; worker-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'; object-src 'none'">
+  <meta name="referrer" content="no-referrer">
+  <title>Old World Duel Simulator</title>
+  <meta name="description" content="Dice-level duel odds for Warhammer: The Old World, in your browser.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%E2%9A%94%EF%B8%8F%3C/text%3E%3C/svg%3E">
+  <link rel="stylesheet" href="style.css?v=__BUILD__">
+  <script src="app.js?v=__BUILD__" defer></script>
+</head>
+<body>
+  <header class="top">
+    <h1>Old World Duel Simulator</h1>
+    <div class="segmented" id="mode" role="radiogroup" aria-label="Mode">
+      <button type="button" data-value="character" aria-pressed="true">Duel</button>
+      <button type="button" data-value="unit" aria-pressed="false">Units</button>
+    </div>
+  </header>
+
+  <main>
+    <div id="loading" class="loading" role="status">
+      <div class="spinner" aria-hidden="true"></div>
+      <p>Loading the simulator…</p>
+      <p class="muted">The first visit downloads about 10 MB of Python. After that it is cached.</p>
+    </div>
+
+    <p id="unit-note" class="note" hidden></p>
+    <section id="cards" class="cards" hidden></section>
+
+    <section id="controls" class="controls" hidden>
+      <div class="segmented" id="run-mode" role="radiogroup" aria-label="Run">
+        <button type="button" data-value="odds" aria-pressed="true">Odds</button>
+        <button type="button" data-value="narrate" aria-pressed="false">Play-by-play</button>
+      </div>
+      <label class="field">Fights <input id="runs" type="number" min="1" max="20000" step="100" inputmode="numeric"></label>
+      <label class="field">Rounds <input id="rounds" type="number" min="1" max="50" inputmode="numeric"></label>
+      <label class="check"><input id="death" type="checkbox"> To the death</label>
+      <label class="field">Seed <input id="seed" type="text" inputmode="numeric" maxlength="10" placeholder="random"></label>
+      <span class="spacer"></span>
+      <progress id="progress" max="1" value="0" hidden></progress>
+      <button type="button" id="share" class="secondary">Share link</button>
+      <button type="button" id="fight" class="primary">Fight</button>
+    </section>
+    <p id="status" class="status" role="status"></p>
+
+    <section id="result" class="result" hidden>
+      <div id="winbar" class="winbar" hidden>
+        <div class="winbar-top">
+          <span id="pct-a" class="pct side-a"></span>
+          <span id="pct-draw" class="muted"></span>
+          <span id="pct-b" class="pct side-b"></span>
+        </div>
+        <div class="bar"><span id="bar-a" class="side-a-bg"></span><span id="bar-draw" class="draw-bg"></span><span id="bar-b" class="side-b-bg"></span></div>
+        <div class="winbar-names"><span id="name-a"></span><span id="name-b"></span></div>
+        <div id="details" class="details"></div>
+      </div>
+      <pre id="log" class="log" hidden></pre>
+    </section>
+  </main>
+
+  <footer>
+    <p>Unofficial fan project, not affiliated with or endorsed by Games Workshop. Warhammer: The Old World and all
+      associated names are trademarks of Games Workshop Ltd. This site shows short summaries of rules only; read the full
+      rules at <a href="https://tow.whfb.app" rel="noopener noreferrer" target="_blank">tow.whfb.app</a>.</p>
+    <p>Everything runs in your browser. Saved fighters stay on this device; nothing is sent anywhere.</p>
+  </footer>
+
+  <dialog id="extras" class="extras" aria-labelledby="extras-title">
+    <form method="dialog" class="extras-body">
+      <h2 id="extras-title"></h2>
+      <div id="upgrades" class="upgrades"></div>
+      <div id="shop" class="shop">
+        <div class="shop-top">
+          <input id="search" type="search" placeholder="Search names &amp; rules (e.g. killing blow, ward save)" autocomplete="off">
+          <label class="check"><input id="common" type="checkbox" checked> <span id="common-label">Common items</span></label>
+          <span id="budgets" class="muted"></span>
+        </div>
+        <div id="tabs" class="tabs" role="tablist"></div>
+        <div class="shop-lists">
+          <div class="table-wrap"><table id="items"><thead><tr><th>Item</th><th>Pts</th><th>Profile</th><th></th></tr></thead><tbody></tbody></table></div>
+          <div class="chosen">
+            <h3>Chosen</h3>
+            <ul id="chosen"></ul>
+          </div>
+        </div>
+      </div>
+      <p id="extras-error" class="error"></p>
+      <div class="dialog-buttons">
+        <button type="button" id="extras-cancel" class="secondary">Cancel</button>
+        <button type="button" id="extras-done" class="primary">Done</button>
+      </div>
+    </form>
+  </dialog>
+</body>
+</html>

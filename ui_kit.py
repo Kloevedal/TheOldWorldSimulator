@@ -101,13 +101,15 @@ class StatTiles(tk.Canvas):
             if isinstance(value, tuple):
                 value, bare = value
             shown = "–" if value is None else str(value)
-            colour = self.colour
             if bare is None:
-                self.create_text(x0 + tile / 2, 37, text=shown, font=self.fonts.stat_value, fill=colour)
+                self.create_text(x0 + tile / 2, 37, text=shown, font=self.fonts.stat_value,
+                                 fill=self.colour)
                 continue
+            # Only a change from the bare profile is coloured: green up, red down.
+            colour = TEXT
             if str(bare) != shown:
                 colour = GREEN if _number(value) > _number(bare) else (
-                    RED if _number(value) < _number(bare) else colour)
+                    RED if _number(value) < _number(bare) else TEXT)
             note = f"({bare})"
             wide = tkfont.Font(font=self.fonts.stat_value).measure(shown)
             small = tkfont.Font(font=self.fonts.small).measure(note)

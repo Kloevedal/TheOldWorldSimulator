@@ -26,4 +26,5 @@ Dice-level combat simulator for Warhammer: The Old World. Pure standard-library 
 - Each faction module has `CHARACTERS` and `UNITS`; `UnitCategory` is `Character`/`NamedCharacter` or `Unit`.
 - Marks of Chaos and Chivalrous Vows are exclusive options (`character_model.EXCLUSIVE_OPTIONS`); bought items and abilities go through `Character(magic_items=...)` and `magic_items.check_purchase`.
 - The GUI (`simulator_app.py`, `ui_kit.py`) is Tkinter with a clean native look: use ttk widgets, draw only what ttk lacks in `ui_kit.py`, and keep logic in `app_model.py`, which is tested.
+- The website (`web/`, `web_api.py`, built by `tools/build_site.py`) must never publish rules text: keep copied text in `text`/`not_modelled`/`weapon_note`/`restriction` fields (the build strips them) and never make run-time logic depend on them (use a data flag, like `worn_with_armour`). In `web/*.js` never use `innerHTML` or similar; build DOM with `el()` and `textContent`.
 - Mounts go through `Character(mount=...)` and `mounted.py`; follow the Split Profile rules text, and keep a rule with the rider when the text says "(but not its mount)".

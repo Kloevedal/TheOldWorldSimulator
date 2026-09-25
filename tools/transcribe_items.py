@@ -504,6 +504,10 @@ def build():
             "extremely_common": "Extremely Common" in text,
             "text": text,
         }
+        # Armour that is "worn with other armour" doesn't take the armour slot.
+        # Kept as a flag so nothing needs the rules text at run time.
+        if "worn with other armour" in text:
+            record["worn_with_armour"] = True
         profile, comment, wmods, wskipped, wielder_rules = (
             weapon_entry(name, item) if kind in ("Magic Weapon", "Ability") else (None, None, {}, [], []))
         if profile is not None:
