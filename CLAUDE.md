@@ -2,6 +2,12 @@
 
 Dice-level combat simulator for Warhammer: The Old World. Pure standard-library Python (3.9+). See README.md for layout and rules coverage.
 
+## Branches
+
+- Do all work on `dev`; never commit directly to `main`.
+- `main` is what the public website serves: every push to `main` redeploys https://kloevedal.github.io/TheOldWorldSimulator/ (after the quick tests pass). Merge `dev` into `main` only when the user asks to publish, and run `python3 run_tests.py --full` first.
+- Pushes to `dev` run the test workflow only; they never touch the site.
+
 ## Testing is mandatory
 
 - Run `python3 run_tests.py` before every commit (the `.githooks/pre-commit` hook does this; enable it with `git config core.hooksPath .githooks`).

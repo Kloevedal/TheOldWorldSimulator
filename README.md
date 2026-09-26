@@ -321,6 +321,7 @@ python3 tools/build_site.py --serve    # build into site/ and open http://localh
 - **Features:** as the desktop app, with Duel and Units modes, priced pickers, X (y) statlines, points, the item shop with name-and-rules search, Odds and Play-by-play. **Share link** puts both fighters in the URL; saved fighters stay in the visitor's browser.
 - **No rules text is published.** The rosters and item data hold rules text copied from tow.whfb.app (`text`, `not_modelled`, `weapon_note`, `restriction`). The build strips those fields from the packed simulator, fails if any remaining string is a piece of that text, and checks that the stripped simulator gives the same results as the full one for every profile. The site shows short summaries and links each item to tow.whfb.app.
 - **Safety:** the page never inserts HTML (all text goes in as text, so a name in a share link cannot run code), has a strict Content-Security-Policy, keeps the fight in the URL fragment (never sent to the server), and uses no cookies, analytics or keys. Pyodide is pinned to one version.
+- **Branches:** work happens on `dev` (pushes there only run the tests); merging `dev` into `main` publishes.
 - **Publishing:** `.github/workflows/pages.yml` runs the quick tests, builds and deploys to GitHub Pages on every push to `main`, once Pages is enabled with source "GitHub Actions" (Settings → Pages). The site is then at `https://<user>.github.io/TheOldWorldSimulator/`.
 
 ## Testing
