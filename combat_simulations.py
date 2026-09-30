@@ -23,6 +23,9 @@ from elven_honors import ElvenHonors
 from faction_profiles import RACE_NAMES, FactionProfiles
 from magic_items import MagicItemDict
 from special_rules import (
+    HornOfIsha,
+    daemon_allegiance,
+    parse_to_wound_modifier,
     BlackLotus,
     CryOfWar,
     Parry,
@@ -231,6 +234,12 @@ def apply_weapon_stats(
     """
     strength_bonus, ap_bonus, weapon_rules = _weapon_stats_or_default(character.Weapon)
 
+    # Daemon of Khorne: +1 Strength during a turn in which it charged (but not
+    # its mount). A weapon with its own Strength replaces it below.
+    if (is_first_round and daemon_allegiance(character.SpecialRules or []) == "Khorne"
+            and getattr(character, "owner", None) is None):
+        character.Strength = (character.Strength or 0) + 1
+
     first_round_gated = FirstRoundOnly in weapon_rules
     strength_gated = first_round_gated or FirstRoundStr in weapon_rules
 
@@ -430,7 +439,7 @@ def RollToHit(
     forced_reroll_available = ForceRerollOneHit in defender_rules
     reroll_every_hit = EnemyRerollsHits in defender_rules
     # Mark of Nurgle: enemies re-roll any To Hit roll of a natural 6 against it.
-    reroll_sixes = MarkOfNurgle in defender_rules
+    reroll_sixes = MarkOfNurgle in defender_rules or daemon_allegiance(defender_rules) == "Nurgle"
 
     if attacks is None:
         attacks = apply_extra_attacks(attacker, is_first_round=is_first_round)
@@ -571,8 +580,16 @@ def _names_match(target: str, candidate: str) -> bool:
     return False
 
 
+# Each god's Daemons hate the Daemons of its rival ("Daemons of Khorne have the
+# Hatred (Daemons of Slaanesh) special rule").
+_RIVAL_GOD = {"Khorne": "Slaanesh", "Slaanesh": "Khorne", "Nurgle": "Tzeentch", "Tzeentch": "Nurgle"}
+
+
 def _is_hated_enemy(rules, defender: Character) -> bool:
     """Whether any Hatred(X) rule on the attacker applies to this defender."""
+    god = daemon_allegiance(rules)
+    if god and daemon_allegiance(defender.SpecialRules or []) == _RIVAL_GOD[god]:
+        return True
     for rule in rules:
         rule = str(rule)
         if not rule.lower().startswith(Hatred.lower()):
@@ -582,6 +599,12 @@ def _is_hated_enemy(rules, defender: Character) -> bool:
         target = rule[rule.find("(") + 1 : rule.find(")")].strip().lower()
         if target.startswith("all"):  # "all", "all enemies"
             return True
+        # "Hatred (Daemons of Slaanesh)": only Daemons of that god, not all Daemons.
+        god = re.fullmatch(r"daemons? of (khorne|nurgle|slaanesh|tzeentch)", target)
+        if god:
+            if (daemon_allegiance(defender.SpecialRules or []) or "").lower() == god.group(1):
+                return True
+            continue
         race = (getattr(defender, "Race", "") or "").lower()
         name = (getattr(defender, "name", "") or "").lower()
         if _names_match(target, race) or _names_match(target, name):
@@ -685,8 +708,11 @@ def RollToWound(
     if Magic in weapon_rules or MagicalAttacks in weapon_rules:
         poisoned_hits = 0
 
+    # "To Wound (+1)" (the Horn of Isha) modifies the roll; a natural 1 still fails.
+    wound_modifier = parse_to_wound_modifier(attacker_rules, weapon_rules)
+
     def succeeds(natural, bonus):
-        return natural != 1 and natural + bonus >= to_wound_target
+        return natural != 1 and natural + bonus + wound_modifier >= to_wound_target
 
     wounds = []
     for index in range(num_hits):
@@ -1214,7 +1240,11 @@ def combat_simulation(
 
     saved = [(m, m.Leadership) for c in (character_1, character_2)
              for m in [c] + list(getattr(c, "mount_parts", []))]
+    saved_rules = [(m, list(m.SpecialRules or [])) for c in (character_1, character_2)
+                   for m in [c] + list(getattr(c, "mount_parts", []))]
     try:
+        for model in (character_1, character_2):
+            _sound_horn_of_isha(model, verbose)
         for model, enemy in ((character_1, character_2), (character_2, character_1)):
             if CryOfWar in (model.SpecialRules or []):
                 lower_leadership(enemy, 1)
@@ -1224,6 +1254,34 @@ def combat_simulation(
     finally:
         for model, leadership in saved:
             model.Leadership = leadership
+        for model, rules in saved_rules:
+            model.SpecialRules = rules
+
+
+HORN_OF_ISHA_BONUS = ["To Hit (+1)", "To Wound (+1)"]
+
+
+def _sound_horn_of_isha(model, verbose):
+    """Horn of Isha (single use): in its first turn the character takes a
+    Leadership test on its own Leadership; if passed, it gets +1 To Hit and
+    +1 To Wound until its next Start of Turn: its own turn and the enemy's
+    next one, which in a duel are the first two rounds."""
+    if HornOfIsha not in (model.SpecialRules or []):
+        return
+    first, second = roll_d6(), roll_d6()
+    passed = (first + second <= (model.Leadership or 0) or (first, second) == (1, 1)) and (first, second) != (6, 6)
+    if verbose:
+        print(f"{model.name} sounds the Horn of Isha: {first}+{second} vs Ld{model.Leadership} - "
+              + ("+1 To Hit and To Wound for two rounds" if passed else "no effect"))
+    if passed:
+        model.SpecialRules = list(model.SpecialRules) + HORN_OF_ISHA_BONUS
+        model.horn_of_isha_rounds = 2
+
+
+def _horn_of_isha_expires(model, round_number):
+    if getattr(model, "horn_of_isha_rounds", 0) and round_number > model.horn_of_isha_rounds:
+        model.SpecialRules = [r for r in model.SpecialRules if r not in HORN_OF_ISHA_BONUS]
+        model.horn_of_isha_rounds = 0
 
 
 def lower_leadership(model, amount):
@@ -1240,6 +1298,8 @@ def _duel(character_1, character_2, rounds, verbose):
 
     for round_number in range(1, rounds + 1):
         is_first_round = round_number == 1
+        for model in fighters:
+            _horn_of_isha_expires(model, round_number)
         if verbose:
             print(f"\n=== Round {round_number} ===")
 

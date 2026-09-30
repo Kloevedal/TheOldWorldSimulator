@@ -39,7 +39,7 @@ OUT = os.path.join(ROOT, "option_costs.py")
 # pages leave out the brackets ("Great weapons +1 point per model").
 _PRICED = re.compile(r"^(.*?)\s*(?:\((?:\+(\d+) points?(?: per (model|unit))?|Free)\)"
                      r"|\+(\d+) points?(?: per (model|unit))?)\s*$", re.I)
-_LEAD = re.compile(r"^(?:[-\s]*)(?:any unit may (?=upgrade)|a character with .*? may be mounted on (?:a |an )?|"
+_LEAD = re.compile(r"^(?:[-\s]*)(?:0-1 .*? may take (?:the |a |an )?|any unit may (?=upgrade)|a character with .*? may be mounted on (?:a |an )?|"
                    r"(?:may )?take (?:a |an )?|the entire unit may take |"
                    r"(?:may )?replace .*? with (?:a |an )?|may be mounted on (?:a |an )?|"
                    r"(?:may )?have (?:the )?|may be (?:a |an )?)", re.I)
@@ -81,16 +81,18 @@ def classify(label, entry):
     if low in _ARMOUR or singular in _ARMOUR:
         name = _ARMOUR.get(low) or _ARMOUR.get(singular)
         return ("armour", name) if name else None
-    if low in _SPECIAL_WEAPONS:
-        return "weapons", _SPECIAL_WEAPONS[low]
-    found = ti._equipment_name(low)
-    if found and found[0] == "weapon":
-        return "weapons", found[1]
+    # An option the profile offers as a rule (a Chimera's fiend tail) is
+    # priced as that option, even when a weapon shares its name.
     offered = list(base.get("OptionalRules") or []) + list(base.get("MarksOfChaos") or [])
     words = _fold(label)
     for rule in offered:
         if words and _fold(rule) == words:
             return "rules", rule
+    if low in _SPECIAL_WEAPONS:
+        return "weapons", _SPECIAL_WEAPONS[low]
+    found = ti._equipment_name(low)
+    if found and found[0] == "weapon":
+        return "weapons", found[1]
     for mount in entry.get("mount_options", {}).get("mounts", []):
         mount_words = _fold(re.sub(r"\s*\(.*\)$", "", mount))
         if words and (words <= mount_words or mount_words <= words):

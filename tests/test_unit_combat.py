@@ -714,6 +714,92 @@ class TestMagicStandards(unittest.TestCase):
         self.assertEqual(first, max(1, ws - 3))
 
 
+class TestRosterGapsInUnitFights(unittest.TestCase):
+    def fresh(self, f):
+        f.round_lost, f.round_overkill, f.round_casualties = [0, 0], [0, 0], [0, 0]
+        return f
+
+    def test_big_stabbas_are_d3_impact_hits_for_the_whole_unit(self):
+        mob = orcs()
+        mob.unit["optional_rules"] = ["Frenzy", "Big Stabbas"]
+        f = self.fresh(make_fight(mob, troops(), charger="A", charge_distance=5))
+        f.charged[0], f.charge_distance[0] = True, 5
+        with dice.constant_dice(6):  # one D3 of 3, not one per model
+            f.impact_hits()
+        self.assertTrue(any("3 Impact Hits" in line for line in f.log), f.log)
+
+    def test_cavalry_impact_hits_use_the_mounts_strength(self):
+        boars = unit("Orc & Goblin Tribes", "Orc Boar Boy Mob", models=5, frontage=5)
+        f = self.fresh(make_fight(boars, troops(), charger="A", charge_distance=6))
+        f.units[0].model.SpecialRules.append("Impact Hits (1)")
+        f.charged[0], f.charge_distance[0] = True, 6
+        with dice.constant_dice(4):
+            f.impact_hits()
+        boar_strength = f.units[0].parts[0].Strength
+        self.assertTrue(any(f"(S{boar_strength}" in line for line in f.log), f.log)
+
+    def test_a_fiend_tail_adds_d3_attacks_at_ap_minus_one(self):
+        chimera = unit("Warriors of Chaos", "Chimera", models=1, frontage=1)
+        chimera.unit["optional_rules"] = ["Fiend Tail"]
+        f = make_fight(chimera, troops())
+        tail = [p for p in f.units[0].parts if p.Weapon == "Fiend Tail"]
+        self.assertEqual(len(tail), 1)
+        with dice.constant_dice(6):
+            self.assertEqual(f.attacks_per_model(0, tail[0], part=True), 3)
+        from weapons import get_weapon_ap
+
+        self.assertEqual(abs(get_weapon_ap("Fiend Tail")), 1)
+
+    def test_an_oathstone_challenge_cannot_be_refused(self):
+        thane = character("Dwarfen Mountain Holds", "Thane")
+        thane.spec["optional_rules"] = ["Oathstone"]
+        dwarfs = unit("Dwarfen Mountain Holds", "Longbeards", models=20, frontage=5, characters=[thane])
+        f = make_fight(dwarfs, troops(accept_challenges=False))
+        f.challenges(0)
+        self.assertIsNotNone(f.challenge)
+
+    def test_daemons_of_slaanesh_pursue_one_inch_further(self):
+        f = make_fight(troops(), orcs())
+        with dice.constant_dice(3):
+            plain = f._pursuit(f.units[0])
+        f.units[0].model.SpecialRules.append("Daemons of Slaanesh")
+        with dice.constant_dice(3):
+            self.assertEqual(f._pursuit(f.units[0]), plain + 1)
+
+    def test_the_horn_of_isha_in_a_unit(self):
+        handmaiden = character("High Elf Realms", "Handmaiden of the Everqueen")
+        handmaiden.spec["optional_rules"] = ["Horn of Isha"]
+        f = make_fight(unit("High Elf Realms", "Lothern Sea Guard", models=15, frontage=5,
+                            characters=[handmaiden]), orcs())
+        f.turn = 1
+        with dice.scripted_dice([1, 2]):
+            f.start_turn(0)
+        self.assertIn("To Wound (+1)", f.units[0].model.SpecialRules)
+        f.turn = 2
+        f.start_turn(1)  # the enemy's turn: still in effect
+        self.assertIn("To Hit (+1)", f.units[0].model.SpecialRules)
+        f.turn = 3
+        f.start_turn(0)  # her next turn: over, and single use
+        self.assertNotIn("To Hit (+1)", f.units[0].model.SpecialRules)
+
+    def test_a_tzeentch_wizard_casts_with_plus_one(self):
+        from spells import cast_assailment
+
+        wizard = character("Empire of Man", "Wizard Lord", wizard_level=1, spells=["Hammerhand"])
+        f = make_fight(troops(characters=[wizard]), orcs())
+        f.turn = 1
+        placed = f.units[0].characters[0]
+        placed.character.SpecialRules.append("Daemon of Tzeentch")
+        # 3+2 +1 (Level 1) +1 (Tzeentch) = 7: just enough for Hammerhand; no dispel.
+        with dice.scripted_dice([3, 2, 1, 2] + [1] * 20):
+            self.assertIsNotNone(cast_assailment(f, 0, placed, "Hammerhand"))
+
+    def test_formation_swaps_are_formations(self):
+        self.assertEqual(um.unit_options("Kingdom of Bretonnia", "Peasant Bowmen")["formations"],
+                         ["close", "skirmish"])
+        self.assertNotIn("Skirmishers", gear_options("Kingdom of Bretonnia", "Peasant Bowmen")["optional_rules"])
+
+
 class TestRuleCoverage(unittest.TestCase):
     def test_unit_rules_are_read_by_the_unit_engine(self):
         import os

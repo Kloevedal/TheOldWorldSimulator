@@ -301,6 +301,78 @@ class TestGiftsOfKhaine(unittest.TestCase):
         self.assertEqual(foe.Leadership, before - 2)
 
 
+class TestRosterGaps(unittest.TestCase):
+    """Options found missing against the site: Daemon allegiances, Gigantic
+    Spawn gifts, the Horn of Isha, Oathstone."""
+
+    def prince(self, allegiance):
+        return Character(name="P", faction_type="Daemons of Chaos", profile_name="Daemon Prince",
+                         SpecialRules=[allegiance])
+
+    def test_one_allegiance_and_one_gift(self):
+        with self.assertRaisesRegex(ValueError, "only have one"):
+            Character(name="P", faction_type="Daemons of Chaos", profile_name="Daemon Prince",
+                      SpecialRules=["Daemon of Khorne", "Daemons of Tzeentch"])
+        spawn = Character(name="S", faction_type="Warriors of Chaos", profile_name="Gigantic Spawn of Chaos",
+                          SpecialRules=["Gigantic Spawn of Tzeentch"])
+        for rule in ("Flaming Attacks", "Magical Attacks", "Magic Resistance (-2)"):
+            self.assertIn(rule, spawn.SpecialRules)
+
+    def test_an_oathstone_is_not_taken_with_shieldbearers(self):
+        with self.assertRaisesRegex(ValueError, "Oathstone or Shieldbearers"):
+            Character(name="K", faction_type="Dwarfen Mountain Holds", profile_name="King",
+                      SpecialRules=["Oathstone"], mount="Shieldbearers")
+
+    def test_khorne_strikes_harder_on_the_charge_but_not_its_mount(self):
+        from combat_simulations import apply_weapon_stats, reset_weapon_stats
+
+        prince = self.prince("Daemon of Khorne")  # a plain hand weapon: no Strength bonus
+        base = prince.Strength
+        apply_weapon_stats(prince, is_first_round=True, verbose=False)
+        self.assertEqual(prince.Strength, base + 1)
+        reset_weapon_stats(prince)
+        apply_weapon_stats(prince, is_first_round=False, verbose=False)
+        self.assertEqual(prince.Strength, base)
+        reset_weapon_stats(prince)
+
+    def test_nurgle_makes_enemies_reroll_sixes_to_hit(self):
+        from combat_simulations import RollToHit
+
+        attacker = fighter("A", Attacks=1)
+        with dice.scripted_dice([6, 2]):  # the 6 is re-rolled into a miss
+            self.assertEqual(RollToHit(attacker, self.prince("Daemons of Nurgle"), verbose=False), 0)
+
+    def test_rival_gods_hate_each_other(self):
+        from combat_simulations import _is_hated_enemy
+
+        slaanesh, khorne = self.prince("Daemons of Slaanesh"), self.prince("Daemon of Khorne")
+        self.assertTrue(_is_hated_enemy(slaanesh.SpecialRules, khorne))
+        self.assertTrue(_is_hated_enemy(khorne.SpecialRules, slaanesh))
+        self.assertFalse(_is_hated_enemy(slaanesh.SpecialRules, self.prince("Daemon of Nurgle")))
+
+    def test_a_to_wound_modifier_changes_the_roll_not_a_natural_one(self):
+        from combat_simulations import RollToWound
+
+        attacker = fighter("A", Strength=3, SpecialRules=["To Wound (+1)"])
+        defender = fighter("D", Toughness=4)  # 5+ to wound, 4+ with the Horn
+        with dice.scripted_dice([4, 1]):
+            wounds, _, _ = RollToWound(attacker, defender, 2, verbose=False)
+        self.assertEqual(len(wounds), 1)
+
+    def test_the_horn_of_isha_lasts_two_rounds(self):
+        import combat_simulations as cs
+
+        hand = Character(name="H", faction_type="High Elf Realms", profile_name="Handmaiden of the Everqueen",
+                         SpecialRules=["Horn of Isha"])
+        with dice.scripted_dice([1, 2]):  # passes its Leadership test
+            cs._sound_horn_of_isha(hand, False)
+        self.assertIn("To Hit (+1)", hand.SpecialRules)
+        cs._horn_of_isha_expires(hand, 2)
+        self.assertIn("To Wound (+1)", hand.SpecialRules)
+        cs._horn_of_isha_expires(hand, 3)
+        self.assertNotIn("To Wound (+1)", hand.SpecialRules)
+
+
 class TestMurderous(unittest.TestCase):
     def test_it_rerolls_to_wound_ones_with_a_hand_weapon(self):
         lord = Character(

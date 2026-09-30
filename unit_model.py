@@ -98,6 +98,9 @@ def unit_options(faction, profile):
     formations and its base size."""
     entry = profile_entry(faction, profile)
     rules = entry["base_profile"].get("SpecialRules") or []
+    # A formation the unit may swap to ("Replace the Close Order special rule
+    # with Skirmishers") is offered as an option; both are formation choices.
+    rules = list(rules) + list(entry["base_profile"].get("OptionalRules") or [])
     formations = [FORMATIONS[r] for r in rules if r in FORMATIONS]
     command = unit_command_options(faction, profile)
     roles = list(command["command"])

@@ -29,7 +29,7 @@ import re
 
 from dice import roll_amount, roll_d6
 from spells_data import SPELLS
-from special_rules import RerollArmourSaveSixes
+from special_rules import RerollArmourSaveSixes, daemon_allegiance
 
 # -- Hexes and Enchantments -----------------------------------------------------
 
@@ -242,7 +242,8 @@ def cast_assailment(fight, index, placed, name):
     first, second = roll_d6(), roll_d6()
     level = max(1, placed.wizard_level)
     result = (first + second + math.ceil(level / 2) - _magic_resistance(enemy)
-              - (enemy.flag("enemy_casting") or 0))
+              - (enemy.flag("enemy_casting") or 0)
+              + (1 if daemon_allegiance(caster.SpecialRules or []) == "Tzeentch" else 0))
     who = f"{caster.name} casts {name}"
     if (first, second) == (1, 1):
         fight.say(f"{who}: miscast (1+1) - not cast")

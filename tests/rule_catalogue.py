@@ -34,6 +34,12 @@ ENGINE_RULES = {
     sr.Barding,
     sr.BlackLotus,
     sr.CryOfWar,
+    sr.HornOfIsha,
+    # Daemon allegiances: rival-god Hatred, Khorne +1 Strength on the charge,
+    # Nurgle's enemies re-roll 6s To Hit (unit fights: Slaanesh pursuit,
+    # Tzeentch casting).
+    sr.DaemonOfKhorne, sr.DaemonOfNurgle, sr.DaemonOfSlaanesh, sr.DaemonOfTzeentch,
+    sr.DaemonsOfKhorne, sr.DaemonsOfNurgle, sr.DaemonsOfSlaanesh, sr.DaemonsOfTzeentch,
     sr.BeguilingPresence,
     sr.BlessingsOfTheLady,
     sr.FirstRoundInitiative,
@@ -175,6 +181,10 @@ LABELS = {
     "Rune of Khaine": "Extra Attacks (+D3)",
     "Dark Venom": "Killing Blow",
     "Manbane": "Wounds On (4+)",
+    "Gigantic Spawn of Khorne": "Impact Hits (D3)",
+    "Gigantic Spawn of Nurgle": "Poisoned Attacks",
+    "Gigantic Spawn of Slaanesh": "Strike First",
+    "Gigantic Spawn of Tzeentch": "Flaming Attacks",
     "Runes of Protection": "Ward6 (non-magical)",
     "Runes of Warding": "Ward5 (Flaming)",
 }
@@ -196,8 +206,6 @@ FAMILIES = {
 # Would affect a one-on-one melee duel; not modelled yet. Keep this honest -
 # it is the engine's to-do list, and run_tests.py prints it.
 NOT_SIMULATED = {
-    # Options added to the rosters whose effects are not built yet.
-    "Horn of Isha", "Oathstone", "Fiend Tail",
     # Extra attacks, hits and damage
     
     
@@ -232,6 +240,8 @@ NOT_SIMULATED = {
 # No bearing on a one-on-one melee duel.
 INERT = {
     "Flaming Breath",  # a shooting attack
+    # Unit-fight rules (UNIT_ENGINE_RULES) with nothing to do in a duel.
+    "Oathstone", "Fiend Tail",
     # Frenzy is only lost by losing a round of combat, which a duel does not score.
     "Witchbrew",
     # Mount rules: spells, command range, shooting
@@ -302,8 +312,6 @@ INERT = {
     "The Questing Vow", "The Sons of Ghorros", "Tree Spirit",
     "Troubadour of Loec", "Waaagh!", "Warband", "Wight Banner",
     "Will of the Dragons", "Backstab", "Usirian's Reaper",
-    "Daemon of Nurgle", "Daemon of Slaanesh", "Daemon of Tzeentch",
-    "Daemons of Khorne",
     # Marks of Chaos carry no duel effect of their own in this edition's data
     "Mark of Chaos Undivided",
 }
@@ -397,8 +405,6 @@ INERT |= {
     "Warriors of the White Tower", "Fanatical Zeal", "Guardians",
     "Mercenaries", "Nuln State Troops", "Doomseeker", "The Newly Dead",
     "Grail Reliquae", "Retinue of the Saints (Grail Reliquae)",
-    "Daemon of Khorne", "Daemons of Nurgle", "Daemons of Slaanesh",
-    "Daemons of Tzeentch",
     # Unit upgrades offered as options. Optional rules are never applied to a
     # profile, and most have no rules page of their own.
     "Ark of Sotek", "Balefire Brazier", "Big 'Uns", "Big Stabbas",
@@ -407,9 +413,7 @@ INERT |= {
     "Cult of the Fell Raptor", "Cult of the Slithering Serpent",
     "Daemonic Gifts", "Daemonic Icon", "Engine of the Gods",
     "Engineering runes", "Forsaken by Khorne", "Forsaken by Nurgle",
-    "Forsaken by Slaanesh", "Forsaken by Tzeentch",
-    "Gigantic Spawn of Khorne", "Gigantic Spawn of Nurgle",
-    "Gigantic Spawn of Slaanesh", "Gigantic Spawn of Tzeentch", "Grail Monk",
+    "Forsaken by Slaanesh", "Forsaken by Tzeentch", "Grail Monk",
     "Granite Sentinel", "Guardians of the Temple", "Hellbound",
     "Implacable Defence", "Jade Sentinel", "Look-out Gnoblar",
     "Nehekharan Phalanx", "Netters", "Obsidian Sentinel", "Pigeon bombs",
@@ -428,6 +432,7 @@ INERT |= {
 UNIT_ENGINE_RULES = {
     "Close Order", "Open Order", "Skirmishers", "Lance Formation", "Horde", "Warband",
     "Stubborn", "Unbreakable", "Unstable", "Fear", "Terror", "Immune to Psychology", "Witchbrew",
+    "Oathstone", "Fiend Tail", "Big Stabbas",
     "Swiftstride", "Shieldwall", "First Charge", "Fight in Extra Rank", "Levies",
     "Undisciplined", "Mercenaries",
 }

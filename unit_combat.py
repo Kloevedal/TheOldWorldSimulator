@@ -76,6 +76,7 @@ from special_rules import (
     StrikeLast,
     Stubborn,
     Warband,
+    daemon_allegiance,
     parse_armour_piercing_bonus,
     parse_extra_attacks,
     parse_impact_hits,
@@ -247,6 +248,14 @@ class Unit:
         for placed in self.characters:
             placed.character.current_wounds = placed.character.Wounds
         self.parts = [_part(self.model, row, count) for row, count in setup.parts]
+        # A Chimera's fiend tail: an additional D3 attacks each turn with the
+        # tail's own profile (S, AP -1).
+        if _has(self.model, "Fiend Tail"):
+            tail = {"Name": "Fiend Tail", "WeaponSkill": self.model.WeaponSkill,
+                    "Strength": self.model.Strength, "Initiative": self.model.Initiative, "Attacks": 0}
+            part = _part(self.model, tail, 1)
+            part.Weapon = part.original_Weapon = "Fiend Tail"
+            self.parts.append(part)
         # Regular and heavy infantry Parry with a hand weapon and shield.
         for model in [self.model, self.champion] + [p.character for p in self.characters]:
             if model is not None and troop_key(model) in _BATTLE_LINE and "Parry" not in (model.SpecialRules or []):
@@ -594,6 +603,7 @@ class Fight:
                 self.say(f"{unit.name} is under {', '.join(unit.active_spells)}")
         for index in (0, 1):
             self.apply_standard(index)
+            self.horn_of_isha(index, active)
         charger = self.setup.charger
         if self.turn == 1 and charger is not None:
             target = self.units[1 - charger]
@@ -618,6 +628,28 @@ class Fight:
             if unit.enemy_rolls[key]:
                 self.say(f"{unit.name}'s standard turns {name} aside")
         return unit.enemy_rolls[key]
+
+    def horn_of_isha(self, index, active):
+        """Horn of Isha (single use): in the Command sub-phase of her side's
+        turn the Handmaiden tests her own Leadership; if passed, she and her
+        unit get +1 To Hit and +1 To Wound until her side's next Start of Turn."""
+        unit = self.units[index]
+        for placed in unit.fighters():
+            char = placed.character
+            if not _has(char, "Horn of Isha"):
+                continue
+            if not getattr(placed, "horn_used", False) and active == index:
+                placed.horn_used = True
+                first, second = roll_d6(), roll_d6()
+                passed = (first + second <= (char.Leadership or 0) or (first, second) == (1, 1)) \
+                    and (first, second) != (6, 6)
+                self.say(f"{char.name} sounds the Horn of Isha ({first}+{second} vs Ld {char.Leadership}): "
+                         + ("+1 To Hit and To Wound" if passed else "no effect"))
+                placed.horn_until = self.turn + 1 if passed else 0
+            if getattr(placed, "horn_until", 0) >= self.turn:
+                models = list(unit.all_models()) + list(unit.parts) + list(getattr(char, "mount_parts", []))
+                for model in models:
+                    _add(model, ["To Hit (+1)", "To Wound (+1)"])
 
     def charge_counts(self, index):
         """Whether unit `index` counts as having charged for its weapons and
@@ -794,6 +826,10 @@ class Fight:
             total = 0
             sources = []
             amounts = parse_impact_hits(unit.model.SpecialRules)
+            # Big Stabbas: Impact Hits (D3) for the unit as a whole, not each model.
+            if _has(unit.model, "Big Stabbas") and any(slots.get(s) in ("rf", "standard", "champion", "musician")
+                                                        for s in touching):
+                total += roll_amount("D3")
             if amounts:
                 rf_touching = sum(1 for s in touching if slots.get(s) in ("rf", "standard", "champion", "musician"))
                 for _ in range(rf_touching):
@@ -809,8 +845,13 @@ class Fight:
                         total += sum(roll_amount(a) for a in char_amounts)
             if total <= 0:
                 continue
-            strength = unit.setup.impact_strength or getattr(unit.model, "mount_strength", None) \
-                or unit.model.Strength
+            # A chariot's Impact Hits use the chariot's Strength, a cavalry
+            # model's its mount's (Split Profile), anything else its own.
+            mount_part = next((p for p in unit.parts if not getattr(p, "Weapon", "") == "Fiend Tail"), None)
+            strength = (unit.setup.impact_strength or getattr(unit.model, "mount_strength", None)
+                        or (mount_part.Strength if mount_part is not None and troop_key(unit.model) in _CAVALRY
+                            else None)
+                        or unit.model.Strength)
             ap = parse_impact_hits_ap(unit.model.SpecialRules)
             if troop_key(unit.model) == "heavychariot":
                 ap = max(ap, 2)  # Scythed Wheels
@@ -865,7 +906,8 @@ class Fight:
             if not theirs:
                 self.say(f"{self._label(issuer, challenger)} issues a challenge; nobody can answer it")
                 return
-            if enemy.setup.accept_challenges or self._cannot_refuse(1 - issuer):
+            oathstone = challenger != "champion" and _has(challenger.character, "Oathstone")
+            if enemy.setup.accept_challenges or self._cannot_refuse(1 - issuer) or oathstone:
                 accepter = theirs[0]
                 pair = [None, None]
                 pair[issuer], pair[1 - issuer] = challenger, accepter
@@ -1266,6 +1308,8 @@ class Fight:
             roll = self._move_roll(unit, 3, keep=2)
         else:
             roll = self._move_roll(unit, 2)
+        if daemon_allegiance(unit.model.SpecialRules) == "Slaanesh":
+            roll += 1  # Daemons of Slaanesh: +1 to Pursuit rolls
         return roll + (roll_d6() if _has(unit.model, "Swiftstride") else 0)
 
     def follow_up(self, winner, loser, outcome):

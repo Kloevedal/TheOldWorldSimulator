@@ -100,6 +100,7 @@ _ABILITY_GROUP_LABELS = {"Knightly Virtue", "Elven Honour", "Chaotic Trait", "Ch
                          "Gifts of Chaos", "Chaos Mutations"}
 
 EXCLUSIVE_GROUP_NAMES = ("Mark of Chaos", "Chivalrous Vow")
+_FORMATION_RULES = {"Close Order", "Open Order", "Skirmishers", "Lance Formation"}
 
 
 def exclusive_choices(faction, profile):
@@ -150,6 +151,7 @@ def gear_options(faction, profile):
         "optional_rules": [
             r for r in (base.get("OptionalRules") or [])
             if r not in _ABILITY_GROUP_LABELS and not any(r in g for g in EXCLUSIVE_OPTIONS)
+            and r not in _FORMATION_RULES  # chosen as the unit's formation instead
         ],
         "exclusive": exclusive_choices(faction, profile),
         "allowance": allowance_for(faction, profile),

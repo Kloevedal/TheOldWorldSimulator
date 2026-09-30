@@ -1324,7 +1324,7 @@ FACTION_RULES = {
         ),
     },
     "Daemons of Khorne": {
-        "status": None,
+        "status": "implemented",
         "url": "https://tow.whfb.app/special-rules/daemon-of-khorne",
         "text": (
             "Daemons of Khorne have the Hatred (Daemons of Slaanesh) special rule. "
@@ -1334,7 +1334,7 @@ FACTION_RULES = {
         ),
     },
     "Daemons of Nurgle": {
-        "status": None,
+        "status": "implemented",
         "url": "https://tow.whfb.app/special-rules/daemon-of-nurgle",
         "text": (
             "Daemons of Nurgle have the Hatred (Daemons of Tzeentch) special rule. "
@@ -1344,7 +1344,7 @@ FACTION_RULES = {
         ),
     },
     "Daemons of Slaanesh": {
-        "status": None,
+        "status": "partial",
         "url": "https://tow.whfb.app/special-rules/daemon-of-slaanesh",
         "text": (
             "Daemons of Slaanesh have the Hatred (Daemons of Khorne) special rule. "
@@ -1354,7 +1354,7 @@ FACTION_RULES = {
         ),
     },
     "Daemons of Tzeentch": {
-        "status": None,
+        "status": "implemented",
         "url": "https://tow.whfb.app/special-rules/daemon-of-tzeentch",
         "text": (
             "Daemons of Tzeentch have the Hatred (Daemons of Nurgle) special rule. "

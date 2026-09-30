@@ -46,7 +46,19 @@ EXCLUSIVE_OPTIONS = (
 PICK_ONE_OPTIONS = (
     ("Cry of War", "Rune of Khaine", "Witchbrew"),
     ("Black Lotus", "Dark Venom", "Manbane"),
+    # "May be one of the following": a Daemon's allegiance (both spellings the site uses).
+    ("Daemon of Khorne", "Daemon of Nurgle", "Daemon of Slaanesh", "Daemon of Tzeentch",
+     "Daemons of Khorne", "Daemons of Nurgle", "Daemons of Slaanesh", "Daemons of Tzeentch"),
+    # Cursed by the Gods
+    ("Gigantic Spawn of Khorne", "Gigantic Spawn of Nurgle", "Gigantic Spawn of Slaanesh",
+     "Gigantic Spawn of Tzeentch"),
 )
+# Options offered as an alternative to a mount ("May take one of the
+# following: Oathstone, Shieldbearers"; "Ambushers ... Or: be mounted on").
+OPTION_EXCLUDES_MOUNTS = {
+    "Oathstone": {"Shieldbearers"},
+    "Ambushers": {"Tuskgor Chariot", "Razorgor Chariot"},
+}
 # An option whose effect is another rule the engine reads, added to the model
 # when it is built from its profile (Rune of Khaine: "This character has the
 # Extra Attacks (+D3) special rule").
@@ -54,6 +66,10 @@ OPTION_GRANTS = {
     "Rune of Khaine": ["Extra Attacks (+D3)"],
     "Dark Venom": ["Killing Blow"],
     "Manbane": ["Wounds On (4+)"],
+    "Gigantic Spawn of Khorne": ["Impact Hits (D3)", "Killing Blow"],
+    "Gigantic Spawn of Nurgle": ["Poisoned Attacks", "Regeneration (5+)"],
+    "Gigantic Spawn of Slaanesh": ["Counter Charge", "Strike First"],
+    "Gigantic Spawn of Tzeentch": ["Flaming Attacks", "Magical Attacks", "Magic Resistance (-2)"],
 }
 
 
@@ -170,6 +186,9 @@ class Character:
         fixed = integral_mount(getattr(self, "faction", None), getattr(self, "profile_name", None))
         if fixed and mount and mount != fixed:
             raise ValueError(f"{self.profile_name} always rides {fixed}")
+        for rule, mounts in OPTION_EXCLUDES_MOUNTS.items():
+            if mount in mounts and rule in (self.SpecialRules or []):
+                raise ValueError(f"{self.profile_name} may take {rule} or {mount}, not both")
         if mount or fixed:
             from magic_items import get_magic_item
 

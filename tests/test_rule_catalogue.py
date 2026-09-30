@@ -174,7 +174,10 @@ def _scenarios(rule):
 OPPONENT_TROOP_TYPE = {"Monster Slayer": "Behemoth"}
 OPPONENT_EXTRA_RULES = {"Ward5 (magical)": ["Magical Attacks"],
                         # Leadership only shows in a duel through a Leadership test.
-                        "Cry of War": ["Primal Fury"], "Black Lotus": ["Primal Fury"]}
+                        "Cry of War": ["Primal Fury"], "Black Lotus": ["Primal Fury"],
+                        # Rival-god Hatred shows against a Daemon of the rival.
+                        "Daemon of Slaanesh": ["Daemon of Khorne"], "Daemons of Slaanesh": ["Daemon of Khorne"],
+                        "Daemon of Tzeentch": ["Daemon of Nurgle"], "Daemons of Tzeentch": ["Daemon of Nurgle"]}
 # Characteristics or kit that give a rule something to act on.
 OPPONENT_STATS = {
     "Cannot Be Wounded On 2": {"Strength": 6},
