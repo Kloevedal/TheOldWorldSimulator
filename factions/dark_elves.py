@@ -43,6 +43,7 @@ CHARACTERS = {
             "Weapon": "Hand Weapon",
             "Shield": False,
             "SpecialRules": ["Eternal Hatred", "Hatred (High Elves)", "Murderous", "Strike First"],
+            "OptionalRules": ["Sea Dragon Cloak"],
             "TroopType": "RegularInfantry",
             "UnitCategory": "Character",
         },
@@ -74,6 +75,7 @@ CHARACTERS = {
             "Weapon": "Hand Weapon",
             "Shield": False,
             "SpecialRules": ["Eternal Hatred", "Hatred (High Elves)", "Murderous", "Strike First"],
+            "OptionalRules": ["Sea Dragon Cloak"],
             "TroopType": "RegularInfantry",
             "UnitCategory": "Character",
         },
@@ -155,8 +157,8 @@ CHARACTERS = {
     },
     "Khainite Assassin": {
         # https://tow.whfb.app/unit/khainite-assassin - 80 pts
-        # Carries throwing weapons as standard, and may take a forbidden poison;
-        # neither is simulated.
+        # Carries throwing weapons as standard (shooting is not simulated) and
+        # may take one forbidden poison.
         "points": 80,
         "base_profile": {
             "Movement": 5,
@@ -173,6 +175,7 @@ CHARACTERS = {
             "Weapon": "Hand Weapon",
             "Shield": False,
             "SpecialRules": ["Eternal Hatred", "Hatred (all enemies)", "Hidden", "Immune to Psychology", "Murderous", "Strike First"],
+            "OptionalRules": ["Black Lotus", "Dark Venom", "Manbane"],
             "TroopType": "RegularInfantry",
             "UnitCategory": "Character",
         },
@@ -188,8 +191,7 @@ CHARACTERS = {
     },
     "Death Hag": {
         # https://tow.whfb.app/unit/death-hag - 70 pts
-        # Fights with two hand weapons as standard. Gifts of Khaine are not
-        # modelled.
+        # Fights with two hand weapons as standard. May take one gift of Khaine.
         "points": 70,
         "base_profile": {
             "Movement": 5,
@@ -206,6 +208,7 @@ CHARACTERS = {
             "Weapon": "Two Hand Weapons",
             "Shield": False,
             "SpecialRules": ["Eternal Hatred", "Frenzy", "Hatred (all enemies)", "Loner", "Murderous", "Poisoned Attacks", "Strike First"],
+            "OptionalRules": ["Cry of War", "Rune of Khaine", "Witchbrew"],
             "TroopType": "RegularInfantry",
             "UnitCategory": "Character",
         },

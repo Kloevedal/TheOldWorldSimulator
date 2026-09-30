@@ -75,6 +75,26 @@ class TestMountedProfiles(unittest.TestCase):
         self.assertIn("Frenzy", boar.SpecialRules)
         self.assertIn("Armoured Hide (1)", warboss.SpecialRules)  # the boar's hide
 
+    def test_frenzy_adds_an_attack_to_the_rider_not_the_steed(self):
+        from combat_simulations import apply_extra_attacks
+
+        warboss = build("Orc & Goblin Tribes", "Orc Warboss", SpecialRules=["Frenzy"], mount="War Boar")
+        calm = build("Orc & Goblin Tribes", "Orc Warboss", mount="War Boar")
+        self.assertEqual(apply_extra_attacks(warboss, is_first_round=True),
+                         apply_extra_attacks(calm, is_first_round=True) + 1)
+        self.assertEqual(apply_extra_attacks(warboss.mount_parts[0], is_first_round=True),
+                         apply_extra_attacks(calm.mount_parts[0], is_first_round=True))
+
+    def test_frenzy_adds_an_attack_to_a_ridden_monster_not_its_rider(self):
+        from combat_simulations import apply_extra_attacks
+
+        warboss = build("Orc & Goblin Tribes", "Orc Warboss", SpecialRules=["Frenzy"], mount="Wyvern")
+        calm = build("Orc & Goblin Tribes", "Orc Warboss", mount="Wyvern")
+        self.assertEqual(apply_extra_attacks(warboss, is_first_round=True),
+                         apply_extra_attacks(calm, is_first_round=True))
+        self.assertEqual(apply_extra_attacks(warboss.mount_parts[0], is_first_round=True),
+                         apply_extra_attacks(calm.mount_parts[0], is_first_round=True) + 1)
+
     def test_items_stay_with_the_rider(self):
         general = build("Empire of Man", "General of the Empire",
                         magic_items=["Talisman of Protection"], mount="Empire Warhorse")

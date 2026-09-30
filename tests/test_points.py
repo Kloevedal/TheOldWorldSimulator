@@ -27,7 +27,9 @@ from option_costs import OPTION_COSTS
 
 # Priced on the site but not a melee choice the rosters offer: thrown weapons,
 # and a great weapon only the Gor Herd's champion may take.
-NOT_OFFERED = {("Beastmen Brayherds", "Gor Herd", "Great Weapon")}
+NOT_OFFERED = {("Beastmen Brayherds", "Gor Herd", "Great Weapon"),
+               # An extra D3 attacks as an option (OptionalRules), not a weapon choice.
+               ("Warriors of Chaos", "Chimera", "Fiend Tail")}
 
 
 def spec(faction, profile, weapon="Hand Weapon", armour="None", **kw):

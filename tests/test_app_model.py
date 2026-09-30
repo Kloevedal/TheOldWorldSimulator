@@ -246,6 +246,38 @@ class TestGuiModules(unittest.TestCase):
             self.assertIn("Headsman's Axe", listed)
             self.assertNotIn("Sword of Might", listed)
             shop.destroy()
+
+            # Units: a character joins, is placed, and the units fight.
+            app.mode_var.set("unit")
+            app._mode_changed()
+            unit_card = app.screens["unit"].cards[0]
+            dialog = simulator_app.CharactersDialog(unit_card)
+            dialog.add_var.set(next(iter(dialog.sources)))
+            dialog._add()
+            dialog._done()
+            self.assertEqual(len(unit_card.unit_extras["characters"]), 1)
+            unit_card._place(0)
+            self.assertEqual(unit_card.unit_extras["characters"][0]["slot"], 0)
+            self.assertNotIn(unit_card.panel.layout["front"][0], ("rf", "standard", "champion", "musician"))
+
+            # Command group items: the Cold One Knights' standard bearer takes a War Banner.
+            unit_card.army_var.set("Dark Elves")
+            unit_card._army_changed()
+            unit_card.model_var.set("Cold One Knights")
+            unit_card._model_changed()
+            items = simulator_app.CommandItemsDialog(unit_card, "standard")
+            items.tree.selection_set("War Banner")
+            items._add()
+            items._done()
+            self.assertEqual(unit_card.unit_extras["standard_items"], ["War Banner"])
+            self.assertIn("War Banner 25", unit_card.points_detail.cget("text"))
+            archers_opts = simulator_app.um.unit_options("Empire of Man", "Empire Archers")
+            self.assertEqual(archers_opts["command"], ["champion"])
+            app.run_mode.set("narrate")
+            app._run_mode_changed()
+            app.seed_var.set("2")
+            app.run()
+            self.assertIn("combat result", app.log.text.get("1.0", "end"))
         finally:
             root.destroy()
 
@@ -271,18 +303,26 @@ class TestUnitMode(unittest.TestCase):
         with self.assertRaises(ValueError):
             narrate_duel(prince(), unit(name, faction), rounds=1)
 
-    def test_unit_runs_carry_the_not_yet_simulated_note(self):
+    def test_units_fight_rank_and_file(self):
         name, faction = first_unit()
         a, b = unit(name, faction, name="Left"), unit(name, faction, name="Right")
         stats = run_statistics(a, b, runs=50, rounds=2, seed=1)
         self.assertEqual(stats.wins_a + stats.wins_b + stats.draws, 50)
-        self.assertIn("not simulated yet", stats.summary())
+        self.assertIn("unit fights", stats.summary())
         text = narrate_duel(a, b, rounds=2, seed=1)
-        self.assertIn("not simulated yet", text)
         self.assertIn("20 models, 5 wide", text)
+        self.assertIn("combat result", text)
 
-    def test_character_runs_have_no_unit_note(self):
-        self.assertNotIn("not simulated yet", narrate_duel(prince(), warboss(), 1, seed=1))
+    def test_a_saved_unit_keeps_its_command_group_and_characters(self):
+        name, faction = first_unit()
+        spec = unit(name, faction, extras={"champion": False, "musician": False})
+        again = FighterSpec.from_dict(spec.to_dict())
+        self.assertEqual(again.extras, {"champion": False, "musician": False})
+        import unit_model as um
+
+        side = um.side_for(again)
+        self.assertFalse(side.champion)
+        self.assertTrue(side.standard)
 
 
 class TestRuns(unittest.TestCase):

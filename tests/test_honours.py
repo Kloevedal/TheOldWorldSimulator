@@ -65,12 +65,13 @@ class TestMarksOfChaos(StatisticalCase):
             build("Warriors of Chaos", "Exalted Sorcerer", SpecialRules=["Mark of Khorne"])
 
     def test_khorne_is_frenzied(self):
-        self.assertEqual(apply_extra_attacks(self.lord("Mark of Khorne")),
-                         apply_extra_attacks(self.lord()) + 1)
+        self.assertEqual(apply_extra_attacks(self.lord("Mark of Khorne"), is_first_round=True),
+                         apply_extra_attacks(self.lord(), is_first_round=True) + 1)
+        self.assertEqual(apply_extra_attacks(self.lord("Mark of Khorne")), apply_extra_attacks(self.lord()))
 
     def test_khorne_and_frenzy_do_not_stack(self):
         both = fighter(Attacks=2, SpecialRules=["Mark of Khorne", "Frenzy"])
-        self.assertEqual(apply_extra_attacks(both), 3)
+        self.assertEqual(apply_extra_attacks(both, is_first_round=True), 3)
 
     def test_nurgle_makes_enemies_reroll_sixes_to_hit(self):
         # WS4 v WS4 hits on 4+: 4 and 5 hit (1/3), a 6 is rerolled (1/6 * 1/2).

@@ -183,6 +183,7 @@ CHARACTERS = {
             "SpecialRules": ["Daemonic", "Ward5 (non-magical)", "Daemonic Instability", "Fear", "Immune to Psychology", "Magical Attacks", "Unbreakable", "Warp-spawned", "Chaos Armour", "Infernal Favour (2)", "Lore of Daemons"],
             "WizardLevel": 0,
             "Lores": ["Battle Magic", "Daemonology", "Dark Magic"],
+            "OptionalRules": ["Daemon of Khorne", "Daemon of Nurgle", "Daemons of Slaanesh", "Daemons of Tzeentch"],
             "TroopType": "MonstrousInfantry",
             "UnitCategory": "Character",
         },

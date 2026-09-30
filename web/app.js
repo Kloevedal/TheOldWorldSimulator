@@ -139,6 +139,20 @@ class Card {
     this.shieldText = el("span", {}, "Shield");
     this.models = el("input", { type: "number", min: 1, max: 200, value: 20, oninput: () => this.refresh() });
     this.frontage = el("input", { type: "number", min: 1, max: 40, value: 5, oninput: () => this.refresh() });
+    // A unit's command group: only the models its page offers can be ticked.
+    this.command = {};
+    this.championItems = [];
+    for (const role of ["champion", "standard", "musician"]) {
+      const box = el("input", { type: "checkbox", checked: true, onchange: () => this.commandChanged() });
+      const label = el("span", {}, { champion: "Champion", standard: "Standard bearer", musician: "Musician" }[role]);
+      this.command[role] = { box, label, wrap: el("label", { class: "check" }, box, label) };
+    }
+    this.standardSelect = el("select", { onchange: () => this.standardChanged() });
+    this.standardRow = el("label", { class: "row" }, el("span", {}, "Magic standard"), this.standardSelect);
+    this.championList = el("div", { class: "item-list" });
+    this.championSummary = el("summary", {}, "Champion's items");
+    this.championBox = el("details", { class: "champion-items" }, this.championSummary, this.championList);
+    this.itemError = el("p", { class: "error small" });
 
     this.tiles = el("div", { class: "tiles" });
     this.weaponLine = el("p", { class: "muted small" });
@@ -157,7 +171,12 @@ class Card {
       this.weaponRow, this.armourRow, this.kind === "character" ? this.mountRow : null,
       el("label", { class: "check indent" }, this.shield, this.shieldText),
       this.kind === "unit" ? el("div", { class: "row size" },
-        el("span", {}, "Models"), this.models, el("span", {}, "Width"), this.frontage) : null);
+        el("span", {}, "Models"), this.models, el("span", {}, "Width"), this.frontage) : null,
+      this.kind === "unit" ? el("div", { class: "command-row" },
+        ...["champion", "standard", "musician"].map((r) => this.command[r].wrap)) : null,
+      this.kind === "unit" ? this.standardRow : null,
+      this.kind === "unit" ? this.championBox : null,
+      this.kind === "unit" ? this.itemError : null);
     this.node = el("article", { class: `card card-${"ab"[this.side]}` },
       el("h2", {}, `Fighter ${"AB"[this.side]}`), form, this.tiles,
       el("p", { class: "muted tiny right" }, "With gear (bare profile) · first-round values"),
@@ -229,11 +248,69 @@ class Card {
       const minimum = opts.unit?.minimum_size || 1;
       this.models.value = spec?.models || Math.max(minimum, 10);
       this.frontage.value = spec?.frontage || Math.min(Number(this.models.value), 5);
+      this.fillCommand(opts.command, spec?.extras || {});
     }
     this.deleteButton.disabled = this.army.value !== SAVED;
     this.extrasButton.disabled = !(opts.optional_rules.length || opts.exclusive.length ||
                                    Object.keys(opts.allowance).length);
     await this.weaponChanged();
+  }
+
+  fillCommand(cmd, extras) {
+    this.cmd = cmd;
+    const costs = cmd.costs || {};
+    for (const [role, parts] of Object.entries(this.command)) {
+      const allowed = cmd.roles.includes(role);
+      parts.box.disabled = !allowed;
+      parts.box.checked = allowed && extras[role] !== false;
+      const name = role === "champion" ? (cmd.champion || "Champion") : parts.label.textContent.split(" · ")[0];
+      parts.label.textContent = costs[role] ? `${name} · +${costs[role]} pts` : name;
+    }
+    const budget = (b) => Object.entries(b || {}).map(([k, v]) => `${k} up to ${v} pts`).join(", ");
+    this.standardSelect.replaceChildren(el("option", { value: "" }, "None"),
+      ...cmd.standards.map((s) => el("option", { value: s.name },
+        `${s.name} · ${s.cost} pts${s.summary ? " · " + s.summary : ""}${s.note ? " (" + s.note + ")" : ""}`)));
+    this.standardSelect.value = (extras.standard_items || [])[0] || "";
+    this.standardRow.hidden = !cmd.standards.length;
+    this.championItems = [...(extras.champion_items || [])];
+    this.championSummary.textContent = `${cmd.champion || "Champion"}'s items (${budget(cmd.champion_budget)})`;
+    this.championList.replaceChildren(...cmd.champion_items.map((item) => {
+      const box = el("input", { type: "checkbox", checked: this.championItems.includes(item.name),
+                                onchange: (e) => this.championItemChanged(item.name, e.target) });
+      return el("label", { class: "check item" }, box,
+        el("span", {}, `${item.name} · ${item.cost} pts`),
+        item.summary ? el("span", { class: "muted" }, ` ${item.summary}`) : null,
+        item.note ? el("span", { class: "tag warn" }, item.note) : null);
+    }));
+    this.championBox.hidden = !cmd.champion_items.length;
+    this.itemError.textContent = "";
+    this.commandChanged(false);
+  }
+
+  commandChanged(refresh = true) {
+    this.standardSelect.disabled = !this.command.standard.box.checked;
+    for (const box of this.championList.querySelectorAll("input")) box.disabled = !this.command.champion.box.checked;
+    if (refresh) this.refresh();
+  }
+
+  async check(role, items) {
+    const problem = await api("check_unit_items", [this.faction, this.profile, role, items]);
+    this.itemError.textContent = problem;
+    return !problem;
+  }
+
+  async standardChanged() {
+    const name = this.standardSelect.value;
+    if (name && !(await this.check("standard", [name]))) { this.standardSelect.value = ""; }
+    this.refresh();
+  }
+
+  async championItemChanged(name, box) {
+    const wanted = box.checked ? [...this.championItems, name] : this.championItems.filter((n) => n !== name);
+    if (box.checked && !(await this.check("champion", wanted))) { box.checked = false; return; }
+    this.itemError.textContent = "";
+    this.championItems = wanted;
+    this.refresh();
   }
 
   fillEquipment() {
@@ -287,6 +364,12 @@ class Card {
       optional_rules: this.chosenRules(), magic_items: [...this.items],
       mount: !mount || mount === this.opts?.fixed_mount ? null : mount,
       models: Number(this.models.value) || 1, frontage: Number(this.frontage.value) || 1,
+      extras: this.kind === "unit" ? {
+        champion: this.command.champion.box.checked, standard: this.command.standard.box.checked,
+        musician: this.command.musician.box.checked,
+        standard_items: this.command.standard.box.checked && this.standardSelect.value ? [this.standardSelect.value] : [],
+        champion_items: this.command.champion.box.checked ? [...this.championItems] : [],
+      } : {},
     };
   }
 
@@ -530,13 +613,13 @@ function showOdds(s) {
   const line = (name, wins, kills, left) =>
     `${name}: ${wins} wins (${kills} by slaying, ${wins - kills} on wounds), ` +
     `${(wins ? left / wins : 0).toFixed(2)} wounds left on average when winning`;
-  $("details").replaceChildren(...[
-    s.unit ? "Units fight as single models for now." : null,
+  const lines = s.lines ? [`${s.runs} fights, ${s.rounds}`, ...s.lines] : [
     `${s.runs} fights, ${s.rounds}`,
     line(s.name_a, s.wins_a, s.kills_a, s.wounds_left_a),
     line(s.name_b, s.wins_b, s.kills_b, s.wounds_left_b),
     `Draws: ${s.draws}`,
-  ].filter(Boolean).map((t) => el("div", {}, t)));
+  ];
+  $("details").replaceChildren(...lines.map((t) => el("div", {}, t)));
   $("result").hidden = false;
   $("winbar").hidden = false;
   $("log").hidden = true;

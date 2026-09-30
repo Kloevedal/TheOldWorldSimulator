@@ -157,6 +157,42 @@ EnemyRerollsHits = "Enemy Rerolls Successful Hits"
 EnemyRerollsWounds = "Enemy Rerolls Successful Wounds"
 # A roll To Wound of 2 never wounds this model (Daemon-flesh, Daemonic Robes).
 CannotBeWoundedOn2 = "Cannot Be Wounded On 2"
+# Dark Elves. Cry of War: enemies of a Death Hag suffer -1 Leadership. Black
+# Lotus: each unsaved Wound it inflicts on an enemy character costs that
+# character 1 Leadership for the rest of the game.
+CryOfWar = "Cry of War"
+BlackLotus = "Black Lotus"
+# High Elves. Single use: pass a Leadership test and, until its next Start of
+# Turn, the Handmaiden and her unit get +1 To Hit and +1 To Wound.
+HornOfIsha = "Horn of Isha"
+# Daemons of Chaos allegiances. The site spells the option both ways.
+DaemonOfKhorne, DaemonOfNurgle = "Daemon of Khorne", "Daemon of Nurgle"
+DaemonOfSlaanesh, DaemonOfTzeentch = "Daemon of Slaanesh", "Daemon of Tzeentch"
+DaemonsOfKhorne, DaemonsOfNurgle = "Daemons of Khorne", "Daemons of Nurgle"
+DaemonsOfSlaanesh, DaemonsOfTzeentch = "Daemons of Slaanesh", "Daemons of Tzeentch"
+import re  # noqa: E402  (also imported below with the parsers)
+
+_DAEMON_ALLEGIANCE = re.compile(r"Daemons? of (Khorne|Nurgle|Slaanesh|Tzeentch)")
+
+
+def daemon_allegiance(*rule_sources):
+    """"Khorne", "Nurgle", "Slaanesh" or "Tzeentch" for a Daemon of that god, else None."""
+    for rules in rule_sources:
+        for rule in _as_list(rules):
+            match = _DAEMON_ALLEGIANCE.fullmatch(str(rule).strip())
+            if match:
+                return match.group(1)
+    return None
+
+
+def parse_to_wound_modifier(*rule_sources) -> int:
+    """Sum of this model's own To Wound modifiers ("To Wound (+1)" -> +1)."""
+    return _signed_modifiers("To Wound", rule_sources)
+# Troop type rule of regular and heavy infantry: a model fighting with a hand
+# weapon and shield improves its armour value by 1, to a maximum of 3+.
+Parry = "Parry"
+# Mork's Curse: this model must re-roll any Armour Save roll of a natural 6.
+RerollArmourSaveSixes = "Must Re-roll Armour Saves of 6"
 # The armour value cannot be improved (Armour of Silvered Steel), or cannot be
 # improved or reduced in any way (Armour of Meteoric Iron, Master Rune of Gromril).
 ArmourCannotBeImproved = "Armour Cannot Be Improved"
@@ -260,6 +296,17 @@ def _signed_modifiers(prefix, rule_sources):
     for rules in rule_sources:
         for rule in _as_list(rules):
             match = pattern.fullmatch(rule.strip())
+            if match:
+                total += int(match.group(1))
+    return total
+
+
+def parse_armour_penalty(*rule_sources) -> int:
+    """How much worse this model's armour value is ("Worse Armour (2)", Plague of Rust)."""
+    total = 0
+    for rules in rule_sources:
+        for rule in _as_list(rules):
+            match = re.fullmatch(r"Worse\s*Armou?r\s*\((\d+)\)", rule.strip(), re.IGNORECASE)
             if match:
                 total += int(match.group(1))
     return total

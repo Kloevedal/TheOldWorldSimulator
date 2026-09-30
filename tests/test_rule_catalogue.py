@@ -172,7 +172,9 @@ def _scenarios(rule):
 # Rules that only act against a particular troop type get an opponent of it,
 # and rules that only act against a kind of attack get an opponent making it.
 OPPONENT_TROOP_TYPE = {"Monster Slayer": "Behemoth"}
-OPPONENT_EXTRA_RULES = {"Ward5 (magical)": ["Magical Attacks"]}
+OPPONENT_EXTRA_RULES = {"Ward5 (magical)": ["Magical Attacks"],
+                        # Leadership only shows in a duel through a Leadership test.
+                        "Cry of War": ["Primal Fury"], "Black Lotus": ["Primal Fury"]}
 # Characteristics or kit that give a rule something to act on.
 OPPONENT_STATS = {
     "Cannot Be Wounded On 2": {"Strength": 6},

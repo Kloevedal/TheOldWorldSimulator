@@ -157,3 +157,13 @@ td.num { text-align: right; }
   .controls { gap: 10px; }
   .spacer { display: none; }
 }
+
+/* a unit's command group */
+.command-row { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-left: 98px; }
+.champion-items { margin-left: 98px; }
+.champion-items summary { cursor: pointer; color: var(--blue); font-size: 0.9rem; }
+.item-list { max-height: 180px; overflow: auto; border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; margin-top: 4px; background: var(--surface-2); }
+.check.item { display: flex; flex-wrap: wrap; gap: 4px; font-size: 0.88rem; padding: 2px 0; }
+@media (max-width: 480px) {
+  .command-row, .champion-items { margin-left: 0; }
+}

@@ -10,6 +10,7 @@ name the simulator uses for that weapon, armour, mount or rule:
 
     {faction: {profile: {"weapons": {name: cost}, "armour": {...},
                          "shield": cost, "mounts": {...}, "rules": {...},
+                         "command": {"champion"|"standard"|"musician": cost},
                          "per_model": bool}}}
 
 `per_model` is set for units whose weapon and armour upgrades are priced per
@@ -34,8 +35,11 @@ import verify_rosters as vr  # noqa: E402
 
 OUT = os.path.join(ROOT, "option_costs.py")
 
-_PRICED = re.compile(r"^(.*?)\s*\((?:\+(\d+) points?(?: per (model|unit))?|Free)\)\s*$", re.I)
-_LEAD = re.compile(r"^(?:[-\s]*)(?:a character with .*? may be mounted on (?:a |an )?|"
+# "Great weapon (+4 points)", "Halberds (+1 point per model)", "(Free)"; some
+# pages leave out the brackets ("Great weapons +1 point per model").
+_PRICED = re.compile(r"^(.*?)\s*(?:\((?:\+(\d+) points?(?: per (model|unit))?|Free)\)"
+                     r"|\+(\d+) points?(?: per (model|unit))?)\s*$", re.I)
+_LEAD = re.compile(r"^(?:[-\s]*)(?:any unit may (?=upgrade)|a character with .*? may be mounted on (?:a |an )?|"
                    r"(?:may )?take (?:a |an )?|the entire unit may take |"
                    r"(?:may )?replace .*? with (?:a |an )?|may be mounted on (?:a |an )?|"
                    r"(?:may )?have (?:the )?|may be (?:a |an )?)", re.I)
@@ -62,6 +66,15 @@ def classify(label, entry):
 
     low = label.lower()
     base = entry["base_profile"]
+    command = re.fullmatch(r"upgrade one model to an? (.+?)", low)
+    if command:
+        role = command.group(1)
+        if "(champion)" in role:
+            return "command", "champion"
+        if "standard bearer" in role:
+            return "command", "standard"
+        if "musician" in role:
+            return "command", "musician"
     if low in ("shield", "shields"):
         return "shield", "Shield"
     singular = ti._singular(low)
@@ -86,7 +99,7 @@ def classify(label, entry):
 
 
 def costs_for(slug, entry):
-    result = {"weapons": {}, "armour": {}, "mounts": {}, "rules": {}}
+    result = {"weapons": {}, "armour": {}, "mounts": {}, "rules": {}, "command": {}}
     unmatched = []
     per_model = False
     for line in site.unit(slug)["options"].splitlines():
@@ -94,8 +107,8 @@ def costs_for(slug, entry):
         if not match:
             continue
         label = _label(match.group(1))
-        cost = int(match.group(2) or 0)
-        if match.group(3) == "model":
+        cost = int(match.group(2) or match.group(4) or 0)
+        if "model" in (match.group(3), match.group(5)):
             per_model = True
         found = classify(label, entry)
         if not found:

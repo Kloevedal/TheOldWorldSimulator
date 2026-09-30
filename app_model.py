@@ -4,13 +4,11 @@ Everything here is plain Python so it can be tested without a display. The
 Tk interface in simulator_app.py only collects choices into a `FighterSpec`
 and hands it to `run_statistics` or `narrate_duel`.
 
-The app has two modes, kept apart so rank-and-file combat can slot in later:
+The app has two modes:
 
-    "character"  character duels - what the engine simulates today
-    "unit"       unit vs unit. The engine has no charges, ranks or combat
-                 resolution yet, so for now a unit fights as a single model of
-                 its profile. Unit size and frontage are recorded on the spec
-                 for when it does.
+    "character"  character duels (combat_simulations)
+    "unit"       rank-and-file unit fights (unit_combat, through unit_model);
+                 run_statistics and narrate_duel hand unit specs over to it.
 """
 
 from __future__ import annotations
@@ -54,9 +52,11 @@ KINDS = (CHARACTER, UNIT)
 KIND_LABELS = {CHARACTER: "Character duel", UNIT: "Unit vs unit"}
 
 UNIT_COMBAT_NOTE = (
-    "Rank-and-file combat (charges, ranks, supporting attacks, combat "
-    "resolution) is not simulated yet. Each unit currently fights as a single "
-    "model of its profile; unit size and frontage are recorded for later."
+    "Units fight rank and file from the moment of contact until one breaks, is "
+    "destroyed or escapes: charges, ranks, supporting attacks, challenges, "
+    "characters in units, combat results, Break tests and pursuit. Not "
+    "simulated: movement before contact (charge reactions, Fear and Terror "
+    "tests to charge), terrain, more than two units, and rallying."
 )
 
 
@@ -187,6 +187,8 @@ class FighterSpec:
     kind: str = CHARACTER
     models: int = 1  # unit size; always 1 for a character
     frontage: int = 1  # models in the front rank
+    # A unit's command group, characters, spells and orders (see unit_model.UnitSide).
+    extras: dict = field(default_factory=dict)
 
     @property
     def ranks(self):
@@ -444,7 +446,9 @@ def fighting_stats(character):
     for rule in map(str, weapon_rules):
         if re.fullmatch(r"\+\d+A", rule):
             fixed += int(rule[1:-1])
-    if Frenzy in rules or MarkOfKhorne in rules:
+    from combat_simulations import frenzy_bonus_applies
+
+    if (Frenzy in rules or MarkOfKhorne in rules) and frenzy_bonus_applies(character):
         fixed += 1
     if FuriousCharge in rules:
         fixed += 1
@@ -632,10 +636,7 @@ class DuelStats:
                 f"  avg wounds left when winning: {avg:.2f}\n"
             )
 
-        noun = "duels" if self.kind == CHARACTER else "model-vs-model fights"
-        header = f"{self.runs} {noun}, {rounds_text(self.rounds)}\n\n"
-        if self.kind == UNIT:
-            header = f"Note: {UNIT_COMBAT_NOTE}\n\n" + header
+        header = f"{self.runs} duels, {rounds_text(self.rounds)}\n\n"
         return (
             header
             + side(self.name_a, self.wins_a, self.kills_a, self.wounds_left_a)
@@ -645,9 +646,23 @@ class DuelStats:
         )
 
 
+UNIT_TURN_CAP = 30  # "to the death" for units: fights end long before this
+
+
+def _unit_fight(spec_a, spec_b, rounds):
+    import unit_model as um
+
+    fight = um.UnitFight(max_turns=UNIT_TURN_CAP if rounds is TO_THE_DEATH else rounds)
+    return um, um.side_for(spec_a), um.side_for(spec_b), fight
+
+
 def run_statistics(spec_a, spec_b, runs=DEFAULT_RUNS, rounds=TO_THE_DEATH, seed=None, progress=None):
-    """Fight `runs` duels and tally them. `progress(done)` is called periodically."""
+    """Fight `runs` duels (or unit fights) and tally them. `progress(done)` is
+    called periodically. Units return a unit_model.UnitStats."""
     _check_same_kind(spec_a, spec_b)
+    if spec_a.kind == UNIT:
+        um, side_a, side_b, fight = _unit_fight(spec_a, spec_b, rounds)
+        return um.run_unit_statistics(side_a, side_b, fight, runs, seed, progress)
     name_a, name_b = _fighter_names(spec_a, spec_b)
     # Build once up front so an illegal loadout fails before the loop starts.
     spec_a.build(name_a)
@@ -675,15 +690,16 @@ def run_statistics(spec_a, spec_b, runs=DEFAULT_RUNS, rounds=TO_THE_DEATH, seed=
 
 
 def narrate_duel(spec_a, spec_b, rounds=DEFAULT_NARRATION_ROUNDS, seed=None):
-    """Fight one duel and return the engine's round-by-round narration."""
+    """Fight one duel (or unit fight) and return the round-by-round narration."""
     _check_same_kind(spec_a, spec_b)
+    if spec_a.kind == UNIT:
+        um, side_a, side_b, fight = _unit_fight(spec_a, spec_b, rounds)
+        return um.narrate_unit_fight(side_a, side_b, fight, seed)
     name_a, name_b = _fighter_names(spec_a, spec_b)
     a, b = spec_a.build(name_a), spec_b.build(name_b)
     dice.seed(seed)
     buffer = io.StringIO()
     with redirect_stdout(buffer):
-        if spec_a.kind == UNIT:
-            print(f"Note: {UNIT_COMBAT_NOTE}\n")
         for name, spec, model in ((name_a, spec_a, a), (name_b, spec_b, b)):
             formation = f", {spec.formation()}" if spec.kind == UNIT else ""
             mount = f", riding {model.mount}" if model.mount else ""

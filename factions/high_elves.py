@@ -174,6 +174,7 @@ CHARACTERS = {
             "Weapon": "Hand Weapon",
             "Shield": False,
             "SpecialRules": ["Arrows of Isha", "Evasive", "Ignores Cover", "Immune to Psychology", "Ithilmar Armour", "Ithilmar Weapons", "Strike First"],
+            "OptionalRules": ["Horn of Isha"],
             "TroopType": "RegularInfantry",
             "UnitCategory": "Character",
         },

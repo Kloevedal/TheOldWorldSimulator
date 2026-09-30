@@ -41,6 +41,22 @@ EXCLUSIVE_OPTIONS = (
 )
 
 
+# Options of which a model may take only one, none being the default
+# ("May take one of the following gifts of Khaine", "... forbidden poisons").
+PICK_ONE_OPTIONS = (
+    ("Cry of War", "Rune of Khaine", "Witchbrew"),
+    ("Black Lotus", "Dark Venom", "Manbane"),
+)
+# An option whose effect is another rule the engine reads, added to the model
+# when it is built from its profile (Rune of Khaine: "This character has the
+# Extra Attacks (+D3) special rule").
+OPTION_GRANTS = {
+    "Rune of Khaine": ["Extra Attacks (+D3)"],
+    "Dark Venom": ["Killing Blow"],
+    "Manbane": ["Wounds On (4+)"],
+}
+
+
 def offered_options(profile):
     """Rules a profile may add: its OptionalRules and any Marks of Chaos."""
     return list(profile.get("OptionalRules") or []) + list(profile.get("MarksOfChaos") or [])
@@ -222,7 +238,14 @@ class Character:
                     f"{resolved} cannot take {picks[0]}. Offered: {sorted(offered) or 'nothing'}"
                 )
             base_rules = [rule for rule in base_rules if rule not in group]
+        for group in PICK_ONE_OPTIONS:
+            picks = [rule for rule in chosen if rule in group]
+            if len(picks) > 1:
+                raise ValueError(f"{resolved} can only have one of {picks}")
         self.SpecialRules = base_rules + chosen
+        for rule, grants in OPTION_GRANTS.items():
+            if rule in self.SpecialRules:
+                self.SpecialRules += [g for g in grants if g not in self.SpecialRules]
         self.UnitCategory = profile.get("UnitCategory")
         self._mount_options = list(entry.get("mount_options", {}).get("mounts", []))
         self.TroopType = profile.get("TroopType")

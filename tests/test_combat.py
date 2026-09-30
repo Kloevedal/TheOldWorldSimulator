@@ -192,17 +192,20 @@ class TestAttackCount(unittest.TestCase):
     def test_two_hand_weapons_grant_an_extra_attack(self):
         self.assertEqual(apply_extra_attacks(fighter(Weapon="Two Hand Weapons")), 3)
 
-    def test_frenzy_grants_an_extra_attack(self):
-        self.assertEqual(apply_extra_attacks(fighter(SpecialRules=["Frenzy"])), 3)
+    def test_frenzy_grants_an_extra_attack_on_the_charge_only(self):
+        # "During a turn in which it made a charge move": in a duel both
+        # fighters count as charging in the first round.
+        self.assertEqual(apply_extra_attacks(fighter(SpecialRules=["Frenzy"]), is_first_round=True), 3)
+        self.assertEqual(apply_extra_attacks(fighter(SpecialRules=["Frenzy"]), is_first_round=False), 2)
 
     def test_bonuses_stack(self):
         c = fighter(Weapon="Two Hand Weapons", SpecialRules=["Frenzy"])
-        self.assertEqual(apply_extra_attacks(c), 4)
+        self.assertEqual(apply_extra_attacks(c, is_first_round=True), 4)
 
     def test_roll_to_hit_uses_the_bonus_attacks(self):
         attacker = fighter("A", Weapon="Two Hand Weapons", SpecialRules=["Frenzy"])
         with dice.scripted_dice([6, 6, 6, 6]):  # exactly 4 attacks expected
-            hits = RollToHit(attacker, fighter("B"), verbose=False)
+            hits = RollToHit(attacker, fighter("B"), verbose=False, is_first_round=True)
         self.assertEqual(hits, 4)
 
 

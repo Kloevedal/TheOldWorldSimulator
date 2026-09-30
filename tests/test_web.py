@@ -79,6 +79,39 @@ class TestCleanSpec(unittest.TestCase):
         self.assertEqual(info["spec"]["name"], "<img src=x onerror=alert(1)>")
 
 
+class TestUnitCommand(unittest.TestCase):
+    KNIGHTS = {"kind": "unit", "faction": "Dark Elves", "profile": "Cold One Knights",
+               "weapon": "Lance", "armour": "Heavy Armor", "models": 6, "frontage": 3}
+
+    def test_unit_extras_are_cleaned(self):
+        spec = clean_spec(dict(self.KNIGHTS, extras={
+            "champion": True, "standard": "yes", "musician": False, "evil": 1,
+            "standard_items": ["War Banner"] * 50, "champion_items": "Sword of Might"}))
+        self.assertEqual(spec.extras, {"champion": True, "standard": False, "musician": False,
+                                       "champion_items": [], "standard_items": ["War Banner"] * MAX_LIST})
+        self.assertEqual(clean_spec(dict(PRINCE, extras={"champion": True})).extras, {})
+
+    def test_options_list_the_command_group_and_its_items(self):
+        command = result("options", "Dark Elves", "Cold One Knights")["command"]
+        self.assertEqual(command["roles"], ["champion", "standard", "musician"])
+        self.assertIn("War Banner", [s["name"] for s in command["standards"]])
+        self.assertIn("Sword of Might", [i["name"] for i in command["champion_items"]])
+        self.assertIsNone(result("options", "High Elf Realms", "Prince")["command"])
+
+    def test_points_and_item_checks(self):
+        info = result("describe", dict(self.KNIGHTS, extras={
+            "champion": True, "standard": True, "musician": False,
+            "standard_items": ["War Banner"], "champion_items": ["Sword of Might"]}))
+        self.assertTrue(info["ok"])
+        labels = [b["label"] for b in info["breakdown"]]
+        self.assertIn("War Banner", labels)
+        self.assertNotIn("Musician", labels)
+        self.assertEqual(result("check_unit_items", "Dark Elves", "Cold One Knights", "standard",
+                                ["War Banner"]), "")
+        self.assertIn("cannot carry", result("check_unit_items", "Dark Elves", "Cold One Knights",
+                                             "champion", ["War Banner"]))
+
+
 class TestPageCalls(unittest.TestCase):
     def test_describe(self):
         info = result("describe", PRINCE)

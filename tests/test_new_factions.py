@@ -231,11 +231,74 @@ class TestPrimalFury(unittest.TestCase):
             self.assertEqual(test_primal_fury(fighter("Plain"), verbose=False),
                              (False, False))
 
-    def test_frenzy_from_blood_rage_adds_an_attack(self):
+    def test_frenzy_from_blood_rage_adds_an_attack_on_the_charge(self):
         beastlord = self.beastlord()
-        self.assertEqual(apply_extra_attacks(beastlord), 4)
+        self.assertEqual(apply_extra_attacks(beastlord, is_first_round=True), 4)
         beastlord.blood_rage_frenzied = True
-        self.assertEqual(apply_extra_attacks(beastlord), 5)
+        self.assertEqual(apply_extra_attacks(beastlord, is_first_round=True), 5)
+        # Frenzy only adds its Attack in a turn the model charged.
+        self.assertEqual(apply_extra_attacks(beastlord, is_first_round=False), 4)
+
+
+class TestGiftsOfKhaine(unittest.TestCase):
+    """Death Hag gifts and Khainite Assassin poisons (tow.whfb.app/special-rules)."""
+
+    def hag(self, *gifts):
+        return Character(name="Hag", faction_type="Dark Elves", profile_name="Death Hag",
+                         SpecialRules=list(gifts))
+
+    def assassin(self, *poisons):
+        return Character(name="Assassin", faction_type="Dark Elves", profile_name="Khainite Assassin",
+                         SpecialRules=list(poisons))
+
+    def test_only_one_gift_and_one_poison(self):
+        with self.assertRaisesRegex(ValueError, "only have one"):
+            self.hag("Rune of Khaine", "Witchbrew")
+        with self.assertRaisesRegex(ValueError, "only have one"):
+            self.assassin("Dark Venom", "Manbane")
+
+    def test_rune_of_khaine_gives_extra_attacks_d3(self):
+        from combat_simulations import apply_extra_attacks
+
+        self.assertIn("Extra Attacks (+D3)", self.hag("Rune of Khaine").SpecialRules)
+        plain = apply_extra_attacks(self.hag())
+        with dice.constant_dice(6):  # a D3 of 3
+            self.assertEqual(apply_extra_attacks(self.hag("Rune of Khaine")), plain + 3)
+
+    def test_dark_venom_is_killing_blow_and_manbane_wounds_on_four(self):
+        self.assertIn("Killing Blow", self.assassin("Dark Venom").SpecialRules)
+        self.assertIn("Wounds On (4+)", self.assassin("Manbane").SpecialRules)
+        self.assertNotIn("Killing Blow", self.assassin().SpecialRules)
+
+    def test_cry_of_war_lowers_the_enemys_leadership_during_the_duel(self):
+        import io
+        from contextlib import redirect_stdout
+
+        from combat_simulations import combat_simulation
+
+        hag = self.hag("Cry of War")
+        foe = Character(name="Foe", faction_type="Empire of Man", profile_name="General of the Empire")
+        seen = []
+        import combat_simulations as cs
+
+        real = cs._duel
+        cs._duel = lambda a, b, rounds, verbose: seen.append(b.Leadership)
+        try:
+            with redirect_stdout(io.StringIO()):
+                combat_simulation(hag, foe, rounds=1, verbose=False)
+        finally:
+            cs._duel = real
+        self.assertEqual(seen, [foe.Leadership - 1])  # restored afterwards
+
+    def test_black_lotus_saps_leadership_per_wound(self):
+        from combat_simulations import StrikeResult, Wound, _apply_step
+
+        assassin = self.assassin("Black Lotus")
+        foe = Character(name="Foe", faction_type="Empire of Man", profile_name="General of the Empire")
+        foe.current_wounds = foe.Wounds
+        before = foe.Leadership
+        _apply_step([(assassin, foe, StrikeResult(unsaved=[Wound(roll=4), Wound(roll=4)]))], False)
+        self.assertEqual(foe.Leadership, before - 2)
 
 
 class TestMurderous(unittest.TestCase):

@@ -23,6 +23,11 @@ from elven_honors import ElvenHonors
 from faction_profiles import RACE_NAMES, FactionProfiles
 from magic_items import MagicItemDict
 from special_rules import (
+    BlackLotus,
+    CryOfWar,
+    Parry,
+    RerollArmourSaveSixes,
+    parse_armour_penalty,
     AccursedWeapons,
     BeguilingPresence,
     FirstRoundInitiative,
@@ -160,12 +165,33 @@ class StrikeResult:
 # ---------------------------------------------------------------------------
 
 
+def _mount_kind(model):
+    """"cavalry", "chariot" or "monster" for a model's mount, or None on foot."""
+    from mounted import Mounts, mount_kind
+
+    mount = getattr(model, "mount", None)
+    return mount_kind(Mounts[mount]) if mount in Mounts else None
+
+
+def frenzy_bonus_applies(model) -> bool:
+    """Whether Frenzy's +1 Attack goes to this element of a model: the rider of
+    a cavalry mount and a chariot's crew get it, their mount and beasts do not;
+    a ridden monster gets it, its rider does not."""
+    owner = getattr(model, "owner", None)
+    if owner is not None:  # a mount's, a monster's or a chariot's beasts' attacks
+        return _mount_kind(owner) == "monster"
+    return _mount_kind(model) != "monster"
+
+
 def apply_extra_attacks(character: Character, is_first_round: bool = False) -> int:
     """Total attacks for the round: base profile plus weapon and rule bonuses.
 
     Special Rules Handled:
         - "+XA" weapon rule: adds X attacks (e.g. Two Hand Weapons)
-        - Frenzy: +1 attack
+        - Frenzy: +1 attack during a turn in which the model charged (in a
+          duel, the first round, where both fighters count as charging) - but
+          not for a cavalry mount or a chariot's beasts, nor for a monster's
+          rider (the monster itself gets it)
         - Furious Charge: +1 attack on the charge round only
         - Extra Attacks (+X) on the model or weapon; a dice value is rolled
           each time this is called, so call it once per round
@@ -183,14 +209,13 @@ def apply_extra_attacks(character: Character, is_first_round: bool = False) -> i
             except ValueError:
                 pass
     rules = character.SpecialRules or []
-    # The Mark of Khorne gives its bearer the Frenzy special rule.
-    frenzied = Frenzy in rules or MarkOfKhorne in rules
-    if frenzied:
+    # The Mark of Khorne gives its bearer the Frenzy special rule; Blood Rage
+    # can make a Beastman Frenzied part-way through a fight.
+    frenzied = (Frenzy in rules or MarkOfKhorne in rules
+                or getattr(character, "blood_rage_frenzied", False))
+    if frenzied and is_first_round and frenzy_bonus_applies(character):
         extra += 1
     if is_first_round and FuriousCharge in rules:
-        extra += 1
-    # Blood Rage can make a Beastman Frenzied part-way through a fight.
-    if getattr(character, "blood_rage_frenzied", False) and not frenzied:
         extra += 1
     return (character.Attacks or 0) + extra
 
@@ -409,7 +434,7 @@ def RollToHit(
 
     if attacks is None:
         attacks = apply_extra_attacks(attacker, is_first_round=is_first_round)
-    hits = natural_sixes = 0
+    hits = natural_sixes = natural_ones = 0
     for _ in range(attacks):
         roll = _hit_roll(can_reroll_1, verbose)
         if roll == 6 and reroll_sixes:
@@ -443,10 +468,12 @@ def RollToHit(
                     print(f"{reason} reroll: {roll} vs target {to_hit_target}+ - Hit!")
                 continue
 
+        natural_ones += roll == 1
         if verbose:
             print(f"Hit roll: {roll} vs target {to_hit_target}+ - Miss!")
     if details is not None:
         details["natural_sixes"] = natural_sixes
+        details["natural_ones"] = natural_ones
     return hits
 
 
@@ -739,6 +766,11 @@ def RollArmorSave(
         if defender.Shield:
             save_target -= 1
         save_target -= parse_armour_bonus(defender.SpecialRules)
+        if (Parry in defender_rules and defender.Shield and save_target > 3
+                and getattr(defender, "Weapon", None) in _HAND_WEAPONS):
+            save_target -= 1
+    if not fixed:
+        save_target += parse_armour_penalty(defender.SpecialRules)
     if save_target > 6:
         return list(wounds)  # no armour, and nothing improving it
 
@@ -773,6 +805,10 @@ def RollArmorSave(
             continue
 
         roll = roll_d6()
+        if roll == 6 and RerollArmourSaveSixes in defender_rules:
+            roll = roll_d6()
+            if verbose:
+                print(f"{defender.name} must re-roll an armour save of 6 -> {roll}")
         if roll == 1 and rerolls_armour_ones:
             roll = roll_d6()
             if verbose:
@@ -1169,10 +1205,35 @@ def combat_simulation(
 
     The engine does not track who charged: like Furious Charge and lances,
     Impact Hits count both fighters as charging in the first round.
+
+    Leadership changes during the duel (Cry of War, Black Lotus) are undone
+    when it ends, so the same fighters can be used again.
     """
     if Shooting:
         raise NotImplementedError("Shooting is not implemented yet")
 
+    saved = [(m, m.Leadership) for c in (character_1, character_2)
+             for m in [c] + list(getattr(c, "mount_parts", []))]
+    try:
+        for model, enemy in ((character_1, character_2), (character_2, character_1)):
+            if CryOfWar in (model.SpecialRules or []):
+                lower_leadership(enemy, 1)
+                if verbose:
+                    print(f"{model.name}'s Cry of War: {enemy.name} is at -1 Leadership")
+        return _duel(character_1, character_2, rounds, verbose)
+    finally:
+        for model, leadership in saved:
+            model.Leadership = leadership
+
+
+def lower_leadership(model, amount):
+    """Lower a model's Leadership (and its mount's) by `amount`, to a minimum of 1."""
+    for part in [model] + list(getattr(model, "mount_parts", [])):
+        if isinstance(part.Leadership, int):
+            part.Leadership = max(1, part.Leadership - amount)
+
+
+def _duel(character_1, character_2, rounds, verbose):
     fighters = (character_1, character_2)
     character_1.current_wounds = character_1.Wounds
     character_2.current_wounds = character_2.Wounds
@@ -1254,6 +1315,12 @@ def _apply_step(rolled, verbose, heal=True):
             attacker.current_wounds = max(0, attacker.current_wounds - result.self_wounds)
         inflicted, _ = resolve_strike(defender, result, verbose=verbose)
         inflicted_by.append((attacker, inflicted))
+        # Black Lotus: the character's own blows (not a mount's) sap Leadership.
+        if (inflicted and BlackLotus in (attacker.SpecialRules or [])
+                and getattr(attacker, "owner", None) is None):
+            lower_leadership(defender, inflicted)
+            if verbose:
+                print(f"Black Lotus: {defender.name} loses {inflicted} Leadership")
     if heal:
         for attacker, inflicted in inflicted_by:
             if attacker.current_wounds > 0:

@@ -807,7 +807,7 @@ UNITS = {
             "SpecialRules": ["Chaos Armour (6+)", "Close Order", "Counter Charge", "Ensorcelled Weapons", "First Charge", "Mark of Chaos Undivided", "Stubborn", "Swiftstride"],
             "TroopType": "HeavyCavalry",
             "UnitCategory": "Unit",
-            "OptionalRules": ["Mark of Chaos Undivided", "Mark of Khorne", "Mark of Nurgle", "Mark of Slaanesh", "Mark of Tzeentch", "Chaotic Traits"],
+            "OptionalRules": ["Mark of Chaos Undivided", "Mark of Khorne", "Mark of Nurgle", "Mark of Slaanesh", "Mark of Tzeentch", "Chaotic Traits", "Drilled"],
         },
         "equipment_options": {
             "weapons": ["Hand Weapon", "Lance"],
@@ -1065,11 +1065,12 @@ UNITS = {
             "Weapon": "Hand Weapon",
             "Shield": False,
             "SpecialRules": ["Armour Bane (2, claws and fangs only)", "Close Order", "Fly (10)", "Large Target", "Stomp Attacks (D3)", "Swiftstride", "Terror"],
+            "OptionalRules": ["Fiend Tail", "Flaming Breath", "Poisoned Attacks", "Regeneration (5+)"],
             "TroopType": "MonstrousCreature",
             "UnitCategory": "Unit",
         },
         "equipment_options": {
-            "weapons": ["Hand Weapon", "Fiend Tail"],
+            "weapons": ["Hand Weapon"],
             "armor": ["Heavy Armor"],
             "shield": False,
             "items": [],

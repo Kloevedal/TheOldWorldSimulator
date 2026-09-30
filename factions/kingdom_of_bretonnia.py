@@ -544,7 +544,7 @@ UNITS = {
             "SpecialRules": ["Close Order", "Levies", "Peasantry"],
             "TroopType": "RegularInfantry",
             "UnitCategory": "Unit",
-            "OptionalRules": ["defensive stakes", "burning braziers", "Close Order"],
+            "OptionalRules": ["defensive stakes", "burning braziers", "Skirmishers"],
         },
         "equipment_options": {
             "weapons": ["Hand Weapon"],

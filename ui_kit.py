@@ -215,3 +215,87 @@ def _rounded(canvas, x0, y0, x1, y1, r, **kw):
     points = [x0 + r, y0, x1 - r, y0, x1, y0, x1, y0 + r, x1, y1 - r, x1, y1,
               x1 - r, y1, x0 + r, y1, x0, y1, x0, y1 - r, x0, y0 + r, x0, y0]
     return canvas.create_polygon(points, smooth=True, **kw)
+
+
+class FormationPanel(tk.Canvas):
+    """A unit seen from above as squares, front rank at the top.
+
+    Rank-and-file are light squares in the side's colour; the command group
+    are marked S (standard), C (champion) and M (musician); characters are
+    solid squares with their initials. Clicking a front-rank square calls
+    `on_slot(slot)`.
+    """
+
+    MAX_RANKS = 8
+
+    def __init__(self, master, fonts, colour, on_slot=None):
+        super().__init__(master, height=120, bg=BACKGROUND, highlightthickness=0)
+        self.fonts, self.colour, self.on_slot = fonts, colour, on_slot
+        self.layout = None
+        self.selected = None
+        self._front = []
+        self.bind("<Configure>", lambda _e: self._draw())
+        self.bind("<Button-1>", self._click)
+
+    def show(self, layout, selected=None):
+        """`layout`: {"front": [occupant, ...], "ranks": [sizes]} where an
+        occupant is "rf", "standard", "champion", "musician" or a character label."""
+        self.layout, self.selected = layout, selected
+        self._draw()
+
+    def _draw(self):
+        self.delete("all")
+        self._front = []
+        if not self.layout:
+            return
+        front, sizes = self.layout["front"], self.layout["ranks"]
+        width = max(self.winfo_width(), 280)
+        columns = max(1, len(front))
+        size = max(8, min(26, (width - 20) / columns - 3))
+        gap = 3
+        shown = sizes[: self.MAX_RANKS]
+        height = 26 + len(shown) * (size + gap) + (14 if len(sizes) > self.MAX_RANKS else 0)
+        self.configure(height=max(60, height))
+        left = (width - (columns * (size + gap) - gap)) / 2
+        self.create_text(width / 2, 9, text="▲ enemy", font=self.fonts.small, fill=MUTED)
+        top = 22
+        for rank, count in enumerate(shown):
+            y = top + rank * (size + gap)
+            for i in range(count):
+                x = left + i * (size + gap)
+                occupant = front[i] if rank == 0 and i < len(front) else "rf"
+                self._square(x, y, size, occupant, rank == 0 and i == self.selected)
+                if rank == 0:
+                    self._front.append((x, y, x + size, y + size, i))
+        if len(sizes) > self.MAX_RANKS:
+            more = sum(sizes[self.MAX_RANKS:])
+            self.create_text(width / 2, top + len(shown) * (size + gap) + 4, anchor="n",
+                             text=f"+ {more} more in {len(sizes) - self.MAX_RANKS} rank(s)",
+                             font=self.fonts.small, fill=MUTED)
+
+    def _square(self, x, y, size, occupant, selected):
+        if occupant in ("rf", "standard", "champion", "musician"):
+            self.create_rectangle(x, y, x + size, y + size, fill=_tint(self.colour), outline=self.colour)
+            letter = {"standard": "S", "champion": "C", "musician": "M"}.get(occupant)
+            if letter:
+                self.create_text(x + size / 2, y + size / 2, text=letter, fill=self.colour,
+                                 font=self.fonts.small)
+        else:
+            self.create_rectangle(x, y, x + size, y + size, fill=self.colour, outline=TEXT if selected else self.colour,
+                                  width=2 if selected else 1)
+            initials = "".join(w[0] for w in str(occupant).split()[:2]).upper()
+            self.create_text(x + size / 2, y + size / 2, text=initials, fill="#ffffff", font=self.fonts.small)
+
+    def _click(self, event):
+        for x0, y0, x1, y1, slot in self._front:
+            if x0 <= event.x <= x1 and y0 <= event.y <= y1:
+                if self.on_slot:
+                    self.on_slot(slot)
+                return
+
+
+def _tint(colour):
+    """A pale version of a #rrggbb colour."""
+    r, g, b = (int(colour[i:i + 2], 16) for i in (1, 3, 5))
+    mix = lambda c: int(c + (255 - c) * 0.72)
+    return f"#{mix(r):02x}{mix(g):02x}{mix(b):02x}"

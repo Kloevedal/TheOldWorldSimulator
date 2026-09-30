@@ -116,6 +116,11 @@ for kind, armies in cat["kinds"].items():
 a = {"faction": "High Elf Realms", "profile": "Prince", "weapon": "Great Weapon", "armour": "Plate Armor"}
 b = {"faction": "Orc & Goblin Tribes", "profile": "Orc Warboss", "weapon": "Great Weapon"}
 out["odds"] = w.odds(a, b, 200, None, 7)
+ua = {"kind": "unit", "faction": "Empire of Man", "profile": "State Troops", "weapon": "Halberd",
+      "armour": "Light Armor", "models": 20, "frontage": 5}
+ub = {"kind": "unit", "faction": "Orc & Goblin Tribes", "profile": "Orc Mob", "models": 20, "frontage": 5}
+out["unit odds"] = w.odds(ua, ub, 100, None, 3)
+out["unit narrate"] = w.narrate(ua, ub, 6, 3)
 out["narrate"] = w.narrate(a, b, 6, 7)
 print(json.dumps(out, sort_keys=True))
 """

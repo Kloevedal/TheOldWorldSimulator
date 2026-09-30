@@ -10,6 +10,14 @@ a total of 50 points") and which abilities it may pick without a points cap
 from this group" with no points limit of its own.
 
 Named characters are not listed: their wargear is fixed.
+
+Units get UNIT_OPTIONS: {faction: {profile: {"command": [roles],
+"champion": name, "champion_items": {budget: points},
+"standard_items": {budget: points}}}} - which of a champion, standard bearer
+and musician the unit may include, what its champion may buy ("A Sergeant
+may purchase magic items up to a total of 25 points") and what its standard
+bearer may carry ("Purchase a magic standard worth up to 50 points",
+"Purchase Standard runes up to a total of 50 points").
 """
 
 from __future__ import annotations
@@ -78,6 +86,63 @@ def allowances(options):
     return found
 
 
+_CHAMPION = re.compile(r"upgrade one model to an? (.+?) \(champion\)", re.I)
+_STANDARD = re.compile(r"(?:purchase|take) an? magic standard worth up to (\d+) points?", re.I)
+_STANDARD_RUNES = re.compile(r"standard runes up to a total of (\d+) points?", re.I)
+
+
+def unit_options(options):
+    """What a unit's options page offers its command group."""
+    found = {"command": []}
+    champion = _CHAMPION.search(options)
+    if champion:
+        found["command"].append("champion")
+        found["champion"] = champion.group(1)
+    if re.search(r"upgrade one model to an? standard bearer", options, re.I):
+        found["command"].append("standard")
+    if re.search(r"upgrade one model to an? musician", options, re.I):
+        found["command"].append("musician")
+    standard = {}
+    if _STANDARD.search(options):
+        standard["Magic Items"] = int(_STANDARD.search(options).group(1))
+    if _STANDARD_RUNES.search(options):
+        standard["Runes"] = int(_STANDARD_RUNES.search(options).group(1))
+    if standard:
+        found["standard_items"] = standard
+    if champion:
+        # "A Sergeant may purchase ...", or "A Shartak may:" / "An Elder may
+        # purchase:" followed by indented lines.
+        name = re.escape(champion.group(1))
+        block = re.search(rf"^-\s*An? {name} may(.*?)(?=^- |\Z)", options, re.I | re.M | re.S)
+        if block:
+            items = {}
+            for what, points in _TOTAL.findall(block.group(0)):
+                for pattern, budget in BUDGETS:
+                    if re.search(pattern, what, re.I):
+                        items[budget] = items.get(budget, 0) + int(points)
+                        break
+            if items:
+                found["champion_items"] = items
+    return found if (found["command"] or len(found) > 1) else None
+
+
+def build_units():
+    result = {}
+    for key, cfg in tf.FACTIONS.items():
+        if not cfg.get("module"):
+            continue
+        module = importlib.import_module(f"factions.{cfg['module']}")
+        folded = {vr._fold(k): k for k in getattr(module, "UNITS", {})}
+        for section, slug, name in site.army_units(cfg["army"]):
+            mine = folded.get(vr._fold(vr.SITE_NAMES.get(name, name)))
+            if not mine:
+                continue
+            found = unit_options(site.unit(slug)["options"])
+            if found:
+                result.setdefault(cfg["faction"], {})[mine] = found
+    return result
+
+
 def build():
     result = {}
     for key, cfg in tf.FACTIONS.items():
@@ -99,6 +164,18 @@ def build():
     return result
 
 
+def render_units(result):
+    lines = ["", "# What each unit's command group may be and buy (see the module docstring).",
+             "UNIT_OPTIONS = {"]
+    for faction in sorted(result):
+        lines.append(f"    {faction!r}: {{")
+        for profile in sorted(result[faction]):
+            lines.append(f"        {profile!r}: {result[faction][profile]!r},")
+        lines.append("    },")
+    lines.append("}")
+    return "\n".join(lines) + "\n"
+
+
 def render(result):
     lines = ['"""What each character may buy: {faction: {profile: {budget: points or None}}}.',
              "",
@@ -118,9 +195,11 @@ if __name__ == "__main__":
     data = build()
     total = sum(len(v) for v in data.values())
     print(total, "characters with allowances")
+    units = build_units()
+    print(sum(len(v) for v in units.values()), "units with command options")
     if "-w" in sys.argv:
         with open(OUT, "w", encoding="utf-8") as fh:
-            fh.write(render(data))
+            fh.write(render(data) + render_units(units))
         print("wrote", OUT)
     else:
         for faction, profiles in data.items():

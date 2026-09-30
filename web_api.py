@@ -100,7 +100,19 @@ def clean_spec(data):
         kind=kind,
         models=_int(data.get("models"), 1, 200, 20) if kind == UNIT else 1,
         frontage=_int(data.get("frontage"), 1, 40, 5) if kind == UNIT else 1,
+        extras=_clean_extras(data.get("extras")) if kind == UNIT else {},
     )
+
+
+def _clean_extras(data):
+    """A unit's command group and its items, from untrusted data."""
+    if not isinstance(data, dict):
+        return {}
+    extras = {key: data.get(key) is True for key in ("champion", "standard", "musician") if key in data}
+    for key in ("champion_items", "standard_items"):
+        values = data.get(key) if isinstance(data.get(key), list) else []
+        extras[key] = [_text(v) for v in values[:MAX_LIST] if _text(v)]
+    return extras
 
 
 # -- what the page asks for ----------------------------------------------------
@@ -134,6 +146,7 @@ def options(faction, profile, items=()):
         "allowance": opts["allowance"],
         "defaults": opts["defaults"],
         "unit": opts["unit"],
+        "command": _command(faction, profile) if opts["unit"] else None,
     }
 
 
@@ -162,6 +175,37 @@ def check_items(faction, profile, items):
     return {"problem": purchase_problem(faction, profile, names) or "", "spent": spent(names)}
 
 
+def _command(faction, profile):
+    """A unit's command models and what its champion and standard bearer may buy."""
+    import unit_model as um
+    from option_costs import OPTION_COSTS
+
+    options = um.unit_options(faction, profile)
+    costs = OPTION_COSTS.get(faction, {}).get(profile, {}).get("command", {})
+    return {
+        "roles": options["command"], "champion": options["champion"], "costs": costs,
+        "champion_budget": options["champion_items"], "standard_budget": options["standard_items"],
+        "champion_items": [{k: i[k] for k in ("name", "cost", "summary", "note")}
+                           for i in um.command_item_choices(faction, profile, "champion")],
+        "standards": [{k: i[k] for k in ("name", "cost", "summary", "note")}
+                      for i in um.command_item_choices(faction, profile, "standard")],
+    }
+
+
+def check_unit_items(faction, profile, role, items):
+    """Why a champion ("champion") or standard bearer ("standard") may not carry
+    these items, or "" if they may."""
+    from magic_items import check_unit_purchase
+
+    if role not in ("champion", "standard"):
+        return "Unknown role"
+    try:
+        check_unit_purchase(faction, profile, role, [_text(i) for i in items[:MAX_LIST]])
+    except ValueError as exc:
+        return str(exc)
+    return ""
+
+
 def describe(spec):
     """Everything a fighter card shows."""
     spec = clean_spec(spec)
@@ -169,7 +213,15 @@ def describe(spec):
         built = spec.build()
     except ValueError as exc:
         return {"ok": False, "error": str(exc), "spec": spec.to_dict()}
-    lines = points_breakdown(spec)
+    if spec.kind == UNIT:
+        import unit_model as um
+
+        try:
+            lines = um.side_points(um.side_for(spec))
+        except ValueError as exc:
+            return {"ok": False, "error": str(exc), "spec": spec.to_dict()}
+    else:
+        lines = points_breakdown(spec)
     stats = compare_stats(spec)
     return {
         "ok": True,
@@ -198,6 +250,12 @@ def odds(spec_a, spec_b, runs=DEFAULT_RUNS, rounds=None, seed=None, progress=Non
     runs = _int(runs, 1, MAX_RUNS, DEFAULT_RUNS)
     stats = run_statistics(clean_spec(spec_a), clean_spec(spec_b), runs, _rounds(rounds),
                            _seed(seed), progress=progress)
+    if stats.kind == UNIT:  # a rank-and-file fight: wins come from breaking the enemy
+        return {
+            "name_a": stats.name_a, "name_b": stats.name_b, "runs": stats.runs,
+            "rounds": "until one side breaks", "wins_a": stats.wins[0], "wins_b": stats.wins[1],
+            "draws": stats.draws, "unit": True, "lines": stats.summary().strip().splitlines()[1:],
+        }
     return {
         "name_a": stats.name_a, "name_b": stats.name_b, "runs": stats.runs,
         "rounds": rounds_text(stats.rounds),
@@ -213,7 +271,7 @@ def narrate(spec_a, spec_b, rounds=DEFAULT_NARRATION_ROUNDS, seed=None):
 
 
 _CALLS = {"catalog": catalog, "options": options, "shop": shop, "check_items": check_items,
-          "describe": describe, "odds": odds, "narrate": narrate}
+          "check_unit_items": check_unit_items, "describe": describe, "odds": odds, "narrate": narrate}
 
 
 def call(name, args_json="[]", progress=None):

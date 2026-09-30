@@ -673,8 +673,11 @@ def allowance_for(faction, profile):
     return dict(ALLOWANCES.get(faction, {}).get(profile, {}))
 
 
-def check_purchase(faction, profile, items):
+def check_purchase(faction, profile, items, allowance=None):
     """Raise ValueError if `profile` may not buy this set of items.
+
+    `allowance` ({budget: points}) replaces the character allowance, for a
+    unit's champion or standard bearer.
 
     Checks: every item exists and belongs to the faction (or is common); the
     character has an allowance for each item's budget and stays within its
@@ -686,7 +689,8 @@ def check_purchase(faction, profile, items):
     if not items:
         return
     allowed = set(items_for(faction))
-    allowance = allowance_for(faction, profile)
+    if allowance is None:
+        allowance = allowance_for(faction, profile)
     spent, picked, slots = {}, {}, {}
     for name in items:
         entry = get_magic_item(name)
@@ -718,6 +722,69 @@ def check_purchase(faction, profile, items):
             if kind in slots:
                 raise ValueError(f"{profile} cannot carry both {slots[kind]} and {key} ({kind})")
             slots[kind] = key
+
+
+# -- a unit's command group ------------------------------------------------------
+
+def unit_command_options(faction, profile):
+    """{"command": [roles], "champion": name, "champion_items": {budget: points},
+    "standard_items": {budget: points}} for a unit, from its page."""
+    from faction_profiles import resolve_faction
+    from item_allowances import UNIT_OPTIONS
+
+    faction = resolve_faction(faction) or faction
+    found = UNIT_OPTIONS.get(faction, {}).get(profile)
+    return dict(found) if found else {"command": []}
+
+
+def is_standard_item(name):
+    """A magic standard, or a rune that goes on a standard."""
+    entry = get_magic_item(name) or {}
+    return entry.get("type") == "Magic Standard" or entry.get("category") == "Standard Runes"
+
+
+def unit_items_for(faction, profile, role):
+    """Items a unit's champion ("champion") or standard bearer ("standard") may buy."""
+    options = unit_command_options(faction, profile)
+    allowance = options.get(f"{role}_items") or {}
+    found = []
+    for name in items_for(faction):
+        entry = get_magic_item(name)
+        if item_budget(name) not in allowance or (entry.get("cost") or 0) > (allowance[item_budget(name)] or 0):
+            continue
+        if is_standard_item(name) != (role == "standard"):
+            continue
+        if entry.get("category") in ENGINEER_ONLY:
+            continue
+        found.append(name)
+    return found
+
+
+def check_unit_purchase(faction, profile, role, items):
+    """Raise ValueError if a unit's champion or standard bearer may not carry `items`."""
+    items = list(items or [])
+    if not items:
+        return
+    options = unit_command_options(faction, profile)
+    if role not in options["command"]:
+        raise ValueError(f"{profile} cannot include a {'champion' if role == 'champion' else 'standard bearer'}")
+    label = options.get("champion") if role == "champion" else "The standard bearer"
+    for name in items:
+        if get_magic_item(name) is not None and is_standard_item(name) != (role == "standard"):
+            kind = "a magic standard" if role == "champion" else "only a magic standard"
+            raise ValueError(f"{label} {'cannot carry' if role == 'champion' else 'carries'} {kind} ({name})")
+    check_purchase(faction, label or profile, items, allowance=options.get(f"{role}_items") or {})
+
+
+def equip(model, items):
+    """Give a unit's champion its magic items: a magic weapon becomes its
+    weapon; everything else applies as it would to a character."""
+    for name in items or []:
+        entry = get_magic_item(name) or {}
+        if entry.get("is_weapon"):
+            model.Weapon = entry.get("weapon", name)
+            model.original_Weapon = model.Weapon
+    return apply_magic_items(model, items)
 
 
 def granted_equipment(items):

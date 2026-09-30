@@ -32,6 +32,8 @@ import special_rules as sr
 ENGINE_RULES = {
     sr.AccursedWeapons,
     sr.Barding,
+    sr.BlackLotus,
+    sr.CryOfWar,
     sr.BeguilingPresence,
     sr.BlessingsOfTheLady,
     sr.FirstRoundInitiative,
@@ -169,6 +171,10 @@ LABELS = {
     "Daughters of Eternity": "Ward4",
     "Inner Circle": sr.RerollHits1,
     "Relentless Warriors": "Ward6 (non-magical)",
+    # Options whose rule grants another (character_model.OPTION_GRANTS)
+    "Rune of Khaine": "Extra Attacks (+D3)",
+    "Dark Venom": "Killing Blow",
+    "Manbane": "Wounds On (4+)",
     "Runes of Protection": "Ward6 (non-magical)",
     "Runes of Warding": "Ward5 (Flaming)",
 }
@@ -190,6 +196,8 @@ FAMILIES = {
 # Would affect a one-on-one melee duel; not modelled yet. Keep this honest -
 # it is the engine's to-do list, and run_tests.py prints it.
 NOT_SIMULATED = {
+    # Options added to the rosters whose effects are not built yet.
+    "Horn of Isha", "Oathstone", "Fiend Tail",
     # Extra attacks, hits and damage
     
     
@@ -223,6 +231,9 @@ NOT_SIMULATED = {
 
 # No bearing on a one-on-one melee duel.
 INERT = {
+    "Flaming Breath",  # a shooting attack
+    # Frenzy is only lost by losing a round of combat, which a duel does not score.
+    "Witchbrew",
     # Mount rules: spells, command range, shooting
     "Accursed Reliquary", "Blasphemous Tome", "Blessings of Khaine", "Borne Aloft",
     "Cloud of Dust", "Holy Fervour", "Mark of Chaos (as rider)", "Scrying Pool",
@@ -408,6 +419,17 @@ INERT |= {
     "Talismanic runes", "Terracotta Sentinel", "Warped Tintinnabulation",
     "Warpstone Sentinel", "Weapon runes", "burning braziers",
     "defensive stakes", "runic tattoos",
+}
+
+
+# Rules with no effect in a duel (so filed above as INERT or a family) that
+# unit fights act on (unit_combat, unit_model). Listed for documentation;
+# test_unit_combat checks each is really read there.
+UNIT_ENGINE_RULES = {
+    "Close Order", "Open Order", "Skirmishers", "Lance Formation", "Horde", "Warband",
+    "Stubborn", "Unbreakable", "Unstable", "Fear", "Terror", "Immune to Psychology", "Witchbrew",
+    "Swiftstride", "Shieldwall", "First Charge", "Fight in Extra Rank", "Levies",
+    "Undisciplined", "Mercenaries",
 }
 
 
